@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: municipio360-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: municipio360
+      POSTGRES_DB: municipio360
+    ports:
+      - "5432:5432"
+    volumes:
+      - municipio360_db_data:/var/lib/postgresql/data
+
+volumes:
+  municipio360_db_data:
