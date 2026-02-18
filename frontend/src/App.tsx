@@ -1,35 +1,45 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+type HealthResponse = {
+  status?: string;
+  ok?: boolean;
+  message?: string;
+};
+
+export default function App() {
+  const [data, setData] = useState<HealthResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function checkHealth() {
+    setError(null);
+    setData(null);
+    try {
+      const res = await fetch("/api/health");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json()) as HealthResponse;
+      setData(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro desconhecido");
+    }
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div style={{ padding: 24 }}>
+      <h1>Municipio360 — Frontend</h1>
+      <button onClick={checkHealth}>Testar ligação ao Backend</button>
 
-export default App
+      {data && (
+        <pre style={{ marginTop: 16, textAlign: "left" }}>
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      )}
+
+      {error && (
+        <p style={{ marginTop: 16, color: "crimson" }}>
+          Erro: {error}
+        </p>
+      )}
+    </div>
+  );
+}
