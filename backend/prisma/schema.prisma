@@ -8,7 +8,24 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id           Int                  @id @default(autoincrement())
+  email        String               @unique
+  passwordHash String
+  role         Role                 @default(CIVIL)
+  certStatus   CertificationStatus  @default(NONE)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+enum CertificationStatus {
+  NONE
+  PENDING
+  CERTIFIED
+  REJECTED
+}
+
+enum Role {
+  CIVIL
+  OPERADOR
+  ADMINISTRADOR
 }
