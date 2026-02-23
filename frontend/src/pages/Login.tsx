@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { setAccessToken } from "../services/token";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -10,24 +11,25 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
 
     try {
       const response = await fetch("http://localhost:3000/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      if (!response.ok) {
-        throw new Error("LOGIN_FAILED");
-      }
-
       const data = await response.json();
 
-      // guardar JWT
-      localStorage.setItem("token", data.access_token);
+      if (!response.ok) {
+        const msg =
+          Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+        throw new Error(msg || "LOGIN_FAILED");
+      }
+
+      // ✅ guardar JWT (alinhado com o backend)
+      setAccessToken(data.accessToken);
 
       navigate("/dashboard");
     } catch (err) {
