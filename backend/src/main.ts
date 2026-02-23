@@ -7,7 +7,12 @@ import { ValidationPipe } from "@nestjs/common";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ validação global para DTOs (RegisterDto, etc.)
+  // Permitir pedidos do frontend (Vite default 5173)
+  app.enableCors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
