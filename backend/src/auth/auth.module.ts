@@ -16,7 +16,7 @@ const expiresIn = process.env.JWT_EXPIRES_IN
     PrismaModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn },
+      signOptions: { expiresIn: "1h" },
     }),
   ],
   controllers: [AuthController],
