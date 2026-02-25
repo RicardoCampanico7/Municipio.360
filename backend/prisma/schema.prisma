@@ -24,6 +24,12 @@ enum CertificationStatus {
   REJECTED
 }
 
+enum OccurrenceStatus {
+  SUBMETIDA
+  EM_TRATAMENTO
+  CONCLUIDA
+}
+
 enum Role {
   CIVIL
   OPERADOR
