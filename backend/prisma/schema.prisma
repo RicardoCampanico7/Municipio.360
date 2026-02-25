@@ -13,8 +13,21 @@ model User {
   passwordHash String
   role         Role                 @default(CIVIL)
   certStatus   CertificationStatus  @default(NONE)
+  occurrences Occurrence[]
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
+}
+
+model Occurrence {
+  id          Int              @id @default(autoincrement())
+  title       String
+  description String
+  status      OccurrenceStatus @default(SUBMETIDA)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  userId      Int
+  user        User             @relation(fields: [userId], references: [id])
 }
 
 enum CertificationStatus {
