@@ -67,4 +67,28 @@ export class OccurrencesService {
       where: { id },
     });
   }
+
+    /**
+   * Detalhe público (SCRUM-57):
+   * devolve apenas campos "seguros" (sem user completo).
+   * Endpoint típico: GET /occurrences/:id
+   */
+  async findOnePublic(id: number) {
+    const occurrence = await this.prisma.occurrence.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        status: true,
+        imageUrls: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!occurrence) throw new NotFoundException('Occurrence not found');
+    return occurrence;
+  }
 }
