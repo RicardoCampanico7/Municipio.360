@@ -15,7 +15,7 @@ async function main() {
       email,
       passwordHash: hash,
       role: Role.CIVIL,
-      certStatus: CertificationStatus.CERTIFIED, // ou NONE
+      certStatus: CertificationStatus.CERTIFIED,
     },
   });
 
