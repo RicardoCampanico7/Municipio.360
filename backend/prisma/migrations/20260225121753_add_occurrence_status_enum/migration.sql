@@ -1,2 +1,0 @@
--- CreateEnum
-CREATE TYPE "OccurrenceStatus" AS ENUM ('SUBMETIDA', 'EM_TRATAMENTO', 'CONCLUIDA');

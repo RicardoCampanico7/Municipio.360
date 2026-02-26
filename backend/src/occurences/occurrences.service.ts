@@ -23,7 +23,18 @@ export class OccurrencesService {
   async findAll() {
     return this.prisma.occurrence.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { user: true },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        
+        user: { select: { id: true, email: true } },
+      },
     });
   }
 

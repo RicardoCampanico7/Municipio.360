@@ -38,6 +38,12 @@ export class OccurrencesController {
     return Number(id);
   }
 
+  // GET /occurrences (público)
+  @Get()
+  findAll() {
+    return this.occurrencesService.findAll();
+  }
+
   @Get('health')
   @ApiOperation({ summary: 'Health check do módulo de ocorrências' })
   @ApiResponse({ status: 200, description: 'OK' })
