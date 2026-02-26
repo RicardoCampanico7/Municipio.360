@@ -1,3 +1,25 @@
+-- CreateEnum
+CREATE TYPE "CertificationStatus" AS ENUM ('NONE', 'PENDING', 'CERTIFIED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "OccurrenceStatus" AS ENUM ('SUBMETIDA', 'EM_TRATAMENTO', 'CONCLUIDA');
+
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('CIVIL', 'OPERADOR', 'ADMINISTRADOR');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" SERIAL NOT NULL,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'CIVIL',
+    "certStatus" "CertificationStatus" NOT NULL DEFAULT 'NONE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "Occurrence" (
     "id" SERIAL NOT NULL,
@@ -12,6 +34,9 @@ CREATE TABLE "Occurrence" (
 
     CONSTRAINT "Occurrence_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE INDEX "Occurrence_userId_idx" ON "Occurrence"("userId");
