@@ -32,8 +32,6 @@ export class OccurrencesService {
         status: true,
         createdAt: true,
         updatedAt: true,
-        
-        user: { select: { id: true, email: true } },
       },
     });
   }
