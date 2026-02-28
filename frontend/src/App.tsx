@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import NewOccurrence from "./pages/NewOccurrence";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
       {/* Rotas protegidas */}
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/occurrences/new" element={<NewOccurrence />} />
       </Route>
     </Routes>
   );

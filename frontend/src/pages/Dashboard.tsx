@@ -76,6 +76,10 @@ export default function Dashboard() {
     setLanguageMenuOpen(false);
   };
 
+  const handleCreateOccurrence = () => {
+    navigate("/occurrences/new");
+  };
+
   return (
     <main className="dashboard-screen">
       <section className="dashboard-phone" aria-label="Dashboard">
@@ -147,7 +151,7 @@ export default function Dashboard() {
           <div className="dashboard-banner-copy">
             <h2>{t("dashboard.bannerTitle")}</h2>
             <p>{t("dashboard.bannerCopy")}</p>
-            <button className="dashboard-cta" type="button">
+            <button className="dashboard-cta" type="button" onClick={handleCreateOccurrence}>
               {t("dashboard.bannerButton")}
             </button>
           </div>
@@ -220,6 +224,7 @@ export default function Dashboard() {
                 .filter(Boolean)
                 .join(" ")}
               type="button"
+              onClick={item.accent ? handleCreateOccurrence : undefined}
             >
               <span className="dashboard-nav-icon">
                 <item.icon size={20} strokeWidth={2.2} />
