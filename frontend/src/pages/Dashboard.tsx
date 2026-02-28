@@ -2,6 +2,7 @@ import { FileText, Home, Map, Plus, User } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import OccurrenceCard from "../components/OccurrenceCard";
 import { clearAccessToken } from "../services/token";
 import "./Dashboard.css";
 
@@ -11,6 +12,8 @@ const languageOptions = [
   { code: "es", flag: "🇪🇸" },
   { code: "fr", flag: "🇫🇷" },
 ] as const;
+
+type ReportTone = "progress" | "open" | "done";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,7 +28,12 @@ export default function Dashboard() {
     { value: 5, label: t("dashboard.stats.resolved") },
   ];
 
-  const reports = [
+  const reports: Array<{
+    status: string;
+    title: string;
+    time: string;
+    tone: ReportTone;
+  }> = [
     {
       status: t("dashboard.reports.progress"),
       title: t("dashboard.reports.firstTitle"),
@@ -157,13 +165,13 @@ export default function Dashboard() {
 
               <div className="dashboard-report-list">
                 {reports.map((report) => (
-                  <article className="dashboard-report-card" key={report.title}>
-                    <span className={`dashboard-pill dashboard-pill-${report.tone}`}>
-                      {report.status}
-                    </span>
-                    <h4>{report.title}</h4>
-                    <p>{report.time}</p>
-                  </article>
+                  <OccurrenceCard
+                    key={report.title}
+                    status={report.status}
+                    title={report.title}
+                    time={report.time}
+                    tone={report.tone}
+                  />
                 ))}
               </div>
             </section>
