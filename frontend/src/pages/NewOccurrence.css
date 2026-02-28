@@ -1,0 +1,451 @@
+:root {
+  --occ-bg: #efefef;
+  --occ-surface: rgba(255, 255, 255, 0.72);
+  --occ-card: #ffffff;
+  --occ-text: #202020;
+  --occ-muted: #8b8b8b;
+  --occ-stroke: rgba(15, 23, 42, 0.08);
+  --occ-input: #f3f4f6;
+  --occ-orange: #ff8a2a;
+  --occ-orange-dark: #f67810;
+  --occ-shadow: 0 24px 60px rgba(32, 32, 32, 0.12);
+}
+
+.occ-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 138, 42, 0.14), transparent 20%),
+    linear-gradient(180deg, #f5f5f5 0%, #ececec 100%);
+}
+
+.occ-shell {
+  width: min(1120px, 100%);
+  min-height: min(760px, calc(100vh - 48px));
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1.05fr);
+  gap: 28px;
+  padding: 28px;
+  border-radius: 36px;
+  background: var(--occ-surface);
+  box-shadow: var(--occ-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.occ-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, #ff8c2d 0%, #f67810 100%);
+  padding: 28px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.occ-panel::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -18% auto;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 70%);
+}
+
+.occ-map-toolbar,
+.occ-map-frame,
+.occ-map-location {
+  position: relative;
+  z-index: 1;
+}
+
+.occ-map-toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.occ-map-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.occ-map-toolbar p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.occ-map-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.occ-map {
+  position: relative;
+  height: 100%;
+  min-height: 420px;
+  border-radius: 28px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0.18)),
+    linear-gradient(135deg, #f4f0eb 0%, #ece7df 100%);
+}
+
+.occ-map-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.24) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+.occ-map-road {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.occ-map-road-main {
+  top: 34px;
+  left: -30px;
+  width: 118%;
+  height: 34px;
+  transform: rotate(-18deg);
+}
+
+.occ-map-road-side {
+  left: 74px;
+  bottom: 28px;
+  width: 60%;
+  height: 28px;
+  transform: rotate(28deg);
+}
+
+.occ-map-pin {
+  position: absolute;
+  top: 76px;
+  right: 84px;
+  width: 28px;
+  height: 28px;
+  border-radius: 28px 28px 28px 4px;
+  transform: rotate(-45deg);
+  background: radial-gradient(circle at 34% 34%, #ffbab5 0%, #ff6a57 42%, #d91c1c 100%);
+  box-shadow: 0 14px 24px rgba(217, 28, 28, 0.22);
+}
+
+.occ-map-pin::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.occ-map-location {
+  display: grid;
+  gap: 10px;
+}
+
+.occ-map-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.occ-panel .occ-input {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.occ-panel .occ-input::placeholder {
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.occ-form-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--occ-card);
+  border-radius: 30px;
+  padding: 24px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.05);
+}
+
+.occ-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.occ-back {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--occ-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.occ-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.occ-brand-badge {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--occ-orange-dark), var(--occ-orange));
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(255, 138, 42, 0.22);
+}
+
+.occ-brand-name {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.occ-title {
+  margin: 0;
+  font-size: clamp(2.2rem, 3vw, 3.3rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  color: var(--occ-text);
+}
+
+.occ-subtitle {
+  margin: 12px 0 0;
+  color: var(--occ-muted);
+  font-size: 0.98rem;
+}
+
+.occ-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.occ-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.occ-fieldset legend,
+.occ-field-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--occ-text);
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.occ-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.occ-chip {
+  border: 1px solid transparent;
+  border-radius: 18px;
+  padding: 14px 14px;
+  background: var(--occ-input);
+  color: var(--occ-text);
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.occ-chip.is-active {
+  border-color: rgba(255, 138, 42, 0.44);
+  background: rgba(255, 138, 42, 0.08);
+  box-shadow: 0 0 0 4px rgba(255, 138, 42, 0.1);
+}
+
+.occ-input,
+.occ-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: var(--occ-input);
+  color: var(--occ-text);
+  font: inherit;
+  font-size: 0.98rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.occ-textarea {
+  min-height: 132px;
+  resize: vertical;
+}
+
+.occ-input::placeholder,
+.occ-textarea::placeholder {
+  color: #a0a0a0;
+}
+
+.occ-input:focus,
+.occ-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 138, 42, 0.36);
+  box-shadow: 0 0 0 5px rgba(255, 138, 42, 0.12);
+  background: #fff;
+}
+
+.occ-image-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.occ-image-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.occ-image-remove {
+  min-width: 42px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #b42318;
+  font: inherit;
+  font-weight: 700;
+}
+
+.occ-image-add {
+  align-self: flex-start;
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 138, 42, 0.1);
+  color: var(--occ-orange-dark);
+  font: inherit;
+  font-weight: 700;
+}
+
+.occ-error {
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: rgba(220, 38, 38, 0.06);
+  color: #b42318;
+  font-size: 0.95rem;
+}
+
+.occ-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.occ-button {
+  border: 0;
+  border-radius: 20px;
+  padding: 15px 18px;
+  font: inherit;
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.occ-button-secondary {
+  background: #f3f4f6;
+  color: var(--occ-text);
+}
+
+.occ-button-primary {
+  background: linear-gradient(135deg, var(--occ-orange-dark), var(--occ-orange));
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(255, 138, 42, 0.24);
+}
+
+@media (max-width: 980px) {
+  .occ-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .occ-panel {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .occ-screen {
+    padding: 10px;
+  }
+
+  .occ-shell {
+    min-height: auto;
+    gap: 14px;
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  .occ-panel,
+  .occ-form-card {
+    border-radius: 22px;
+  }
+
+  .occ-panel {
+    padding: 18px;
+    min-height: 320px;
+  }
+
+  .occ-map {
+    min-height: 260px;
+  }
+
+  .occ-form-card {
+    padding: 18px;
+  }
+
+  .occ-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 20px;
+  }
+
+  .occ-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .occ-actions {
+    flex-direction: column-reverse;
+  }
+}
