@@ -1,23 +1,36 @@
+import {
+  ArrowLeft,
+  Camera,
+  Construction,
+  Lightbulb,
+  MapPinned,
+  Signpost,
+  Trash2,
+  Trees,
+  TriangleAlert,
+  Volume2,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import AppLogo from "../components/AppLogo";
 import { getAccessToken } from "../services/token";
 import "./NewOccurrence.css";
 
 const categories = [
-  "Buracos e pavimento",
-  "Iluminacao publica",
-  "Limpeza urbana",
-  "Ruido",
-  "Espacos publicos",
-  "Sinalizacao",
-];
+  { label: "Buracos e pavimento", icon: Construction },
+  { label: "Iluminação pública", icon: Lightbulb },
+  { label: "Limpeza urbana", icon: TriangleAlert },
+  { label: "Ruído", icon: Volume2 },
+  { label: "Espaços públicos", icon: Trees },
+  { label: "Sinalização", icon: Signpost },
+] as const;
 
 export default function NewOccurrence() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const [category, setCategory] = useState(categories[0]);
+  const [category, setCategory] = useState<string>(categories[0].label);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrls, setImageUrls] = useState([""]);
@@ -53,7 +66,7 @@ export default function NewOccurrence() {
 
     const token = getAccessToken();
     if (!token) {
-      setError("Sessao expirada. Volta a iniciar sessao.");
+      setError("Sessão expirada. Volta a iniciar sessão.");
       setLoading(false);
       navigate("/login");
       return;
@@ -79,7 +92,7 @@ export default function NewOccurrence() {
       if (!response.ok) {
         const message =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-        throw new Error(message || "Nao foi possivel criar a ocorrencia.");
+        throw new Error(message || "Não foi possível criar a ocorrência.");
       }
 
       navigate("/dashboard");
@@ -87,7 +100,7 @@ export default function NewOccurrence() {
       if (submitError instanceof Error) {
         setError(submitError.message);
       } else {
-        setError("Nao foi possivel criar a ocorrencia.");
+        setError("Não foi possível criar a ocorrência.");
       }
     } finally {
       setLoading(false);
@@ -96,10 +109,13 @@ export default function NewOccurrence() {
 
   return (
     <main className="occ-screen">
-      <section className="occ-shell" aria-label="Nova ocorrencia">
+      <section className="occ-shell" aria-label="Nova ocorrência">
         <aside className="occ-panel" aria-hidden="true">
           <div className="occ-map-toolbar">
-            <span className="occ-map-kicker">Localizacao da ocorrencia</span>
+            <span className="occ-map-kicker">
+              <MapPinned size={15} strokeWidth={2.2} />
+              Localização da ocorrência
+            </span>
             <p>Define o ponto no mapa e confirma a morada no campo abaixo.</p>
           </div>
 
@@ -114,6 +130,7 @@ export default function NewOccurrence() {
 
           <div className="occ-map-location">
             <label className="occ-map-label" htmlFor="occ-location-preview">
+              <MapPinned size={16} strokeWidth={2.2} />
               Morada selecionada
             </label>
             <input
@@ -130,57 +147,70 @@ export default function NewOccurrence() {
         <section className="occ-form-card">
           <div className="occ-topbar">
             <button className="occ-back" type="button" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft size={16} strokeWidth={2.4} />
               Voltar
             </button>
 
             <div className="occ-brand">
-              <div className="occ-brand-badge" aria-hidden="true">
-                M
-              </div>
+              <AppLogo className="occ-brand-logo" />
               <div className="occ-brand-name">{t("appName")}</div>
             </div>
           </div>
 
           <div>
-            <h1 className="occ-title">Nova ocorrencia</h1>
+            <h1 className="occ-title">Nova ocorrência</h1>
             <p className="occ-subtitle">
-              Preenche o formulario e envia o reporte diretamente para analise.
+              Preenche o formulário e envia o reporte diretamente para análise.
             </p>
           </div>
 
           <form className="occ-form" onSubmit={handleSubmit}>
             <fieldset className="occ-fieldset">
-              <legend>Categoria</legend>
+              <legend>
+                <TriangleAlert size={16} strokeWidth={2.2} />
+                Categoria
+              </legend>
               <div className="occ-grid">
-                {categories.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className={["occ-chip", item === category ? "is-active" : ""]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => setCategory(item)}
-                  >
-                    {item}
-                  </button>
-                ))}
+                {categories.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className={["occ-chip", item.label === category ? "is-active" : ""]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => setCategory(item.label)}
+                    >
+                      <span className="occ-chip-icon" aria-hidden="true">
+                        <Icon size={18} strokeWidth={2.2} />
+                      </span>
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </fieldset>
 
             <label className="occ-field-label" htmlFor="occ-description">
-              Descricao
+              <TriangleAlert size={16} strokeWidth={2.2} />
+              Descrição
             </label>
             <textarea
               id="occ-description"
               className="occ-textarea"
-              placeholder="Descreve o que esta a acontecer e qualquer detalhe util."
+              placeholder="Descreve o que está a acontecer e qualquer detalhe útil."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
             />
 
             <fieldset className="occ-fieldset">
-              <legend>Fotografias (URLs opcionais)</legend>
+              <legend>
+                <Camera size={16} strokeWidth={2.2} />
+                Fotografias (URLs opcionais)
+              </legend>
               <div className="occ-image-list">
                 {imageUrls.map((url, index) => (
                   <div className="occ-image-row" key={`${index}-${url}`}>
@@ -197,12 +227,13 @@ export default function NewOccurrence() {
                       onClick={() => handleRemoveImage(index)}
                       aria-label="Remover imagem"
                     >
-                      X
+                      <Trash2 size={16} strokeWidth={2.2} />
                     </button>
                   </div>
                 ))}
                 {imageUrls.length < 3 && (
                   <button className="occ-image-add" type="button" onClick={handleAddImage}>
+                    <Camera size={16} strokeWidth={2.2} />
                     Adicionar outra imagem
                   </button>
                 )}
@@ -220,7 +251,7 @@ export default function NewOccurrence() {
                 Cancelar
               </button>
               <button className="occ-button occ-button-primary" type="submit" disabled={loading}>
-                {loading ? "A enviar..." : "Enviar ocorrencia"}
+                {loading ? "A enviar..." : "Enviar ocorrência"}
               </button>
             </div>
           </form>

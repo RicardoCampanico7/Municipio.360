@@ -1,4 +1,4 @@
-import { FileText, Home, Map, Plus, User } from "lucide-react";
+import { FileText, Home, Map, Plus, Sparkles, User } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -23,9 +23,9 @@ export default function Dashboard() {
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
 
   const reportStats = [
-    { value: 3, label: t("dashboard.stats.open") },
-    { value: 1, label: t("dashboard.stats.progress") },
-    { value: 5, label: t("dashboard.stats.resolved") },
+    { value: 3, label: t("dashboard.stats.open"), tone: "open" as const },
+    { value: 1, label: t("dashboard.stats.progress"), tone: "progress" as const },
+    { value: 5, label: t("dashboard.stats.resolved"), tone: "done" as const },
   ];
 
   const reports: Array<{
@@ -132,7 +132,7 @@ export default function Dashboard() {
             </div>
 
             <button
-              className="dashboard-icon-button"
+              className="dashboard-icon-button dashboard-logout-button"
               type="button"
               aria-label={t("dashboard.logoutAria")}
               onClick={handleLogout}
@@ -182,30 +182,43 @@ export default function Dashboard() {
           </div>
 
           <aside className="dashboard-secondary">
-            <section className="dashboard-section">
-              <h3 className="dashboard-section-title">{t("dashboard.summaryTitle")}</h3>
-              <div className="dashboard-stats">
-                {reportStats.map((stat) => (
-                  <article className="dashboard-stat-card" key={stat.label}>
-                    <strong>{stat.value}</strong>
-                    <span>{stat.label}</span>
-                  </article>
-                ))}
+            <section className="dashboard-side-panel">
+              <div className="dashboard-side-head">
+                <div>
+                  <span className="dashboard-side-kicker">
+                    <Sparkles size={14} strokeWidth={2.2} />
+                    Painel rápido
+                  </span>
+                  <h3 className="dashboard-section-title">{t("dashboard.summaryTitle")}</h3>
+                </div>
+                <p className="dashboard-side-copy">
+                  Visão rápida do estado atual e das zonas com atividade.
+                </p>
               </div>
-            </section>
 
-            <section className="dashboard-section">
-              <h3 className="dashboard-section-title">Mapa de ocorrencias</h3>
-              <div className="dashboard-mini-map">
-                <div className="dashboard-mini-map-grid" aria-hidden="true" />
-                <div className="dashboard-mini-map-road dashboard-mini-map-road-main" />
-                <div className="dashboard-mini-map-road dashboard-mini-map-road-cross" />
-                <span className="dashboard-mini-pin dashboard-mini-pin-progress" />
-                <span className="dashboard-mini-pin dashboard-mini-pin-open" />
-                <span className="dashboard-mini-pin dashboard-mini-pin-done" />
-                <div className="dashboard-mini-map-card">
-                  <strong>3 zonas ativas</strong>
-                  <span>1 em progresso</span>
+              <div className="dashboard-map-section">
+                <div className="dashboard-mini-map">
+                  <div className="dashboard-mini-map-grid" aria-hidden="true" />
+                  <div className="dashboard-mini-map-road dashboard-mini-map-road-main" />
+                  <div className="dashboard-mini-map-road dashboard-mini-map-road-cross" />
+                  <span className="dashboard-mini-pin dashboard-mini-pin-progress" />
+                  <span className="dashboard-mini-pin dashboard-mini-pin-open" />
+                  <span className="dashboard-mini-pin dashboard-mini-pin-done" />
+                  <div className="dashboard-mini-map-card">
+                    <strong>3 zonas ativas</strong>
+                    <span>1 em progresso</span>
+                  </div>
+                </div>
+
+                <div className="dashboard-map-legend" aria-label="Legenda do mapa">
+                  {reportStats.map((stat) => (
+                    <span
+                      key={`legend-${stat.label}`}
+                      className={`dashboard-pill dashboard-pill-${stat.tone}`}
+                    >
+                      {stat.value} {stat.label.toLowerCase()}
+                    </span>
+                  ))}
                 </div>
               </div>
             </section>

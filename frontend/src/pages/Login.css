@@ -73,30 +73,30 @@
 }
 
 .brand {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 28px;
 }
 
-.brand-badge {
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border-radius: 18px;
-  background: linear-gradient(135deg, var(--auth-orange-dark), var(--auth-orange));
-  color: #ffffff;
-  font-size: 1.35rem;
-  font-weight: 800;
-  box-shadow: 0 14px 24px rgba(255, 138, 42, 0.22);
+.brand-logo {
+  width: 84px;
+  height: 84px;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 24px;
+  filter: drop-shadow(0 16px 26px rgba(255, 138, 42, 0.24));
 }
 
 .brand-name {
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #595959;
 }
 
 .auth-title {
@@ -298,15 +298,14 @@
   }
 
   .brand {
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 22px;
   }
 
-  .brand-badge {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    font-size: 1.1rem;
+  .brand-logo {
+    width: 68px;
+    height: 68px;
+    border-radius: 20px;
   }
 
   .auth-title {
