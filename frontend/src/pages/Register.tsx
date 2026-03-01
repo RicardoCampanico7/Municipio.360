@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
+import AppLogo from "../components/AppLogo";
 import "./Login.css";
 
 export default function Register() {
@@ -55,10 +56,8 @@ export default function Register() {
         </aside>
 
         <div className="auth-card">
-          <div className="brand">
-            <div className="brand-badge" aria-hidden="true">
-              M
-            </div>
+          <div className="brand brand-stack">
+            <AppLogo className="brand-logo" />
             <div className="brand-name">{t("appName")}</div>
           </div>
 

@@ -73,6 +73,7 @@
 .occ-map-kicker {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   width: fit-content;
   padding: 8px 12px;
   border-radius: 999px;
@@ -166,6 +167,9 @@
 }
 
 .occ-map-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -198,6 +202,9 @@
 }
 
 .occ-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 0;
   padding: 0;
   background: transparent;
@@ -213,16 +220,13 @@
   gap: 10px;
 }
 
-.occ-brand-badge {
+.occ-brand-logo {
   width: 42px;
   height: 42px;
-  display: grid;
-  place-items: center;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--occ-orange-dark), var(--occ-orange));
-  color: #fff;
-  font-size: 1.1rem;
-  font-weight: 800;
+  display: block;
+  object-fit: cover;
+  object-position: center;
   box-shadow: 0 12px 24px rgba(255, 138, 42, 0.22);
 }
 
@@ -249,7 +253,7 @@
 .occ-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   margin-top: 26px;
 }
 
@@ -261,8 +265,10 @@
 
 .occ-fieldset legend,
 .occ-field-label {
-  display: block;
-  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
   color: var(--occ-text);
   font-size: 0.94rem;
   font-weight: 700;
@@ -276,6 +282,9 @@
 }
 
 .occ-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border: 1px solid transparent;
   border-radius: 18px;
   padding: 14px 14px;
@@ -286,6 +295,16 @@
   font-weight: 600;
   text-align: left;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.occ-chip-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--occ-orange-dark);
+  flex: 0 0 auto;
 }
 
 .occ-chip.is-active {
@@ -339,6 +358,9 @@
 }
 
 .occ-image-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 42px;
   border: 0;
   border-radius: 16px;
@@ -349,6 +371,9 @@
 }
 
 .occ-image-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   align-self: flex-start;
   border: 0;
   border-radius: 16px;
