@@ -4,6 +4,19 @@ import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import "./Login.css";
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidPostalCode(value: string) {
+  return /^\d{4}-\d{3}$/.test(value);
+}
+
+function isValidCitizenCard(value: string) {
+  const normalized = value.replace(/\s+/g, "");
+  return /^[0-9A-Z]{8,14}$/.test(normalized);
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -21,6 +34,37 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const normalizedName = name.trim();
+    const normalizedCitizenCard = citizenCard.trim().toUpperCase();
+    const normalizedPostalCode = postalCode.trim();
+    const normalizedEmail = email.trim();
+
+    if (normalizedName.length < 3) {
+      setError("O nome deve ter pelo menos 3 caracteres.");
+      return;
+    }
+
+    if (!isValidCitizenCard(normalizedCitizenCard)) {
+      setError("Cartao de cidadao invalido.");
+      return;
+    }
+
+    if (!isValidPostalCode(normalizedPostalCode)) {
+      setError("Codigo postal invalido. Usa o formato 0000-000.");
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setError("Email invalido.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("A palavra-passe deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -30,10 +74,10 @@ export default function Register() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: name.trim(),
-          citizenCard: citizenCard.trim(),
-          postalCode: postalCode.trim(),
-          email: email.trim(),
+          name: normalizedName,
+          citizenCard: normalizedCitizenCard,
+          postalCode: normalizedPostalCode,
+          email: normalizedEmail,
           password,
         }),
       });
@@ -89,7 +133,10 @@ export default function Register() {
               placeholder={t("auth.namePlaceholder")}
               autoComplete="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError("");
+              }}
               required
             />
 
@@ -103,7 +150,10 @@ export default function Register() {
               placeholder={t("auth.citizenCardPlaceholder")}
               autoComplete="off"
               value={citizenCard}
-              onChange={(e) => setCitizenCard(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setCitizenCard(e.target.value.toUpperCase());
+                if (error) setError("");
+              }}
               minLength={8}
               maxLength={14}
               required
@@ -120,7 +170,10 @@ export default function Register() {
               autoComplete="postal-code"
               inputMode="numeric"
               value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
+              onChange={(e) => {
+                setPostalCode(e.target.value);
+                if (error) setError("");
+              }}
               pattern="[0-9]{4}-[0-9]{3}"
               required
             />
@@ -135,7 +188,10 @@ export default function Register() {
               placeholder={t("auth.emailPlaceholder")}
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError("");
+              }}
               required
             />
 
@@ -150,7 +206,10 @@ export default function Register() {
                 placeholder={t("auth.password")}
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError("");
+                }}
                 required
               />
               <button
