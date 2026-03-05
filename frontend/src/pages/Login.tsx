@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import {
   clearAccessToken,
@@ -40,6 +40,7 @@ function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const showcaseImage = "/login-photo.jpg";
 
@@ -48,6 +49,13 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (location.state && (location.state as { sessionExpired?: boolean }).sessionExpired) {
+      setError(t("auth.sessionExpired"));
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate, t]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

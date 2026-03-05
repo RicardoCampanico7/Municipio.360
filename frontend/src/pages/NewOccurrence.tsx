@@ -37,11 +37,22 @@ export default function NewOccurrence() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const redirectToLoginForExpiredSession = () => {
+    clearAccessToken();
+    navigate("/login", {
+      replace: true,
+      state: { from: "/occurrences/new", sessionExpired: true },
+    });
+  };
+
   useEffect(() => {
     const token = getAccessToken();
     if (!token) {
       clearAccessToken();
-      navigate("/login", { replace: true, state: { from: "/occurrences/new" } });
+      navigate("/login", {
+        replace: true,
+        state: { from: "/occurrences/new", sessionExpired: true },
+      });
     }
   }, [navigate]);
 
@@ -74,9 +85,8 @@ export default function NewOccurrence() {
 
     const token = getAccessToken();
     if (!token) {
-      clearAccessToken();
+      redirectToLoginForExpiredSession();
       setLoading(false);
-      navigate("/login", { replace: true, state: { from: "/occurrences/new" } });
       return;
     }
 
@@ -99,8 +109,7 @@ export default function NewOccurrence() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          clearAccessToken();
-          navigate("/login", { replace: true, state: { from: "/occurrences/new" } });
+          redirectToLoginForExpiredSession();
           return;
         }
         const message =
