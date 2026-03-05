@@ -29,16 +29,30 @@ export default function Register() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          name: name.trim(),
+          citizenCard: citizenCard.trim(),
+          postalCode: postalCode.trim(),
+          email: email.trim(),
+          password,
+        }),
       });
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        throw new Error("REGISTER_FAILED");
+        const msg =
+          Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+        throw new Error(msg || "REGISTER_FAILED");
       }
 
       navigate("/login");
-    } catch {
-      setError(t("auth.registerError"));
+    } catch (registerError) {
+      if (registerError instanceof Error) {
+        setError(registerError.message || t("auth.registerError"));
+      } else {
+        setError(t("auth.registerError"));
+      }
     } finally {
       setLoading(false);
     }
