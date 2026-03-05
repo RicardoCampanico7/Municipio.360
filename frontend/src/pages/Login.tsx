@@ -2,8 +2,41 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
-import { clearAccessToken, setAccessToken } from "../services/token";
+import {
+  clearAccessToken,
+  getAuthenticatedUser,
+  setAccessToken,
+  setAuthenticatedUser,
+  type AuthUser,
+} from "../services/token";
 import "./Login.css";
+
+function normalizeString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
+  if (!data || typeof data !== "object") return null;
+
+  const source = (data as { user?: unknown }).user;
+  if (!source || typeof source !== "object") return null;
+
+  const candidate = source as {
+    id?: unknown;
+    userId?: unknown;
+    name?: unknown;
+    fullName?: unknown;
+    email?: unknown;
+  };
+
+  const rawId = candidate.id ?? candidate.userId;
+  const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
+  const name = normalizeString(candidate.name ?? candidate.fullName);
+  const email = normalizeString(candidate.email).toLowerCase();
+
+  if (!id || !name || !email) return null;
+  return { id, name, email };
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -42,6 +75,10 @@ export default function Login() {
       }
 
       setAccessToken(data.accessToken);
+      const authUser = extractAuthUserFromLoginResponse(data) || getAuthenticatedUser();
+      if (authUser) {
+        setAuthenticatedUser(authUser);
+      }
       navigate("/dashboard");
     } catch {
       setError(t("auth.loginError"));

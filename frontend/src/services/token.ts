@@ -1,17 +1,34 @@
-const KEY = "accessToken";
+const ACCESS_TOKEN_KEY = "accessToken";
+const AUTH_USER_KEY = "authUser";
+
+type JwtPayload = {
+  exp?: number;
+  sub?: string | number;
+  id?: string | number;
+  userId?: string | number;
+  name?: string;
+  fullName?: string;
+  email?: string;
+};
+
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+};
 
 export function setAccessToken(token: string) {
-  localStorage.setItem(KEY, token);
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
 
-function parseJwtPayload(token: string): { exp?: number } | null {
+function parseJwtPayload(token: string): JwtPayload | null {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
 
   try {
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
-    const payload = JSON.parse(atob(padded)) as { exp?: number };
+    const payload = JSON.parse(atob(padded)) as JwtPayload;
     return payload;
   } catch {
     return null;
@@ -34,11 +51,12 @@ export function isTokenExpired(token: string): boolean {
 }
 
 export function clearAccessToken() {
-  localStorage.removeItem(KEY);
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  clearAuthenticatedUser();
 }
 
 export function getAccessToken(): string | null {
-  const token = localStorage.getItem(KEY);
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (!token) return null;
 
   if (isTokenExpired(token)) {
@@ -50,7 +68,72 @@ export function getAccessToken(): string | null {
 }
 
 export function getRawAccessToken(): string | null {
-  return localStorage.getItem(KEY);
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function normalizeStringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function sanitizeAuthUser(value: unknown): AuthUser | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Partial<AuthUser>;
+  const id = normalizeStringValue(candidate.id);
+  const name = normalizeStringValue(candidate.name);
+  const email = normalizeStringValue(candidate.email).toLowerCase();
+
+  if (!id || !name || !email) return null;
+  return { id, name, email };
+}
+
+function buildAuthUserFromToken(token: string): AuthUser | null {
+  const payload = parseJwtPayload(token);
+  if (!payload) return null;
+
+  const rawId = payload.sub ?? payload.userId ?? payload.id;
+  const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
+  const name = normalizeStringValue(payload.name || payload.fullName);
+  const email = normalizeStringValue(payload.email).toLowerCase();
+
+  if (!id || !name || !email) return null;
+  return { id, name, email };
+}
+
+export function setAuthenticatedUser(user: AuthUser) {
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+}
+
+export function clearAuthenticatedUser() {
+  localStorage.removeItem(AUTH_USER_KEY);
+}
+
+export function getAuthenticatedUser(): AuthUser | null {
+  const raw = localStorage.getItem(AUTH_USER_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      const sanitized = sanitizeAuthUser(parsed);
+      if (sanitized) return sanitized;
+      clearAuthenticatedUser();
+    } catch {
+      clearAuthenticatedUser();
+    }
+  }
+
+  const token = getAccessToken();
+  if (!token) {
+    clearAuthenticatedUser();
+    return null;
+  }
+
+  const fromToken = buildAuthUserFromToken(token);
+  if (fromToken) {
+    setAuthenticatedUser(fromToken);
+    return fromToken;
+  }
+
+  return null;
 }
 
 export function isAuthenticated(): boolean {
