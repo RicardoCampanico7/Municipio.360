@@ -10,7 +10,7 @@ import {
   TriangleAlert,
   Volume2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
@@ -36,6 +36,14 @@ export default function NewOccurrence() {
   const [imageUrls, setImageUrls] = useState([""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) {
+      clearAccessToken();
+      navigate("/login", { replace: true, state: { from: "/occurrences/new" } });
+    }
+  }, [navigate]);
 
   const filledImageUrls = imageUrls.map((url) => url.trim()).filter(Boolean);
 
@@ -66,9 +74,9 @@ export default function NewOccurrence() {
 
     const token = getAccessToken();
     if (!token) {
-      setError("Sessão expirada. Volta a iniciar sessão.");
+      clearAccessToken();
       setLoading(false);
-      navigate("/login");
+      navigate("/login", { replace: true, state: { from: "/occurrences/new" } });
       return;
     }
 
@@ -92,8 +100,8 @@ export default function NewOccurrence() {
       if (!response.ok) {
         if (response.status === 401) {
           clearAccessToken();
-          navigate("/login");
-          throw new Error("Sessao expirada. Volta a iniciar sessao.");
+          navigate("/login", { replace: true, state: { from: "/occurrences/new" } });
+          return;
         }
         const message =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
@@ -265,3 +273,4 @@ export default function NewOccurrence() {
     </main>
   );
 }
+
