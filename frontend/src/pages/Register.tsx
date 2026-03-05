@@ -4,6 +4,12 @@ import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import "./Login.css";
 
+type ApiErrorResponse = {
+  message?: string | string[];
+  error?: string;
+  statusCode?: number;
+};
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -15,6 +21,65 @@ function isValidPostalCode(value: string) {
 function isValidCitizenCard(value: string) {
   const normalized = value.replace(/\s+/g, "");
   return /^[0-9A-Z]{8,14}$/.test(normalized);
+}
+
+function toReadableMessage(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^./, (char) => char.toUpperCase())
+    .trim();
+}
+
+function extractRegisterApiErrorMessage(
+  data: unknown,
+  status: number,
+  fallbackMessage: string,
+) {
+  if (status === 409) {
+    return "Ja existe uma conta com este email.";
+  }
+
+  if (status >= 500) {
+    return "Erro interno do servidor. Tenta novamente em instantes.";
+  }
+
+  if (data && typeof data === "object") {
+    const apiError = data as ApiErrorResponse;
+
+    if (Array.isArray(apiError.message)) {
+      const message = apiError.message
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map(toReadableMessage)
+        .join(" ");
+
+      if (message) return message;
+    }
+
+    if (typeof apiError.message === "string" && apiError.message.trim().length > 0) {
+      const normalizedMessage = apiError.message.trim().toLowerCase();
+
+      if (
+        normalizedMessage.includes("already exists") ||
+        normalizedMessage.includes("already registered")
+      ) {
+        return "Ja existe uma conta com este email.";
+      }
+
+      if (
+        normalizedMessage !== "bad request" &&
+        normalizedMessage !== "bad request exception"
+      ) {
+        return toReadableMessage(apiError.message);
+      }
+    }
+  }
+
+  if (status === 400) {
+    return "Dados invalidos. Verifica os campos e tenta novamente.";
+  }
+
+  return fallbackMessage;
 }
 
 export default function Register() {
@@ -85,15 +150,18 @@ export default function Register() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const msg =
-          Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+        const msg = extractRegisterApiErrorMessage(data, response.status, t("auth.registerError"));
         throw new Error(msg || "REGISTER_FAILED");
       }
 
       navigate("/login");
     } catch (registerError) {
       if (registerError instanceof Error) {
-        setError(registerError.message || t("auth.registerError"));
+        if (registerError.message.toLowerCase().includes("failed to fetch")) {
+          setError("Nao foi possivel ligar ao servidor. Tenta novamente.");
+        } else {
+          setError(registerError.message || t("auth.registerError"));
+        }
       } else {
         setError(t("auth.registerError"));
       }
