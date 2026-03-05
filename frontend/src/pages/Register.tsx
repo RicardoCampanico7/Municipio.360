@@ -34,14 +34,19 @@ function toReadableMessage(value: string) {
 function extractRegisterApiErrorMessage(
   data: unknown,
   status: number,
-  fallbackMessage: string,
+  messages: {
+    fallback: string;
+    emailExists: string;
+    serverError: string;
+    invalidData: string;
+  },
 ) {
   if (status === 409) {
-    return "Ja existe uma conta com este email.";
+    return messages.emailExists;
   }
 
   if (status >= 500) {
-    return "Erro interno do servidor. Tenta novamente em instantes.";
+    return messages.serverError;
   }
 
   if (data && typeof data === "object") {
@@ -63,7 +68,7 @@ function extractRegisterApiErrorMessage(
         normalizedMessage.includes("already exists") ||
         normalizedMessage.includes("already registered")
       ) {
-        return "Ja existe uma conta com este email.";
+        return messages.emailExists;
       }
 
       if (
@@ -76,10 +81,10 @@ function extractRegisterApiErrorMessage(
   }
 
   if (status === 400) {
-    return "Dados invalidos. Verifica os campos e tenta novamente.";
+    return messages.invalidData;
   }
 
-  return fallbackMessage;
+  return messages.fallback;
 }
 
 export default function Register() {
@@ -106,27 +111,27 @@ export default function Register() {
     const normalizedEmail = email.trim();
 
     if (normalizedName.length < 3) {
-      setError("O nome deve ter pelo menos 3 caracteres.");
+      setError(t("auth.registerNameMinError"));
       return;
     }
 
     if (!isValidCitizenCard(normalizedCitizenCard)) {
-      setError("Cartao de cidadao invalido.");
+      setError(t("auth.registerCitizenCardError"));
       return;
     }
 
     if (!isValidPostalCode(normalizedPostalCode)) {
-      setError("Codigo postal invalido. Usa o formato 0000-000.");
+      setError(t("auth.registerPostalCodeError"));
       return;
     }
 
     if (!isValidEmail(normalizedEmail)) {
-      setError("Email invalido.");
+      setError(t("auth.registerEmailError"));
       return;
     }
 
     if (password.length < 8) {
-      setError("A palavra-passe deve ter pelo menos 8 caracteres.");
+      setError(t("auth.registerPasswordMinError"));
       return;
     }
 
@@ -150,7 +155,12 @@ export default function Register() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const msg = extractRegisterApiErrorMessage(data, response.status, t("auth.registerError"));
+        const msg = extractRegisterApiErrorMessage(data, response.status, {
+          fallback: t("auth.registerError"),
+          emailExists: t("auth.registerErrorEmailExists"),
+          serverError: t("auth.registerErrorServer"),
+          invalidData: t("auth.registerErrorInvalidData"),
+        });
         throw new Error(msg || "REGISTER_FAILED");
       }
 
@@ -158,7 +168,7 @@ export default function Register() {
     } catch (registerError) {
       if (registerError instanceof Error) {
         if (registerError.message.toLowerCase().includes("failed to fetch")) {
-          setError("Nao foi possivel ligar ao servidor. Tenta novamente.");
+          setError(t("auth.registerErrorNetwork"));
         } else {
           setError(registerError.message || t("auth.registerError"));
         }
