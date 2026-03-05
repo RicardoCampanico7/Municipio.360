@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
-import { setAccessToken } from "../services/token";
+import { clearAccessToken, setAccessToken } from "../services/token";
 import "./Login.css";
 
 export default function Login() {
@@ -34,6 +34,11 @@ export default function Login() {
         const msg =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
         throw new Error(msg || "LOGIN_FAILED");
+      }
+
+      if (typeof data?.accessToken !== "string" || data.accessToken.length === 0) {
+        clearAccessToken();
+        throw new Error("LOGIN_TOKEN_MISSING");
       }
 
       setAccessToken(data.accessToken);
