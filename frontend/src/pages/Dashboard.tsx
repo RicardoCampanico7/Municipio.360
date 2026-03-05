@@ -1,9 +1,9 @@
 import { FileText, Home, Map, Plus, Sparkles, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import OccurrenceCard from "../components/OccurrenceCard";
-import { clearAccessToken } from "../services/token";
+import { clearAccessToken, isAuthenticated } from "../services/token";
 import "./Dashboard.css";
 
 const languageOptions = [
@@ -21,6 +21,19 @@ export default function Dashboard() {
   const userAvatar = "/user-avatar.jpg";
   const bannerImage = "/dashboard-banner.png";
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+
+  const ensureAuthenticatedSession = () => {
+    if (isAuthenticated()) return true;
+    clearAccessToken();
+    navigate("/login", { replace: true, state: { from: "/dashboard" } });
+    return false;
+  };
+
+  useEffect(() => {
+    if (isAuthenticated()) return;
+    clearAccessToken();
+    navigate("/login", { replace: true, state: { from: "/dashboard" } });
+  }, [navigate]);
 
   const reportStats = [
     { value: 3, label: t("dashboard.stats.open"), tone: "open" as const },
@@ -55,11 +68,11 @@ export default function Dashboard() {
   ];
 
   const navItems = [
-    { icon: Home, label: t("dashboard.nav.home"), active: true },
-    { icon: Map, label: t("dashboard.nav.map") },
-    { icon: Plus, label: t("dashboard.nav.create"), accent: true },
-    { icon: FileText, label: t("dashboard.nav.reports") },
-    { icon: User, label: t("dashboard.nav.profile") },
+    { icon: Home, label: t("dashboard.nav.home"), active: true, target: "home" as const },
+    { icon: Map, label: t("dashboard.nav.map"), target: "map" as const },
+    { icon: Plus, label: t("dashboard.nav.create"), accent: true, target: "create" as const },
+    { icon: FileText, label: t("dashboard.nav.reports"), target: "reports" as const },
+    { icon: User, label: t("dashboard.nav.profile"), target: "profile" as const },
   ];
 
   const activeLanguage =
@@ -77,7 +90,21 @@ export default function Dashboard() {
   };
 
   const handleCreateOccurrence = () => {
+    if (!ensureAuthenticatedSession()) return;
     navigate("/occurrences/new");
+  };
+
+  const handleNavClick = (target: "home" | "create" | "map" | "reports" | "profile") => {
+    if (!ensureAuthenticatedSession()) return;
+
+    if (target === "home") {
+      navigate("/dashboard");
+      return;
+    }
+
+    if (target === "create") {
+      navigate("/occurrences/new");
+    }
   };
 
   return (
@@ -237,7 +264,7 @@ export default function Dashboard() {
                 .filter(Boolean)
                 .join(" ")}
               type="button"
-              onClick={item.accent ? handleCreateOccurrence : undefined}
+              onClick={() => handleNavClick(item.target)}
             >
               <span className="dashboard-nav-icon">
                 <item.icon size={20} strokeWidth={2.2} />
