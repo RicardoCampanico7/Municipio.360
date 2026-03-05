@@ -14,7 +14,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
-import { getAccessToken } from "../services/token";
+import { clearAccessToken, getAccessToken } from "../services/token";
 import "./NewOccurrence.css";
 
 const categories = [
@@ -90,6 +90,11 @@ export default function NewOccurrence() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          clearAccessToken();
+          navigate("/login");
+          throw new Error("Sessao expirada. Volta a iniciar sessao.");
+        }
         const message =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
         throw new Error(message || "Não foi possível criar a ocorrência.");
