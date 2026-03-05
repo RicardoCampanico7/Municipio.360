@@ -1,9 +1,14 @@
 import { FileText, Home, Map, Plus, Sparkles, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import OccurrenceCard from "../components/OccurrenceCard";
-import { clearAccessToken, isAuthenticated } from "../services/token";
+import {
+  clearAccessToken,
+  getAccessToken,
+  getAuthenticatedUser,
+  isAuthenticated,
+} from "../services/token";
 import "./Dashboard.css";
 
 const languageOptions = [
@@ -15,12 +20,56 @@ const languageOptions = [
 
 type ReportTone = "progress" | "open" | "done";
 
+type ApiOccurrence = {
+  id?: string | number;
+  title?: string;
+  category?: string;
+  description?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type DashboardReport = {
+  id: string;
+  status: string;
+  title: string;
+  time: string;
+  tone: ReportTone;
+};
+
+function normalizeOccurrencesPayload(payload: unknown): ApiOccurrence[] {
+  if (Array.isArray(payload)) {
+    return payload as ApiOccurrence[];
+  }
+
+  if (payload && typeof payload === "object") {
+    const source = payload as { data?: unknown; occurrences?: unknown };
+    if (Array.isArray(source.data)) return source.data as ApiOccurrence[];
+    if (Array.isArray(source.occurrences)) return source.occurrences as ApiOccurrence[];
+  }
+
+  return [];
+}
+
+function toTimeLabel(value: string | undefined, locale: string, fallback: string) {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleDateString(locale || "pt-PT");
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { i18n, t } = useTranslation();
+  const sessionUser = getAuthenticatedUser();
+  const userName = sessionUser?.name || t("dashboard.defaultUserName");
   const userAvatar = "/user-avatar.jpg";
   const bannerImage = "/dashboard-banner.png";
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+  const [occurrences, setOccurrences] = useState<ApiOccurrence[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [reportsError, setReportsError] = useState("");
 
   const ensureAuthenticatedSession = () => {
     if (isAuthenticated()) return true;
@@ -35,37 +84,116 @@ export default function Dashboard() {
     navigate("/login", { replace: true, state: { from: "/dashboard" } });
   }, [navigate]);
 
-  const reportStats = [
-    { value: 3, label: t("dashboard.stats.open"), tone: "open" as const },
-    { value: 1, label: t("dashboard.stats.progress"), tone: "progress" as const },
-    { value: 5, label: t("dashboard.stats.resolved"), tone: "done" as const },
-  ];
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) return;
 
-  const reports: Array<{
-    status: string;
-    title: string;
-    time: string;
-    tone: ReportTone;
-  }> = [
-    {
-      status: t("dashboard.reports.progress"),
-      title: t("dashboard.reports.firstTitle"),
-      time: t("dashboard.reports.firstTime"),
-      tone: "progress",
-    },
-    {
-      status: t("dashboard.reports.open"),
-      title: t("dashboard.reports.secondTitle"),
-      time: t("dashboard.reports.secondTime"),
-      tone: "open",
-    },
-    {
-      status: t("dashboard.reports.resolved"),
-      title: t("dashboard.reports.thirdTitle"),
-      time: t("dashboard.reports.thirdTime"),
-      tone: "done",
-    },
-  ];
+    let mounted = true;
+    const loadOccurrences = async () => {
+      setReportsLoading(true);
+      setReportsError("");
+
+      try {
+        const response = await fetch("http://localhost:3000/occurrences", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            clearAccessToken();
+            navigate("/login", {
+              replace: true,
+              state: { from: "/dashboard", sessionExpired: true },
+            });
+            return;
+          }
+
+          const message =
+            Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+          throw new Error(message || t("dashboard.reportsLoadError"));
+        }
+
+        if (!mounted) return;
+        const normalized = normalizeOccurrencesPayload(data);
+        setOccurrences(normalized);
+      } catch {
+        if (!mounted) return;
+        setReportsError(t("dashboard.reportsLoadError"));
+      } finally {
+        if (!mounted) return;
+        setReportsLoading(false);
+      }
+    };
+
+    void loadOccurrences();
+    return () => {
+      mounted = false;
+    };
+  }, [navigate, t]);
+
+  const reports = useMemo<DashboardReport[]>(() => {
+    const sorted = [...occurrences].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.updatedAt || "").getTime() || 0;
+      const dateB = new Date(b.createdAt || b.updatedAt || "").getTime() || 0;
+      return dateB - dateA;
+    });
+
+    return sorted.slice(0, 3).map((item, index) => {
+      const normalizedStatus = (item.status || "").toLowerCase();
+      const tone: ReportTone =
+        normalizedStatus.includes("resolv")
+          ? "done"
+          : normalizedStatus.includes("progress") || normalizedStatus.includes("andamento")
+            ? "progress"
+            : "open";
+
+      const statusByTone: Record<ReportTone, string> = {
+        open: t("dashboard.reports.open"),
+        progress: t("dashboard.reports.progress"),
+        done: t("dashboard.reports.resolved"),
+      };
+
+      return {
+        id: String(item.id ?? `occ-${index}`),
+        status: statusByTone[tone],
+        title: item.title || item.category || t("dashboard.reports.untitled"),
+        time: toTimeLabel(item.createdAt || item.updatedAt, i18n.language, t("dashboard.reports.noDate")),
+        tone,
+      };
+    });
+  }, [occurrences, i18n.language, t]);
+
+  const reportStats = useMemo(
+    () => [
+      {
+        value: occurrences.filter((item) => {
+          const status = (item.status || "").toLowerCase();
+          return !status.includes("resolv") && !status.includes("progress") && !status.includes("andamento");
+        }).length,
+        label: t("dashboard.stats.open"),
+        tone: "open" as const,
+      },
+      {
+        value: occurrences.filter((item) => {
+          const status = (item.status || "").toLowerCase();
+          return status.includes("progress") || status.includes("andamento");
+        }).length,
+        label: t("dashboard.stats.progress"),
+        tone: "progress" as const,
+      },
+      {
+        value: occurrences.filter((item) => (item.status || "").toLowerCase().includes("resolv")).length,
+        label: t("dashboard.stats.resolved"),
+        tone: "done" as const,
+      },
+    ],
+    [occurrences, t],
+  );
 
   const navItems = [
     { icon: Home, label: t("dashboard.nav.home"), active: true, target: "home" as const },
@@ -81,7 +209,7 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     clearAccessToken();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const handleLanguageChange = (language: string) => {
@@ -118,7 +246,7 @@ export default function Dashboard() {
               alt="Fotografia do utilizador"
             />
             <div>
-              <h1 className="dashboard-greeting">{t("dashboard.greeting")}</h1>
+              <h1 className="dashboard-greeting">{t("dashboard.greeting", { name: userName })}</h1>
               <p className="dashboard-location">{t("dashboard.location")}</p>
             </div>
           </div>
@@ -195,15 +323,22 @@ export default function Dashboard() {
               </div>
 
               <div className="dashboard-report-list">
-                {reports.map((report) => (
-                  <OccurrenceCard
-                    key={report.title}
-                    status={report.status}
-                    title={report.title}
-                    time={report.time}
-                    tone={report.tone}
-                  />
-                ))}
+                {reportsLoading && <p>{t("dashboard.reportsLoading")}</p>}
+                {!reportsLoading && reportsError && <p>{reportsError}</p>}
+                {!reportsLoading && !reportsError && reports.length === 0 && (
+                  <p>{t("dashboard.reportsEmpty")}</p>
+                )}
+                {!reportsLoading &&
+                  !reportsError &&
+                  reports.map((report) => (
+                    <OccurrenceCard
+                      key={report.id}
+                      status={report.status}
+                      title={report.title}
+                      time={report.time}
+                      tone={report.tone}
+                    />
+                  ))}
               </div>
             </section>
           </div>

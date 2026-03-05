@@ -46,7 +46,8 @@ const resources = {
         registerErrorNetwork: "Nao foi possivel ligar ao servidor. Tenta novamente.",
       },
       dashboard: {
-        greeting: "Olá, Alex",
+        greeting: "Olá, {{name}}",
+        defaultUserName: "utilizador",
         location: "Faro, Portugal",
         languageAria: "Selecionar idioma",
         logoutAria: "Terminar sessão",
@@ -58,6 +59,9 @@ const resources = {
         reportsTitle: "As minhas ocorrências",
         viewAll: "Ver todas",
         summaryTitle: "Resumo das ocorrências",
+        reportsLoading: "A carregar ocorrências...",
+        reportsEmpty: "Ainda não tens ocorrências.",
+        reportsLoadError: "Não foi possível carregar as ocorrências.",
         stats: {
           open: "Abertos",
           progress: "Em progresso",
@@ -67,6 +71,8 @@ const resources = {
           progress: "Em progresso",
           open: "Aberto",
           resolved: "Resolvido",
+          untitled: "Ocorrência sem título",
+          noDate: "Sem data",
           firstTitle: "Buraco na Avenida Central",
           firstTime: "Enviado há 2 dias",
           secondTitle: "Grafíti na Rua do Mercado",
@@ -132,7 +138,8 @@ const resources = {
         registerErrorNetwork: "Could not reach the server. Please try again.",
       },
       dashboard: {
-        greeting: "Hello, Alex",
+        greeting: "Hello, {{name}}",
+        defaultUserName: "user",
         location: "Faro, Portugal",
         languageAria: "Select language",
         logoutAria: "Sign out",
@@ -144,6 +151,9 @@ const resources = {
         reportsTitle: "My reports",
         viewAll: "View all",
         summaryTitle: "Reports summary",
+        reportsLoading: "Loading reports...",
+        reportsEmpty: "You have no reports yet.",
+        reportsLoadError: "Could not load reports.",
         stats: {
           open: "Open",
           progress: "In progress",
@@ -153,6 +163,8 @@ const resources = {
           progress: "In progress",
           open: "Open",
           resolved: "Resolved",
+          untitled: "Untitled report",
+          noDate: "No date",
           firstTitle: "Pothole on Central Avenue",
           firstTime: "Sent 2 days ago",
           secondTitle: "Graffiti on Market Street",
@@ -218,7 +230,8 @@ const resources = {
         registerErrorNetwork: "No fue posible conectar con el servidor. Intenta de nuevo.",
       },
       dashboard: {
-        greeting: "Hola, Alex",
+        greeting: "Hola, {{name}}",
+        defaultUserName: "usuario",
         location: "Faro, Portugal",
         languageAria: "Seleccionar idioma",
         logoutAria: "Cerrar sesion",
@@ -230,6 +243,9 @@ const resources = {
         reportsTitle: "Mis reportes",
         viewAll: "Ver todos",
         summaryTitle: "Resumen de reportes",
+        reportsLoading: "Cargando reportes...",
+        reportsEmpty: "Aun no tienes reportes.",
+        reportsLoadError: "No se pudieron cargar los reportes.",
         stats: {
           open: "Abiertos",
           progress: "En progreso",
@@ -239,6 +255,8 @@ const resources = {
           progress: "En progreso",
           open: "Abierto",
           resolved: "Resuelto",
+          untitled: "Reporte sin titulo",
+          noDate: "Sin fecha",
           firstTitle: "Bache en la Avenida Central",
           firstTime: "Enviado hace 2 dias",
           secondTitle: "Grafiti en la Calle del Mercado",
@@ -304,7 +322,8 @@ const resources = {
         registerErrorNetwork: "Connexion au serveur impossible. Reessaie.",
       },
       dashboard: {
-        greeting: "Bonjour, Alex",
+        greeting: "Bonjour, {{name}}",
+        defaultUserName: "utilisateur",
         location: "Faro, Portugal",
         languageAria: "Choisir la langue",
         logoutAria: "Se deconnecter",
@@ -316,6 +335,9 @@ const resources = {
         reportsTitle: "Mes signalements",
         viewAll: "Voir tout",
         summaryTitle: "Resume des signalements",
+        reportsLoading: "Chargement des signalements...",
+        reportsEmpty: "Tu n'as encore aucun signalement.",
+        reportsLoadError: "Impossible de charger les signalements.",
         stats: {
           open: "Ouverts",
           progress: "En cours",
@@ -325,6 +347,8 @@ const resources = {
           progress: "En cours",
           open: "Ouvert",
           resolved: "Resolue",
+          untitled: "Signalement sans titre",
+          noDate: "Sans date",
           firstTitle: "Nid-de-poule sur l'Avenue Centrale",
           firstTime: "Envoye il y a 2 jours",
           secondTitle: "Graffiti rue du Marche",
@@ -372,3 +396,4 @@ i18n.on("languageChanged", (language) => {
 
 export { LANGUAGE_STORAGE_KEY };
 export default i18n;
+
