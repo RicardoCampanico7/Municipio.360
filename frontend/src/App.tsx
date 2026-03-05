@@ -15,10 +15,22 @@ function App() {
       <Route path="/login" element={<Login />} />
 
       {/* Rotas protegidas */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/occurrences/new" element={<NewOccurrence />} />
-      </Route>
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/occurrences/new"
+        element={
+          <ProtectedRoute>
+            <NewOccurrence />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }
