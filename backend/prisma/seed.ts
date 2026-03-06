@@ -12,6 +12,9 @@ async function main() {
     where: { email },
     update: {},
     create: {
+      name: 'Utilizador Civil',
+      biNumber: '12345678 1 AB2',
+      postalCode: '8000-000',
       email,
       passwordHash: hash,
       role: Role.CIVIL,
@@ -23,4 +26,10 @@ async function main() {
 }
 
 main()
-  .finally(async () => prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
