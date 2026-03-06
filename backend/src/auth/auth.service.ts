@@ -50,6 +50,16 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        certStatus: true,
+        biNumber: true,
+        postalCode: true,
+        passwordHash: true,
+      },
     });
 
     if (!user) {
@@ -75,9 +85,12 @@ export class AuthService {
       tokenType: 'Bearer',
       user: {
         id: user.id,
+        name: user.name,
         email: user.email,
         role: user.role,
         certStatus: user.certStatus,
+        biNumber: user.biNumber,
+        postalCode: user.postalCode,
       },
     };
   }
