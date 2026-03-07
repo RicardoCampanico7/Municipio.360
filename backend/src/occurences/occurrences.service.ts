@@ -14,8 +14,19 @@ export class OccurrencesService {
         description: dto.description,
         location: dto.location,
         imageUrls: dto.imageUrls ?? [],
-        status: dto.status ?? undefined,
+        status: OccurrenceStatus.SUBMETIDA,
         userId,
+      },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
       },
     });
   }
@@ -40,6 +51,16 @@ export class OccurrencesService {
     return this.prisma.occurrence.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
@@ -49,14 +70,26 @@ export class OccurrencesService {
       include: { user: true },
     });
 
-    if (!occurrence) throw new NotFoundException('Occurrence not found');
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
     return occurrence;
   }
 
   async findOneOwned(id: number, userId: number) {
-    const occurrence = await this.prisma.occurrence.findUnique({ where: { id } });
-    if (!occurrence) throw new NotFoundException('Occurrence not found');
-    if (occurrence.userId !== userId) throw new ForbiddenException('Not your occurrence');
+    const occurrence = await this.prisma.occurrence.findUnique({
+      where: { id },
+    });
+
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
+    if (occurrence.userId !== userId) {
+      throw new ForbiddenException('Not your occurrence');
+    }
+
     return occurrence;
   }
 
@@ -66,6 +99,17 @@ export class OccurrencesService {
     return this.prisma.occurrence.update({
       where: { id },
       data: { status },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+      },
     });
   }
 
@@ -74,14 +118,20 @@ export class OccurrencesService {
 
     return this.prisma.occurrence.delete({
       where: { id },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+      },
     });
   }
 
-    /**
-   * Detalhe público (SCRUM-57):
-   * devolve apenas campos "seguros" (sem user completo).
-   * Endpoint típico: GET /occurrences/:id
-   */
   async findOnePublic(id: number) {
     const occurrence = await this.prisma.occurrence.findUnique({
       where: { id },
@@ -97,7 +147,10 @@ export class OccurrencesService {
       },
     });
 
-    if (!occurrence) throw new NotFoundException('Occurrence not found');
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
     return occurrence;
   }
 }
