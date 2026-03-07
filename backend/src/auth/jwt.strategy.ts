@@ -4,7 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Role } from '@prisma/client';
 
 type JwtPayload = {
-  sub: string;
+  sub: number;
   email: string;
   role: Role;
   certStatus?: string;
@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload) {
     return {
-      userId: payload.sub,
+      sub: payload.sub,
       email: payload.email,
       role: payload.role,
       certStatus: payload.certStatus,

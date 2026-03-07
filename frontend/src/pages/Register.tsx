@@ -66,7 +66,8 @@ function extractRegisterApiErrorMessage(
 
       if (
         normalizedMessage.includes("already exists") ||
-        normalizedMessage.includes("already registered")
+        normalizedMessage.includes("already registered") ||
+        normalizedMessage.includes("já registado")
       ) {
         return messages.emailExists;
       }
@@ -108,7 +109,7 @@ export default function Register() {
     const normalizedName = name.trim();
     const normalizedCitizenCard = citizenCard.trim().toUpperCase();
     const normalizedPostalCode = postalCode.trim();
-    const normalizedEmail = email.trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (normalizedName.length < 3) {
       setError(t("auth.registerNameMinError"));
@@ -145,7 +146,7 @@ export default function Register() {
         },
         body: JSON.stringify({
           name: normalizedName,
-          citizenCard: normalizedCitizenCard,
+          biNumber: normalizedCitizenCard,
           postalCode: normalizedPostalCode,
           email: normalizedEmail,
           password,
