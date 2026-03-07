@@ -13,7 +13,7 @@ async function main() {
     update: {},
     create: {
       name: 'Utilizador Civil',
-      biNumber: '12345678 1 AB1',
+      biNumber: '12345678 1 AB2',
       postalCode: '8000-000',
       email,
       passwordHash: hash,
