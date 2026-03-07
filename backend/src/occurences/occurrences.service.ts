@@ -70,7 +70,10 @@ export class OccurrencesService {
       include: { user: true },
     });
 
-    if (!occurrence) throw new NotFoundException('Occurrence not found');
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
     return occurrence;
   }
 
@@ -79,7 +82,10 @@ export class OccurrencesService {
       where: { id },
     });
 
-    if (!occurrence) throw new NotFoundException('Occurrence not found');
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
     if (occurrence.userId !== userId) {
       throw new ForbiddenException('Not your occurrence');
     }
@@ -141,7 +147,10 @@ export class OccurrencesService {
       },
     });
 
-    if (!occurrence) throw new NotFoundException('Occurrence not found');
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
     return occurrence;
   }
 }

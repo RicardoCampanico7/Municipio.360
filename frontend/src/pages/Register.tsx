@@ -66,7 +66,8 @@ function extractRegisterApiErrorMessage(
 
       if (
         normalizedMessage.includes("already exists") ||
-        normalizedMessage.includes("already registered")
+        normalizedMessage.includes("already registered") ||
+        normalizedMessage.includes("já registado")
       ) {
         return messages.emailExists;
       }
@@ -102,83 +103,83 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  const normalizedName = name.trim();
-  const normalizedCitizenCard = citizenCard.trim().toUpperCase();
-  const normalizedPostalCode = postalCode.trim();
-  const normalizedEmail = email.trim();
+    const normalizedName = name.trim();
+    const normalizedCitizenCard = citizenCard.trim().toUpperCase();
+    const normalizedPostalCode = postalCode.trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
-  if (normalizedName.length < 3) {
-    setError(t("auth.registerNameMinError"));
-    return;
-  }
+    if (normalizedName.length < 3) {
+      setError(t("auth.registerNameMinError"));
+      return;
+    }
 
-  if (!isValidCitizenCard(normalizedCitizenCard)) {
-    setError(t("auth.registerCitizenCardError"));
-    return;
-  }
+    if (!isValidCitizenCard(normalizedCitizenCard)) {
+      setError(t("auth.registerCitizenCardError"));
+      return;
+    }
 
-  if (!isValidPostalCode(normalizedPostalCode)) {
-    setError(t("auth.registerPostalCodeError"));
-    return;
-  }
+    if (!isValidPostalCode(normalizedPostalCode)) {
+      setError(t("auth.registerPostalCodeError"));
+      return;
+    }
 
-  if (!isValidEmail(normalizedEmail)) {
-    setError(t("auth.registerEmailError"));
-    return;
-  }
+    if (!isValidEmail(normalizedEmail)) {
+      setError(t("auth.registerEmailError"));
+      return;
+    }
 
-  if (password.length < 8) {
-    setError(t("auth.registerPasswordMinError"));
-    return;
-  }
+    if (password.length < 8) {
+      setError(t("auth.registerPasswordMinError"));
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const response = await fetch("http://localhost:3000/auth/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: normalizedName,
-        biNumber: normalizedCitizenCard,
-        postalCode: normalizedPostalCode,
-        email: normalizedEmail,
-        password,
-      }),
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const msg = extractRegisterApiErrorMessage(data, response.status, {
-        fallback: t("auth.registerError"),
-        emailExists: t("auth.registerErrorEmailExists"),
-        serverError: t("auth.registerErrorServer"),
-        invalidData: t("auth.registerErrorInvalidData"),
+    try {
+      const response = await fetch("http://localhost:3000/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: normalizedName,
+          biNumber: normalizedCitizenCard,
+          postalCode: normalizedPostalCode,
+          email: normalizedEmail,
+          password,
+        }),
       });
-      throw new Error(msg || "REGISTER_FAILED");
-    }
 
-    navigate("/login");
-  } catch (registerError) {
-    if (registerError instanceof Error) {
-      if (registerError.message.toLowerCase().includes("failed to fetch")) {
-        setError(t("auth.registerErrorNetwork"));
-      } else {
-        setError(registerError.message || t("auth.registerError"));
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const msg = extractRegisterApiErrorMessage(data, response.status, {
+          fallback: t("auth.registerError"),
+          emailExists: t("auth.registerErrorEmailExists"),
+          serverError: t("auth.registerErrorServer"),
+          invalidData: t("auth.registerErrorInvalidData"),
+        });
+        throw new Error(msg || "REGISTER_FAILED");
       }
-    } else {
-      setError(t("auth.registerError"));
+
+      navigate("/login");
+    } catch (registerError) {
+      if (registerError instanceof Error) {
+        if (registerError.message.toLowerCase().includes("failed to fetch")) {
+          setError(t("auth.registerErrorNetwork"));
+        } else {
+          setError(registerError.message || t("auth.registerError"));
+        }
+      } else {
+        setError(t("auth.registerError"));
+      }
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <main className="auth-screen">
