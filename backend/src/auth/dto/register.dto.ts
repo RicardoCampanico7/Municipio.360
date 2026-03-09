@@ -7,7 +7,7 @@ export class RegisterDto {
   @IsString()
   biNumber: string;
 
-  @IsString()
+  @IsString() 
   postalCode: string;
 
   @IsEmail()
