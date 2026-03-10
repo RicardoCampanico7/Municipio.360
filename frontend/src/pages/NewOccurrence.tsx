@@ -161,7 +161,8 @@ export default function NewOccurrence() {
               type="text"
               placeholder="Ex.: Avenida Central, Faro"
               value={location}
-              readOnly
+              onChange={(e) => setLocation(e.target.value)}
+              required
             />
           </div>
         </aside>
