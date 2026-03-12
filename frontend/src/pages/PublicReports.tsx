@@ -9,34 +9,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
+import { fetchPublicOccurrences, type ApiOccurrence } from "../services/occurrences";
 import "./PublicReports.css";
 
-type ApiOccurrence = {
-  id?: string | number;
-  category?: string;
-  description?: string;
-  location?: string;
-  status?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  imageUrls?: string[];
-};
-
 type ReportTone = "progress" | "open" | "done";
-
-function normalizeOccurrencesPayload(payload: unknown): ApiOccurrence[] {
-  if (Array.isArray(payload)) {
-    return payload as ApiOccurrence[];
-  }
-
-  if (payload && typeof payload === "object") {
-    const source = payload as { data?: unknown; occurrences?: unknown };
-    if (Array.isArray(source.data)) return source.data as ApiOccurrence[];
-    if (Array.isArray(source.occurrences)) return source.occurrences as ApiOccurrence[];
-  }
-
-  return [];
-}
 
 function getTone(status: string | undefined): ReportTone {
   const normalizedStatus = (status || "").toLowerCase();
@@ -121,17 +97,9 @@ export default function PublicReports() {
       setError("");
 
       try {
-        const response = await fetch("http://localhost:3000/occurrences");
-        const data = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          const message =
-            Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-          throw new Error(message || pageText.loadError);
-        }
-
+        const data = await fetchPublicOccurrences(pageText.loadError);
         if (!mounted) return;
-        setOccurrences(normalizeOccurrencesPayload(data));
+        setOccurrences(data);
       } catch {
         if (!mounted) return;
         setError(pageText.loadError);
