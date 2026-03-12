@@ -84,7 +84,16 @@ export default function NewOccurrence() {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/occurrences", {
+      const trimmedLocation = location.trim();
+      const trimmedDescription = description.trim();
+
+      if (!trimmedLocation || !trimmedDescription) {
+        setError("Preenche a localizacao e a descricao antes de enviar.");
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("/api/occurrences", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -92,8 +101,8 @@ export default function NewOccurrence() {
         },
         body: JSON.stringify({
           category,
-          location,
-          description,
+          location: trimmedLocation,
+          description: trimmedDescription,
           imageUrls: filledImageUrls.length ? filledImageUrls : undefined,
         }),
       });
@@ -181,6 +190,20 @@ export default function NewOccurrence() {
           </div>
 
           <form className="occ-form" onSubmit={handleSubmit}>
+            <label className="occ-field-label" htmlFor="occ-location">
+              <MapPinned size={16} strokeWidth={2.2} />
+              Localizacao
+            </label>
+            <input
+              id="occ-location"
+              className="occ-input"
+              type="text"
+              placeholder="Ex.: Avenida Central, Faro"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              required
+            />
+
             <fieldset className="occ-fieldset">
               <legend>
                 <TriangleAlert size={16} strokeWidth={2.2} />
