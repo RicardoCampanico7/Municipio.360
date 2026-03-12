@@ -228,6 +228,11 @@ export default function Dashboard() {
 
     if (target === "create") {
       navigate("/occurrences/new");
+      return;
+    }
+
+    if (target === "reports") {
+      navigate("/occurrences/public");
     }
   };
 
@@ -313,7 +318,11 @@ export default function Dashboard() {
             <section className="dashboard-section">
               <div className="dashboard-section-head">
                 <h3 className="dashboard-section-title">{t("dashboard.reportsTitle")}</h3>
-                <button className="dashboard-view-all" type="button">
+                <button
+                  className="dashboard-view-all"
+                  type="button"
+                  onClick={() => navigate("/occurrences/public")}
+                >
                   {t("dashboard.viewAll")}
                 </button>
               </div>

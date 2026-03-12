@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import NewOccurrence from "./pages/NewOccurrence";
+import PublicReports from "./pages/PublicReports";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 
@@ -46,6 +47,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/occurrences/public" element={<PublicReports />} />
     </Routes>
   );
 }
