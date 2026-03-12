@@ -7,6 +7,7 @@ import {
   clearAccessToken,
   getAccessToken,
   getAuthenticatedUser,
+  getRawAccessToken,
   isAuthenticated,
 } from "../services/token";
 import "./Dashboard.css";
@@ -79,12 +80,6 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (isAuthenticated()) return;
-    clearAccessToken();
-    navigate("/login", { replace: true, state: { from: "/dashboard" } });
-  }, [navigate]);
-
-  useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
 
@@ -105,10 +100,11 @@ export default function Dashboard() {
 
         if (!response.ok) {
           if (response.status === 401) {
+            const hadStoredSession = !!getRawAccessToken();
             clearAccessToken();
             navigate("/login", {
               replace: true,
-              state: { from: "/dashboard", sessionExpired: true },
+              state: { from: "/dashboard", ...(hadStoredSession ? { sessionExpired: true } : {}) },
             });
             return;
           }

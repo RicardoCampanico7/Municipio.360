@@ -10,11 +10,11 @@ import {
   TriangleAlert,
   Volume2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
-import { clearAccessToken, getAccessToken } from "../services/token";
+import { clearAccessToken, getAccessToken, getRawAccessToken } from "../services/token";
 import "./NewOccurrence.css";
 
 const categories = [
@@ -38,23 +38,16 @@ export default function NewOccurrence() {
   const [loading, setLoading] = useState(false);
 
   const redirectToLoginForExpiredSession = () => {
+    const hadStoredSession = !!getRawAccessToken();
     clearAccessToken();
     navigate("/login", {
       replace: true,
-      state: { from: "/occurrences/new", sessionExpired: true },
+      state: {
+        from: "/occurrences/new",
+        ...(hadStoredSession ? { sessionExpired: true } : {}),
+      },
     });
   };
-
-  useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      clearAccessToken();
-      navigate("/login", {
-        replace: true,
-        state: { from: "/occurrences/new", sessionExpired: true },
-      });
-    }
-  }, [navigate]);
 
   const filledImageUrls = imageUrls.map((url) => url.trim()).filter(Boolean);
 
