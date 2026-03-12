@@ -5,6 +5,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import NewOccurrence from "./pages/NewOccurrence";
 import PublicReports from "./pages/PublicReports";
+import PublicOccurrenceDetail from "./pages/PublicOccurrenceDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 
@@ -48,6 +49,7 @@ function App() {
         }
       />
       <Route path="/occurrences/public" element={<PublicReports />} />
+      <Route path="/occurrences/public/:occurrenceId" element={<PublicOccurrenceDetail />} />
     </Routes>
   );
 }
