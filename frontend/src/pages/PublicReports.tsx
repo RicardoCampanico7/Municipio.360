@@ -202,7 +202,12 @@ export default function PublicReports() {
                 const imageUrl = occurrence.imageUrls?.[0];
 
                 return (
-                  <article className="public-reports-card" key={String(occurrence.id ?? index)}>
+                  <button
+                    className="public-reports-card public-reports-card-button"
+                    key={String(occurrence.id ?? index)}
+                    type="button"
+                    onClick={() => navigate(`/occurrences/public/${occurrence.id ?? index + 1}`)}
+                  >
                     <div className="public-reports-card-top">
                       <span className={`dashboard-pill dashboard-pill-${tone}`}>{statusLabel}</span>
                       <span className="public-reports-id">#{occurrence.id ?? index + 1}</span>
@@ -245,7 +250,7 @@ export default function PublicReports() {
                         </dd>
                       </div>
                     </dl>
-                  </article>
+                  </button>
                 );
               })}
             </div>
