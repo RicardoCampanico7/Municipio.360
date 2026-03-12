@@ -14,15 +14,6 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isValidPostalCode(value: string) {
-  return /^\d{4}-\d{3}$/.test(value);
-}
-
-function isValidCitizenCard(value: string) {
-  const normalized = value.replace(/\s+/g, "");
-  return /^[0-9A-Z]{8,14}$/.test(normalized);
-}
-
 function toReadableMessage(value: string) {
   return value
     .replace(/_/g, " ")
@@ -66,8 +57,7 @@ function extractRegisterApiErrorMessage(
 
       if (
         normalizedMessage.includes("already exists") ||
-        normalizedMessage.includes("already registered") ||
-        normalizedMessage.includes("já registado")
+        normalizedMessage.includes("already registered")
       ) {
         return messages.emailExists;
       }
@@ -93,9 +83,6 @@ export default function Register() {
   const { t } = useTranslation();
   const showcaseImage = "/login-photo.jpg";
 
-  const [name, setName] = useState("");
-  const [citizenCard, setCitizenCard] = useState("");
-  const [postalCode, setPostalCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -106,32 +93,14 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
-    const normalizedName = name.trim();
-    const normalizedCitizenCard = citizenCard.trim().toUpperCase();
-    const normalizedPostalCode = postalCode.trim();
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (normalizedName.length < 3) {
-      setError(t("auth.registerNameMinError"));
-      return;
-    }
-
-    if (!isValidCitizenCard(normalizedCitizenCard)) {
-      setError(t("auth.registerCitizenCardError"));
-      return;
-    }
-
-    if (!isValidPostalCode(normalizedPostalCode)) {
-      setError(t("auth.registerPostalCodeError"));
-      return;
-    }
+    const normalizedEmail = email.trim();
 
     if (!isValidEmail(normalizedEmail)) {
       setError(t("auth.registerEmailError"));
       return;
     }
 
-    if (password.length < 8) {
+    if (password.length < 6) {
       setError(t("auth.registerPasswordMinError"));
       return;
     }
@@ -145,9 +114,6 @@ export default function Register() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: normalizedName,
-          biNumber: normalizedCitizenCard,
-          postalCode: normalizedPostalCode,
           email: normalizedEmail,
           password,
         }),
@@ -202,61 +168,6 @@ export default function Register() {
           <p className="auth-subtitle">{t("auth.registerSubtitle")}</p>
 
           <form className="auth-form" onSubmit={handleRegister}>
-            <label className="sr-only" htmlFor="register-name">
-              {t("auth.name")}
-            </label>
-            <input
-              id="register-name"
-              className="auth-input"
-              type="text"
-              placeholder={t("auth.namePlaceholder")}
-              autoComplete="name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError("");
-              }}
-              required
-            />
-
-            <label className="sr-only" htmlFor="register-citizen-card">
-              {t("auth.citizenCard")}
-            </label>
-            <input
-              id="register-citizen-card"
-              className="auth-input"
-              type="text"
-              placeholder={t("auth.citizenCardPlaceholder")}
-              autoComplete="off"
-              value={citizenCard}
-              onChange={(e) => {
-                setCitizenCard(e.target.value.toUpperCase());
-                if (error) setError("");
-              }}
-              minLength={8}
-              maxLength={14}
-              required
-            />
-
-            <label className="sr-only" htmlFor="register-postal-code">
-              {t("auth.postalCode")}
-            </label>
-            <input
-              id="register-postal-code"
-              className="auth-input"
-              type="text"
-              placeholder={t("auth.postalCodePlaceholder")}
-              autoComplete="postal-code"
-              inputMode="numeric"
-              value={postalCode}
-              onChange={(e) => {
-                setPostalCode(e.target.value);
-                if (error) setError("");
-              }}
-              pattern="[0-9]{4}-[0-9]{3}"
-              required
-            />
-
             <label className="sr-only" htmlFor="register-email">
               {t("auth.email")}
             </label>
@@ -289,6 +200,7 @@ export default function Register() {
                   setPassword(e.target.value);
                   if (error) setError("");
                 }}
+                minLength={6}
                 required
               />
               <button

@@ -75,13 +75,18 @@ function normalizeStringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function buildDisplayName(email: string): string {
+  const [localPart] = email.split("@");
+  return localPart?.trim() || email;
+}
+
 function sanitizeAuthUser(value: unknown): AuthUser | null {
   if (!value || typeof value !== "object") return null;
 
   const candidate = value as Partial<AuthUser>;
   const id = normalizeStringValue(candidate.id);
-  const name = normalizeStringValue(candidate.name);
   const email = normalizeStringValue(candidate.email).toLowerCase();
+  const name = normalizeStringValue(candidate.name) || (email ? buildDisplayName(email) : "");
 
   if (!id || !name || !email) return null;
   return { id, name, email };
@@ -93,8 +98,10 @@ function buildAuthUserFromToken(token: string): AuthUser | null {
 
   const rawId = payload.sub ?? payload.userId ?? payload.id;
   const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
-  const name = normalizeStringValue(payload.name || payload.fullName);
   const email = normalizeStringValue(payload.email).toLowerCase();
+  const name =
+    normalizeStringValue(payload.name || payload.fullName) ||
+    (email ? buildDisplayName(email) : "");
 
   if (!id || !name || !email) return null;
   return { id, name, email };

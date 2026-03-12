@@ -15,6 +15,11 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function buildDisplayName(email: string): string {
+  const [localPart] = email.split("@");
+  return localPart?.trim() || email;
+}
+
 function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
   if (!data || typeof data !== "object") return null;
 
@@ -31,8 +36,9 @@ function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
 
   const rawId = candidate.id ?? candidate.userId;
   const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
-  const name = normalizeString(candidate.name ?? candidate.fullName);
   const email = normalizeString(candidate.email).toLowerCase();
+  const providedName = normalizeString(candidate.name ?? candidate.fullName);
+  const name = providedName || (email ? buildDisplayName(email) : "");
 
   if (!id || !name || !email) return null;
 
