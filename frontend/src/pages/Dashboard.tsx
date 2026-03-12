@@ -4,6 +4,11 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import OccurrenceCard from "../components/OccurrenceCard";
 import {
+  OccurrencesRequestError,
+  fetchMyOccurrences,
+  type ApiOccurrence,
+} from "../services/occurrences";
+import {
   clearAccessToken,
   getAccessToken,
   getAuthenticatedUser,
@@ -21,16 +26,6 @@ const languageOptions = [
 
 type ReportTone = "progress" | "open" | "done";
 
-type ApiOccurrence = {
-  id?: string | number;
-  title?: string;
-  category?: string;
-  description?: string;
-  status?: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
 type DashboardReport = {
   id: string;
   status: string;
@@ -38,20 +33,6 @@ type DashboardReport = {
   time: string;
   tone: ReportTone;
 };
-
-function normalizeOccurrencesPayload(payload: unknown): ApiOccurrence[] {
-  if (Array.isArray(payload)) {
-    return payload as ApiOccurrence[];
-  }
-
-  if (payload && typeof payload === "object") {
-    const source = payload as { data?: unknown; occurrences?: unknown };
-    if (Array.isArray(source.data)) return source.data as ApiOccurrence[];
-    if (Array.isArray(source.occurrences)) return source.occurrences as ApiOccurrence[];
-  }
-
-  return [];
-}
 
 function toTimeLabel(value: string | undefined, locale: string, fallback: string) {
   if (!value) return fallback;
@@ -89,36 +70,20 @@ export default function Dashboard() {
       setReportsError("");
 
       try {
-        const response = await fetch("http://localhost:3000/occurrences", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            const hadStoredSession = !!getRawAccessToken();
-            clearAccessToken();
-            navigate("/login", {
-              replace: true,
-              state: { from: "/dashboard", ...(hadStoredSession ? { sessionExpired: true } : {}) },
-            });
-            return;
-          }
-
-          const message =
-            Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-          throw new Error(message || t("dashboard.reportsLoadError"));
+        const data = await fetchMyOccurrences(token, t("dashboard.reportsLoadError"));
+        if (!mounted) return;
+        setOccurrences(data);
+      } catch (error) {
+        if (!mounted) return;
+        if (error instanceof OccurrencesRequestError && error.status === 401) {
+          const hadStoredSession = !!getRawAccessToken();
+          clearAccessToken();
+          navigate("/login", {
+            replace: true,
+            state: { from: "/dashboard", ...(hadStoredSession ? { sessionExpired: true } : {}) },
+          });
+          return;
         }
-
-        if (!mounted) return;
-        const normalized = normalizeOccurrencesPayload(data);
-        setOccurrences(normalized);
-      } catch {
-        if (!mounted) return;
         setReportsError(t("dashboard.reportsLoadError"));
       } finally {
         if (!mounted) return;
