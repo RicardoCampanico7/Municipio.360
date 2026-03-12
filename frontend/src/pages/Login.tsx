@@ -41,6 +41,7 @@ function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
   const name = providedName || (email ? buildDisplayName(email) : "");
 
   if (!id || !name || !email) return null;
+
   return { id, name, email };
 }
 
@@ -72,14 +73,20 @@ export default function Login() {
       const response = await fetch("http://localhost:3000/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
+        clearAccessToken();
+
         const msg =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+
         throw new Error(msg || "LOGIN_FAILED");
       }
 
@@ -89,13 +96,25 @@ export default function Login() {
       }
 
       setAccessToken(data.accessToken);
+
       const authUser = extractAuthUserFromLoginResponse(data) || getAuthenticatedUser();
       if (authUser) {
         setAuthenticatedUser(authUser);
       }
+
       navigate("/dashboard");
-    } catch {
-      setError(t("auth.loginError"));
+    } catch (loginError) {
+      clearAccessToken();
+
+      if (loginError instanceof Error) {
+        if (loginError.message.toLowerCase().includes("failed to fetch")) {
+          setError(t("auth.loginError"));
+        } else {
+          setError(t("auth.loginError"));
+        }
+      } else {
+        setError(t("auth.loginError"));
+      }
     } finally {
       setLoading(false);
     }

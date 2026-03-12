@@ -9,6 +9,9 @@ datasource db {
 
 model User {
   id           Int                 @id @default(autoincrement())
+  name         String
+  biNumber     String
+  postalCode   String
   email        String              @unique
   passwordHash String
   role         Role                @default(CIVIL)
@@ -25,10 +28,8 @@ model Occurrence {
   location    String
   status      OccurrenceStatus @default(SUBMETIDA)
 
-  // anexo simples (podes ter 0..N imagens)
   imageUrls   String[]         @default([])
 
-  // relação com o utilizador (autor)
   userId      Int
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -1,5 +1,4 @@
-import { IsArray, IsEnum, IsOptional, IsString, MinLength, ArrayMaxSize } from 'class-validator';
-import { OccurrenceStatus } from '@prisma/client';
+import { IsArray, IsOptional, IsString, MinLength, ArrayMaxSize } from 'class-validator';
 
 export class CreateOccurrenceDto {
   @IsString()
@@ -19,8 +18,4 @@ export class CreateOccurrenceDto {
   @ArrayMaxSize(10)
   @IsString({ each: true })
   imageUrls?: string[];
-
-  @IsOptional()
-  @IsEnum(OccurrenceStatus)
-  status?: OccurrenceStatus;
 }
