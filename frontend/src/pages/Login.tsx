@@ -49,6 +49,13 @@ export default function Login() {
   const location = useLocation();
   const { t } = useTranslation();
   const showcaseImage = "/login-photo.jpg";
+  const redirectTo =
+    location.state &&
+    typeof location.state === "object" &&
+    "from" in location.state &&
+    typeof (location.state as { from?: unknown }).from === "string"
+      ? (location.state as { from: string }).from
+      : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -93,7 +100,7 @@ export default function Login() {
       if (authUser) {
         setAuthenticatedUser(authUser);
       }
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     } catch {
       setError(t("auth.loginError"));
     } finally {
