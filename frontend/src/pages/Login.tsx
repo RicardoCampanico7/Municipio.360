@@ -15,6 +15,11 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function buildDisplayName(email: string): string {
+  const [localPart] = email.split("@");
+  return localPart?.trim() || email;
+}
+
 function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
   if (!data || typeof data !== "object") return null;
 
@@ -31,11 +36,11 @@ function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
 
   const rawId = candidate.id ?? candidate.userId;
   const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
-  const name = normalizeString(candidate.name ?? candidate.fullName);
   const email = normalizeString(candidate.email).toLowerCase();
+  const providedName = normalizeString(candidate.name ?? candidate.fullName);
+  const name = providedName || (email ? buildDisplayName(email) : "");
 
   if (!id || !name || !email) return null;
-
   return { id, name, email };
 }
 
@@ -44,6 +49,13 @@ export default function Login() {
   const location = useLocation();
   const { t } = useTranslation();
   const showcaseImage = "/login-photo.jpg";
+  const redirectTo =
+    location.state &&
+    typeof location.state === "object" &&
+    "from" in location.state &&
+    typeof (location.state as { from?: unknown }).from === "string"
+      ? (location.state as { from: string }).from
+      : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,20 +79,14 @@ export default function Login() {
       const response = await fetch("http://localhost:3000/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json().catch(() => null);
+      const data = await response.json();
 
       if (!response.ok) {
-        clearAccessToken();
-
         const msg =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-
         throw new Error(msg || "LOGIN_FAILED");
       }
 
@@ -90,25 +96,13 @@ export default function Login() {
       }
 
       setAccessToken(data.accessToken);
-
       const authUser = extractAuthUserFromLoginResponse(data) || getAuthenticatedUser();
       if (authUser) {
         setAuthenticatedUser(authUser);
       }
-
-      navigate("/dashboard");
-    } catch (loginError) {
-      clearAccessToken();
-
-      if (loginError instanceof Error) {
-        if (loginError.message.toLowerCase().includes("failed to fetch")) {
-          setError(t("auth.loginError"));
-        } else {
-          setError(t("auth.loginError"));
-        }
-      } else {
-        setError(t("auth.loginError"));
-      }
+      navigate(redirectTo, { replace: true });
+    } catch {
+      setError(t("auth.loginError"));
     } finally {
       setLoading(false);
     }

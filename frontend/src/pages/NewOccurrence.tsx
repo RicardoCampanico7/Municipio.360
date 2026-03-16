@@ -10,11 +10,11 @@ import {
   TriangleAlert,
   Volume2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
-import { clearAccessToken, getAccessToken } from "../services/token";
+import { clearAccessToken, getAccessToken, getRawAccessToken } from "../services/token";
 import "./NewOccurrence.css";
 
 const categories = [
@@ -38,23 +38,16 @@ export default function NewOccurrence() {
   const [loading, setLoading] = useState(false);
 
   const redirectToLoginForExpiredSession = () => {
+    const hadStoredSession = !!getRawAccessToken();
     clearAccessToken();
     navigate("/login", {
       replace: true,
-      state: { from: "/occurrences/new", sessionExpired: true },
+      state: {
+        from: "/occurrences/new",
+        ...(hadStoredSession ? { sessionExpired: true } : {}),
+      },
     });
   };
-
-  useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      clearAccessToken();
-      navigate("/login", {
-        replace: true,
-        state: { from: "/occurrences/new", sessionExpired: true },
-      });
-    }
-  }, [navigate]);
 
   const filledImageUrls = imageUrls.map((url) => url.trim()).filter(Boolean);
 
@@ -91,7 +84,16 @@ export default function NewOccurrence() {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/occurrences", {
+      const trimmedLocation = location.trim();
+      const trimmedDescription = description.trim();
+
+      if (!trimmedLocation || !trimmedDescription) {
+        setError("Preenche a localizacao e a descricao antes de enviar.");
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("/api/occurrences", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -99,8 +101,8 @@ export default function NewOccurrence() {
         },
         body: JSON.stringify({
           category,
-          location,
-          description,
+          location: trimmedLocation,
+          description: trimmedDescription,
           imageUrls: filledImageUrls.length ? filledImageUrls : undefined,
         }),
       });
@@ -161,7 +163,8 @@ export default function NewOccurrence() {
               type="text"
               placeholder="Ex.: Avenida Central, Faro"
               value={location}
-              readOnly
+              onChange={(e) => setLocation(e.target.value)}
+              required
             />
           </div>
         </aside>
@@ -187,6 +190,20 @@ export default function NewOccurrence() {
           </div>
 
           <form className="occ-form" onSubmit={handleSubmit}>
+            <label className="occ-field-label" htmlFor="occ-location">
+              <MapPinned size={16} strokeWidth={2.2} />
+              Localizacao
+            </label>
+            <input
+              id="occ-location"
+              className="occ-input"
+              type="text"
+              placeholder="Ex.: Avenida Central, Faro"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              required
+            />
+
             <fieldset className="occ-fieldset">
               <legend>
                 <TriangleAlert size={16} strokeWidth={2.2} />

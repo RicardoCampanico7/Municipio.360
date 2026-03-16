@@ -1,14 +1,14 @@
-import { CertificationStatus, PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, CertificationStatus, Role, OccurrenceStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 /**
- * Cria ou atualiza utilizadores base para testes manuais da aplicacao.
+ * Cria ou atualiza utilizadores base e ocorrencias de demonstracao para testes manuais.
  * @param none Script de seed sem parametros externos.
  * @return Promise<void> Promessa resolvida apos a populacao da base de dados.
  * Pre-condicao: A ligacao a base de dados deve estar configurada.
- * Pos-condicao: Existem utilizadores base com roles civil, operador e administrador.
+ * Pos-condicao: Existem utilizadores base com roles civil, operador e administrador, bem como ocorrencias de exemplo.
  */
 async function main() {
   const password = 'Password123!';
@@ -59,7 +59,49 @@ async function main() {
     });
   }
 
-  console.log('Seed concluido:', users.map((user) => user.email).join(', '));
+  const civil = await prisma.user.findUniqueOrThrow({
+    where: { email: 'civil@teste.pt' },
+    select: { id: true },
+  });
+
+  await prisma.occurrence.deleteMany({
+    where: { userId: civil.id },
+  });
+
+  await prisma.occurrence.createMany({
+    data: [
+      {
+        category: 'Iluminacao publica',
+        description: 'Candeeiro apagado junto ao jardim municipal',
+        location: 'Rua das Flores, Faro',
+        status: OccurrenceStatus.SUBMETIDA,
+        imageUrls: [],
+        userId: civil.id,
+      },
+      {
+        category: 'Buraco na estrada',
+        description: 'Buraco grande junto a passadeira',
+        location: 'Avenida Central, Faro',
+        status: OccurrenceStatus.EM_TRATAMENTO,
+        imageUrls: [],
+        userId: civil.id,
+      },
+      {
+        category: 'Sinalizacao',
+        description: 'Sinal de transito danificado',
+        location: 'Rua do Mercado, Faro',
+        status: OccurrenceStatus.CONCLUIDA,
+        imageUrls: [],
+        userId: civil.id,
+      },
+    ],
+  });
+
+  console.log(
+    'Seed concluido:',
+    users.map((user) => user.email).join(', '),
+    '- com ocorrencias de demonstracao',
+  );
 }
 
 void main()
