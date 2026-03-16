@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -19,78 +21,214 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-
-import { OccurrencesService } from './occurrences.service';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
+import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
+import { OccurrencesService } from './occurrences.service';
 
+/**
+ * Expos endpoints publicos, privados e de gestao para ocorrencias municipais.
+ * @author Alan Martynyuk e Guilherme Gaspar
+ * @version 16/03/2026
+ * @inv O controlador deve separar claramente respostas publicas de respostas autenticadas.
+ */
 @ApiTags('occurrences')
 @Controller('occurrences')
 export class OccurrencesController {
+  /**
+   * Recebe o servico principal de ocorrencias.
+   * @param occurrencesService Servico de ocorrencias.
+   */
   constructor(private readonly occurrencesService: OccurrencesService) {}
 
+  /**
+   * Extrai o identificador do utilizador autenticado do pedido HTTP.
+   * @param req Pedido HTTP atual.
+   * @return number Identificador numerico do utilizador autenticado.
+   * Pre-condicao: O pedido deve ter passado pelo guard JWT.
+   * Pos-condicao: E lancada excecao 400 quando o utilizador nao e valido.
+   */
   private getUserId(req: Request): number {
-    const u: any = (req as any).user;
-    const id = u?.sub ?? u?.userId ?? u?.id;
+    const user = req.user as { sub?: number; userId?: number; id?: number } | undefined;
+    const id = user?.sub ?? user?.userId ?? user?.id;
     const parsedId = Number(id);
 
     if (!parsedId || Number.isNaN(parsedId)) {
-      throw new BadRequestException('Utilizador autenticado inválido');
+      throw new BadRequestException('Utilizador autenticado invalido');
     }
 
     return parsedId;
   }
 
+  /**
+   * Lista as ocorrencias publicas visiveis para qualquer utilizador.
+   * @return Lista publica de ocorrencias.
+   */
   @Get()
-  @ApiOperation({ summary: 'Listar ocorrências públicas' })
-  @ApiResponse({ status: 200, description: 'Lista pública de ocorrências' })
+  @ApiOperation({ summary: 'Listar ocorrencias publicas' })
+  @ApiResponse({ status: 200, description: 'Lista publica de ocorrencias' })
   findAll() {
     return this.occurrencesService.findAll();
   }
 
+  /**
+   * Devolve o estado de disponibilidade do modulo de ocorrencias.
+   * @return {{ status: string }} Estado simples do modulo.
+   */
   @Get('health')
-  @ApiOperation({ summary: 'Health check do módulo de ocorrências' })
+  @ApiOperation({ summary: 'Health check do modulo de ocorrencias' })
   @ApiResponse({ status: 200, description: 'OK' })
   health() {
     return { status: 'ok' };
   }
 
-  @Get('mine/list')
+  /**
+   * Lista as ocorrencias do utilizador autenticado com role CIVIL.
+   * @param req Pedido HTTP autenticado.
+   * @return Lista das ocorrencias do utilizador.
+   */
+  @Get('mine')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar ocorrências do utilizador autenticado (CIVIL)' })
+  @ApiOperation({ summary: 'Listar ocorrencias do utilizador autenticado (CIVIL)' })
   @ApiResponse({ status: 200, description: 'Lista devolvida' })
-  @ApiResponse({ status: 401, description: 'Sem autenticação' })
-  @ApiResponse({ status: 403, description: 'Sem permissões (não é CIVIL)' })
+  @ApiResponse({ status: 401, description: 'Sem autenticacao' })
+  @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
   findMine(@Req() req: Request) {
     const userId = this.getUserId(req);
     return this.occurrencesService.findMine(userId);
   }
 
+  /**
+   * Mantem compatibilidade com o alias legado de listagem das ocorrencias do utilizador.
+   * @param req Pedido HTTP autenticado.
+   * @return Lista das ocorrencias do utilizador.
+   */
+  @Get('mine/list')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CIVIL)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Alias legado para listar ocorrencias do utilizador autenticado' })
+  findMineLegacy(@Req() req: Request) {
+    const userId = this.getUserId(req);
+    return this.occurrencesService.findMine(userId);
+  }
+
+  /**
+   * Devolve o detalhe de uma ocorrencia pertencente ao utilizador autenticado.
+   * @param req Pedido HTTP autenticado.
+   * @param id Identificador da ocorrencia.
+   * @return Detalhe da ocorrencia do utilizador.
+   */
+  @Get('mine/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CIVIL)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Detalhe de uma ocorrencia do utilizador autenticado (CIVIL)' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiResponse({ status: 200, description: 'Ocorrencia encontrada' })
+  @ApiResponse({ status: 403, description: 'A ocorrencia nao pertence ao utilizador autenticado' })
+  findMineById(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
+    const userId = this.getUserId(req);
+    return this.occurrencesService.findMineById(id, userId);
+  }
+
+  /**
+   * Lista ocorrencias com dados adicionais para operadores e administradores.
+   * @return Lista de ocorrencias para gestao interna.
+   */
+  @Get('management')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar ocorrencias com dados do autor para operadores' })
+  findAllForOperator() {
+    return this.occurrencesService.findAllForOperator();
+  }
+
+  /**
+   * Devolve o detalhe de uma ocorrencia para operacao interna.
+   * @param id Identificador da ocorrencia.
+   * @return Detalhe da ocorrencia para operadores.
+   */
+  @Get('management/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter detalhe de uma ocorrencia para operadores' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  findOneForOperator(@Param('id', ParseIntPipe) id: number) {
+    return this.occurrencesService.findOneForOperator(id);
+  }
+
+  /**
+   * Devolve o detalhe publico de uma ocorrencia.
+   * @param id Identificador da ocorrencia.
+   * @return Dados publicos da ocorrencia.
+   */
   @Get(':id')
-  @ApiOperation({ summary: 'Detalhe público de uma ocorrência' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrência' })
-  @ApiResponse({ status: 200, description: 'Ocorrência encontrada' })
-  @ApiResponse({ status: 404, description: 'Ocorrência não existe' })
+  @ApiOperation({ summary: 'Detalhe publico de uma ocorrencia' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiResponse({ status: 200, description: 'Ocorrencia encontrada' })
+  @ApiResponse({ status: 404, description: 'Ocorrencia nao existe' })
   findOnePublic(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOnePublic(id);
   }
 
+  /**
+   * Cria uma nova ocorrencia associada ao utilizador autenticado.
+   * @param req Pedido HTTP autenticado.
+   * @param dto Dados da nova ocorrencia.
+   * @return Ocorrencia criada.
+   */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Criar ocorrência (apenas CIVIL autenticado)' })
+  @ApiOperation({ summary: 'Criar ocorrencia (apenas CIVIL autenticado)' })
   @ApiBody({ type: CreateOccurrenceDto })
-  @ApiResponse({ status: 201, description: 'Ocorrência criada' })
-  @ApiResponse({ status: 401, description: 'Sem autenticação' })
-  @ApiResponse({ status: 403, description: 'Sem permissões (não é CIVIL)' })
+  @ApiResponse({ status: 201, description: 'Ocorrencia criada' })
+  @ApiResponse({ status: 401, description: 'Sem autenticacao' })
+  @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
   create(@Req() req: Request, @Body() dto: CreateOccurrenceDto) {
     const userId = this.getUserId(req);
     return this.occurrencesService.create(userId, dto);
+  }
+
+  /**
+   * Atualiza o estado de uma ocorrencia em contexto de operacao interna.
+   * @param id Identificador da ocorrencia.
+   * @param dto Novo estado pretendido.
+   * @return Ocorrencia atualizada.
+   */
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar estado de uma ocorrencia (OPERADOR ou ADMINISTRADOR)' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateOccurrenceStatusDto,
+  ) {
+    return this.occurrencesService.updateStatus(id, dto.status);
+  }
+
+  /**
+   * Remove uma ocorrencia em contexto de gestao interna.
+   * @param id Identificador da ocorrencia.
+   * @return Ocorrencia removida.
+   */
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remover ocorrencia (OPERADOR ou ADMINISTRADOR)' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.occurrencesService.remove(id);
   }
 }

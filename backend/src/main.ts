@@ -1,16 +1,21 @@
-import "dotenv/config";
-import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
-import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { ValidationPipe } from "@nestjs/common";
+import 'dotenv/config';
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 
-
+/**
+ * Arranca a aplicacao Nest, configura CORS, validacao global e documentacao Swagger.
+ * @param none Metodo de arranque sem parametros externos.
+ * @return Promise<void> Promessa resolvida apos a API ficar em escuta.
+ * Pre-condicao: As variaveis de ambiente necessarias devem estar carregadas.
+ * Pos-condicao: A aplicacao fica disponivel na porta configurada.
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Permitir pedidos do frontend (Vite default 5173)
   app.enableCors({
-    origin: ["http://localhost:5173"],
+    origin: ['http://localhost:5173'],
     credentials: true,
   });
 
@@ -23,15 +28,16 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle("Municipio360 API")
-    .setDescription("Documentação da API do Sistema de Gestão Municipal")
-    .setVersion("1.0")
+    .setTitle('Municipio360 API')
+    .setDescription('Documentacao da API do Sistema de Gestao Municipal')
+    .setVersion('1.0')
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api", app, document);
+  SwaggerModule.setup('api', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+
+void bootstrap();
