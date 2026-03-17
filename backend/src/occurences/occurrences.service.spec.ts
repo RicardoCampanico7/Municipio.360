@@ -1,0 +1,98 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { PrismaService } from '../prisma/prisma.service';
+import { OccurrencesService } from './occurrences.service';
+
+/**
+ * Valida os dados visiveis e a ausencia de dados sensiveis nas respostas publicas.
+ */
+describe('OccurrencesService', () => {
+  let service: OccurrencesService;
+  let prisma: {
+    occurrence: {
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+    };
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      occurrence: {
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+      },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OccurrencesService,
+        {
+          provide: PrismaService,
+          useValue: prisma,
+        },
+      ],
+    }).compile();
+
+    service = module.get<OccurrencesService>(OccurrencesService);
+  });
+
+  /**
+   * Garante que a listagem publica usa apenas campos visiveis da ocorrencia.
+   * @return void
+   */
+  it('should request only visible fields when listing public occurrences', async () => {
+    prisma.occurrence.findMany.mockResolvedValue([]);
+
+    await service.findAll();
+
+    expect(prisma.occurrence.findMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    expect(prisma.occurrence.findMany.mock.calls[0][0].select).not.toHaveProperty('user');
+    expect(prisma.occurrence.findMany.mock.calls[0][0].select).not.toHaveProperty('userId');
+  });
+
+  /**
+   * Garante que o detalhe publico nao tenta expor dados do autor.
+   * @return void
+   */
+  it('should request only visible fields on public occurrence detail', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 1,
+      category: 'Iluminacao',
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: 'SUBMETIDA',
+      createdAt: new Date('2026-03-17T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T09:00:00.000Z'),
+    });
+
+    const result = await service.findOnePublic(1);
+
+    expect(prisma.occurrence.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+      select: {
+        id: true,
+        category: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    expect(result).not.toHaveProperty('userId');
+    expect(result).not.toHaveProperty('user');
+  });
+});
