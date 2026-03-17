@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { OccurrencesService } from './occurrences.service';
@@ -8,7 +9,11 @@ import { OccurrencesService } from './occurrences.service';
 describe('OccurrencesService', () => {
   let service: OccurrencesService;
   let prisma: {
+    user: {
+      findUnique: jest.Mock;
+    };
     occurrence: {
+      create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
     };
@@ -16,7 +21,11 @@ describe('OccurrencesService', () => {
 
   beforeEach(async () => {
     prisma = {
+      user: {
+        findUnique: jest.fn(),
+      },
       occurrence: {
+        create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
       },
@@ -94,5 +103,28 @@ describe('OccurrencesService', () => {
     });
     expect(result).not.toHaveProperty('userId');
     expect(result).not.toHaveProperty('user');
+  });
+
+  /**
+   * Garante que a criacao nao devolve erro interno quando o utilizador autenticado nao existe.
+   * @return void
+   */
+  it('should throw unauthorized instead of causing a 500 when creating with an invalid user', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.create(999, {
+        category: 'Iluminacao',
+        description: 'Candeeiro apagado',
+        location: 'Rua A',
+        imageUrls: [],
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: 999 },
+      select: { id: true },
+    });
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 });
