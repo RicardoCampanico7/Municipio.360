@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -73,7 +77,7 @@ export class AuthService {
     });
 
     if (exists) {
-      throw new BadRequestException('Email ja registado');
+      throw new ConflictException('Email ja registado');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
