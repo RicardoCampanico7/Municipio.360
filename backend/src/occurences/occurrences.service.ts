@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
@@ -16,6 +21,22 @@ export class OccurrencesService {
    * @param prisma Servico Prisma da aplicacao.
    */
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Garante que o utilizador autenticado ainda existe antes de criar registos dependentes.
+   * @param userId Identificador do utilizador autenticado.
+   * @return Promise<void> Promessa resolvida quando o utilizador existe.
+   */
+  private async ensureExistingUser(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+  }
 
   /**
    * Define os campos publicos devolvidos nas respostas de ocorrencias.
@@ -72,6 +93,8 @@ export class OccurrencesService {
    * @return Ocorrencia criada.
    */
   async create(userId: number, dto: CreateOccurrenceDto) {
+    await this.ensureExistingUser(userId);
+
     return this.prisma.occurrence.create({
       data: {
         category: dto.category,
