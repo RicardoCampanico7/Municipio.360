@@ -39,7 +39,7 @@ const resources = {
         registerCitizenCardError: "Cartao de cidadao invalido.",
         registerPostalCodeError: "Codigo postal invalido. Usa o formato 0000-000.",
         registerEmailError: "Email invalido.",
-        registerPasswordMinError: "A palavra-passe deve ter pelo menos 6 caracteres.",
+        registerPasswordMinError: "A palavra-passe deve ter pelo menos 8 caracteres.",
         registerErrorEmailExists: "Ja existe uma conta com este email.",
         registerErrorServer: "Erro interno do servidor. Tenta novamente em instantes.",
         registerErrorInvalidData: "Dados invalidos. Verifica os campos e tenta novamente.",
@@ -153,7 +153,7 @@ const resources = {
         registerCitizenCardError: "Invalid citizen card.",
         registerPostalCodeError: "Invalid postal code. Use 0000-000 format.",
         registerEmailError: "Invalid email address.",
-        registerPasswordMinError: "Password must have at least 6 characters.",
+        registerPasswordMinError: "Password must have at least 8 characters.",
         registerErrorEmailExists: "An account with this email already exists.",
         registerErrorServer: "Internal server error. Please try again shortly.",
         registerErrorInvalidData: "Invalid data. Please review your inputs and try again.",
@@ -267,7 +267,7 @@ const resources = {
         registerCitizenCardError: "Documento de identidad invalido.",
         registerPostalCodeError: "Codigo postal invalido. Usa el formato 0000-000.",
         registerEmailError: "Correo invalido.",
-        registerPasswordMinError: "La contrasena debe tener al menos 6 caracteres.",
+        registerPasswordMinError: "La contrasena debe tener al menos 8 caracteres.",
         registerErrorEmailExists: "Ya existe una cuenta con este correo.",
         registerErrorServer: "Error interno del servidor. Intenta de nuevo en unos instantes.",
         registerErrorInvalidData: "Datos invalidos. Revisa los campos e intentalo de nuevo.",
@@ -381,7 +381,7 @@ const resources = {
         registerCitizenCardError: "Carte d'identite invalide.",
         registerPostalCodeError: "Code postal invalide. Utilise le format 0000-000.",
         registerEmailError: "Email invalide.",
-        registerPasswordMinError: "Le mot de passe doit contenir au moins 6 caracteres.",
+        registerPasswordMinError: "Le mot de passe doit contenir au moins 8 caracteres.",
         registerErrorEmailExists: "Un compte avec cet email existe deja.",
         registerErrorServer: "Erreur interne du serveur. Reessaie dans un instant.",
         registerErrorInvalidData: "Donnees invalides. Verifie les champs et reessaie.",
@@ -484,4 +484,3 @@ i18n.on("languageChanged", (language) => {
 
 export { LANGUAGE_STORAGE_KEY };
 export default i18n;
-
