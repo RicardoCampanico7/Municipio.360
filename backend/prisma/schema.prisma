@@ -22,19 +22,20 @@ model User {
 }
 
 model Occurrence {
-  id          Int              @id @default(autoincrement())
-  category    String
-  description String
-  location    String
-  status      OccurrenceStatus @default(SUBMETIDA)
+  id                  Int                @id @default(autoincrement())
+  category            OccurrenceCategory
+  otherCategoryDetail String?
+  description         String
+  location            String
+  status              OccurrenceStatus   @default(SUBMETIDA)
 
-  imageUrls   String[]         @default([])
+  imageUrls           String[]           @default([])
 
-  userId      Int
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              Int
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -51,6 +52,16 @@ enum OccurrenceStatus {
   SUBMETIDA
   EM_TRATAMENTO
   CONCLUIDA
+}
+
+enum OccurrenceCategory {
+  BURACOS_PAVIMENTO
+  ILUMINACAO_PUBLICA
+  LIMPEZA_URBANA
+  RUIDO
+  ESPACOS_PUBLICOS
+  SINALIZACAO
+  OUTROS
 }
 
 enum Role {

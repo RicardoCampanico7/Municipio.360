@@ -1,4 +1,10 @@
-import { PrismaClient, CertificationStatus, Role, OccurrenceStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  CertificationStatus,
+  Role,
+  OccurrenceCategory,
+  OccurrenceStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -71,7 +77,7 @@ async function main() {
   await prisma.occurrence.createMany({
     data: [
       {
-        category: 'Iluminacao publica',
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         description: 'Candeeiro apagado junto ao jardim municipal',
         location: 'Rua das Flores, Faro',
         status: OccurrenceStatus.SUBMETIDA,
@@ -79,7 +85,7 @@ async function main() {
         userId: civil.id,
       },
       {
-        category: 'Buraco na estrada',
+        category: OccurrenceCategory.BURACOS_PAVIMENTO,
         description: 'Buraco grande junto a passadeira',
         location: 'Avenida Central, Faro',
         status: OccurrenceStatus.EM_TRATAMENTO,
@@ -87,7 +93,7 @@ async function main() {
         userId: civil.id,
       },
       {
-        category: 'Sinalizacao',
+        category: OccurrenceCategory.SINALIZACAO,
         description: 'Sinal de transito danificado',
         location: 'Rua do Mercado, Faro',
         status: OccurrenceStatus.CONCLUIDA,

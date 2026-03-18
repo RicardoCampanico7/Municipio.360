@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { OccurrenceStatus } from '@prisma/client';
+import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 
@@ -46,6 +46,7 @@ export class OccurrencesService {
     return {
       id: true,
       category: true,
+      otherCategoryDetail: true,
       description: true,
       location: true,
       imageUrls: true,
@@ -95,9 +96,15 @@ export class OccurrencesService {
   async create(userId: number, dto: CreateOccurrenceDto) {
     await this.ensureExistingUser(userId);
 
+    const otherCategoryDetail =
+      dto.category === OccurrenceCategory.OUTROS
+        ? dto.otherCategoryDetail?.trim()
+        : null;
+
     return this.prisma.occurrence.create({
       data: {
         category: dto.category,
+        otherCategoryDetail,
         description: dto.description,
         location: dto.location,
         imageUrls: dto.imageUrls ?? [],
