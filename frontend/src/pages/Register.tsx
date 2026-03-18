@@ -106,12 +106,12 @@ export default function Register() {
       return;
     }
 
-    if (!/^[0-9A-Z\\s]{8,14}$/.test(normalizedCitizenCard)) {
+    if (!/^[0-9A-Z\s]{8,14}$/.test(normalizedCitizenCard)) {
       setError(t("auth.registerCitizenCardError"));
       return;
     }
 
-    if (!/^\\d{4}-\\d{3}$/.test(normalizedPostalCode)) {
+    if (!/^\d{4}-\d{3}$/.test(normalizedPostalCode)) {
       setError(t("auth.registerPostalCodeError"));
       return;
     }
@@ -129,7 +129,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/auth/register", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
