@@ -1,4 +1,13 @@
-import { ArrayMaxSize, IsArray, IsOptional, IsString, MinLength } from 'class-validator';
+import { OccurrenceCategory } from '@prisma/client';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 
 /**
  * Representa os dados necessarios para criar uma nova ocorrencia.
@@ -7,9 +16,13 @@ import { ArrayMaxSize, IsArray, IsOptional, IsString, MinLength } from 'class-va
  * @inv O DTO deve garantir a presenca dos campos essenciais de uma ocorrencia.
  */
 export class CreateOccurrenceDto {
+  @IsEnum(OccurrenceCategory)
+  category: OccurrenceCategory;
+
+  @ValidateIf((dto: CreateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS)
   @IsString()
-  @MinLength(2)
-  category: string;
+  @MinLength(3)
+  otherCategoryDetail?: string;
 
   @IsString()
   @MinLength(3)

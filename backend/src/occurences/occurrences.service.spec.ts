@@ -1,3 +1,4 @@
+import { OccurrenceCategory } from '@prisma/client';
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
@@ -58,6 +59,7 @@ describe('OccurrencesService', () => {
       select: {
         id: true,
         category: true,
+        otherCategoryDetail: true,
         description: true,
         location: true,
         imageUrls: true,
@@ -77,7 +79,8 @@ describe('OccurrencesService', () => {
   it('should request only visible fields on public occurrence detail', async () => {
     prisma.occurrence.findUnique.mockResolvedValue({
       id: 1,
-      category: 'Iluminacao',
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
       description: 'Candeeiro apagado',
       location: 'Rua A',
       imageUrls: [],
@@ -93,6 +96,7 @@ describe('OccurrencesService', () => {
       select: {
         id: true,
         category: true,
+        otherCategoryDetail: true,
         description: true,
         location: true,
         imageUrls: true,
@@ -114,7 +118,7 @@ describe('OccurrencesService', () => {
 
     await expect(
       service.create(999, {
-        category: 'Iluminacao',
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         description: 'Candeeiro apagado',
         location: 'Rua A',
         imageUrls: [],
