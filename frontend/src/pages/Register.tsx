@@ -83,6 +83,9 @@ export default function Register() {
   const { t } = useTranslation();
   const showcaseImage = "/login-photo.jpg";
 
+  const [name, setName] = useState("");
+  const [citizenCard, setCitizenCard] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -93,14 +96,32 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
+    const normalizedName = name.trim();
+    const normalizedCitizenCard = citizenCard.trim().toUpperCase();
+    const normalizedPostalCode = postalCode.trim();
     const normalizedEmail = email.trim();
+
+    if (normalizedName.length < 3) {
+      setError(t("auth.registerNameMinError"));
+      return;
+    }
+
+    if (!/^[0-9A-Z\\s]{8,14}$/.test(normalizedCitizenCard)) {
+      setError(t("auth.registerCitizenCardError"));
+      return;
+    }
+
+    if (!/^\\d{4}-\\d{3}$/.test(normalizedPostalCode)) {
+      setError(t("auth.registerPostalCodeError"));
+      return;
+    }
 
     if (!isValidEmail(normalizedEmail)) {
       setError(t("auth.registerEmailError"));
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError(t("auth.registerPasswordMinError"));
       return;
     }
@@ -114,6 +135,9 @@ export default function Register() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          name: normalizedName,
+          biNumber: normalizedCitizenCard,
+          postalCode: normalizedPostalCode,
           email: normalizedEmail,
           password,
         }),
@@ -168,6 +192,59 @@ export default function Register() {
           <p className="auth-subtitle">{t("auth.registerSubtitle")}</p>
 
           <form className="auth-form" onSubmit={handleRegister}>
+            <label className="sr-only" htmlFor="register-name">
+              {t("auth.name")}
+            </label>
+            <input
+              id="register-name"
+              className="auth-input"
+              type="text"
+              placeholder={t("auth.namePlaceholder")}
+              autoComplete="name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError("");
+              }}
+              minLength={3}
+              required
+            />
+
+            <label className="sr-only" htmlFor="register-citizen-card">
+              {t("auth.citizenCard")}
+            </label>
+            <input
+              id="register-citizen-card"
+              className="auth-input"
+              type="text"
+              placeholder={t("auth.citizenCardPlaceholder")}
+              autoComplete="off"
+              value={citizenCard}
+              onChange={(e) => {
+                setCitizenCard(e.target.value.toUpperCase());
+                if (error) setError("");
+              }}
+              required
+            />
+
+            <label className="sr-only" htmlFor="register-postal-code">
+              {t("auth.postalCode")}
+            </label>
+            <input
+              id="register-postal-code"
+              className="auth-input"
+              type="text"
+              placeholder={t("auth.postalCodePlaceholder")}
+              autoComplete="postal-code"
+              value={postalCode}
+              onChange={(e) => {
+                setPostalCode(e.target.value);
+                if (error) setError("");
+              }}
+              inputMode="numeric"
+              required
+            />
+
             <label className="sr-only" htmlFor="register-email">
               {t("auth.email")}
             </label>
@@ -200,7 +277,7 @@ export default function Register() {
                   setPassword(e.target.value);
                   if (error) setError("");
                 }}
-                minLength={6}
+                minLength={8}
                 required
               />
               <button
