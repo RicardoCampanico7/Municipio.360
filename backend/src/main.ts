@@ -2,7 +2,12 @@ import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import express from 'express';
 import { AppModule } from './app.module';
+import {
+  ensureOccurrenceUploadsDirectory,
+  occurrenceUploadConfig,
+} from './occurences/occurrence-upload';
 
 /**
  * Arranca a aplicacao Nest, configura CORS, validacao global e documentacao Swagger.
@@ -13,6 +18,13 @@ import { AppModule } from './app.module';
  */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  await ensureOccurrenceUploadsDirectory();
+
+  app.use(
+    occurrenceUploadConfig.publicBasePath,
+    express.static(occurrenceUploadConfig.uploadsRoot),
+  );
 
   app.enableCors({
     origin: ['http://localhost:5173'],

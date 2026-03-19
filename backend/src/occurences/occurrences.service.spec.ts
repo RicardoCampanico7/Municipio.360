@@ -1,17 +1,17 @@
-import {
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  removeOccurrenceImagesByUrls,
+  saveOccurrenceImages,
+} from './occurrence-upload';
 import { OccurrencesService } from './occurrences.service';
 
-const SMALL_IMAGE_DATA_URL =
-  'data:image/png;base64,' + Buffer.from('small-image').toString('base64');
-const LARGE_IMAGE_DATA_URL =
-  'data:image/png;base64,' +
-  Buffer.alloc(3 * 1024 * 1024 + 1, 1).toString('base64');
+jest.mock('./occurrence-upload', () => ({
+  saveOccurrenceImages: jest.fn(),
+  removeOccurrenceImagesByUrls: jest.fn(),
+}));
 
 /**
  * Valida os dados visiveis e a ausencia de dados sensiveis nas respostas publicas.
@@ -31,6 +31,7 @@ describe('OccurrencesService', () => {
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     prisma = {
       user: {
         findUnique: jest.fn(),
@@ -132,7 +133,6 @@ describe('OccurrencesService', () => {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         description: 'Candeeiro apagado',
         location: 'Rua A',
-        imageUrls: [SMALL_IMAGE_DATA_URL],
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
@@ -140,6 +140,7 @@ describe('OccurrencesService', () => {
       where: { id: 999 },
       select: { id: true },
     });
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
@@ -151,35 +152,76 @@ describe('OccurrencesService', () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
     });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue(['/uploads/occurrences/a.png']);
     prisma.occurrence.create.mockResolvedValue({ id: 2 });
 
-    await service.create(7, {
-      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-      location: 'Rua A',
-      imageUrls: [SMALL_IMAGE_DATA_URL],
-    });
+    await service.create(
+      7,
+      {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+      },
+      [
+        {
+          buffer: Buffer.from('img'),
+          mimetype: 'image/png',
+          originalname: 'photo.png',
+          size: 3,
+        },
+      ],
+    );
 
     expect(prisma.occurrence.create).toHaveBeenCalled();
   });
 
   /**
-   * Garante que a criacao valida o tamanho real das fotografias recebidas.
+   * Garante que imagens opcionais podem ser omitidas sem bloquear a criacao.
    * @return void
    */
-  it('should reject images whose decoded payload exceeds the backend limit', async () => {
+  it('should create an occurrence without images', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
     });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
+    prisma.occurrence.create.mockResolvedValue({ id: 3 });
+
+    await service.create(7, {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      location: 'Rua A',
+    });
+
+    expect(saveOccurrenceImages).toHaveBeenCalledWith([]);
+    expect(prisma.occurrence.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        imageUrls: [],
+      }),
+      select: expect.any(Object),
+    });
+  });
+
+  /**
+   * Garante que falhas a persistir a ocorrencia limpam as imagens ja guardadas.
+   * @return void
+   */
+  it('should remove saved images when database creation fails', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([
+      '/uploads/occurrences/fail.png',
+    ]);
+    prisma.occurrence.create.mockRejectedValue(new Error('db failure'));
 
     await expect(
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: [LARGE_IMAGE_DATA_URL],
       }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toThrow('db failure');
 
-    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+    expect(removeOccurrenceImagesByUrls).toHaveBeenCalledWith([
+      '/uploads/occurrences/fail.png',
+    ]);
   });
 
   /**
@@ -190,14 +232,27 @@ describe('OccurrencesService', () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 12,
     });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([
+      '/uploads/occurrences/one.png',
+    ]);
     prisma.occurrence.create.mockResolvedValue({ id: 1 });
 
-    await service.create(12, {
-      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-      location: ' Rua A ',
-      description: '  Candeeiro apagado  ',
-      imageUrls: [SMALL_IMAGE_DATA_URL],
-    });
+    await service.create(
+      12,
+      {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: ' Rua A ',
+        description: '  Candeeiro apagado  ',
+      },
+      [
+        {
+          buffer: Buffer.from('img'),
+          mimetype: 'image/png',
+          originalname: 'one.png',
+          size: 3,
+        },
+      ],
+    );
 
     expect(prisma.occurrence.create).toHaveBeenCalledWith({
       data: {
@@ -205,7 +260,7 @@ describe('OccurrencesService', () => {
         otherCategoryDetail: null,
         description: 'Candeeiro apagado',
         location: ' Rua A ',
-        imageUrls: [SMALL_IMAGE_DATA_URL],
+        imageUrls: ['/uploads/occurrences/one.png'],
         status: OccurrenceStatus.SUBMETIDA,
         userId: 12,
       },
