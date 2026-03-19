@@ -1,8 +1,22 @@
-import { OccurrenceCategory } from '@prisma/client';
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  CertificationStatus,
+  OccurrenceCategory,
+  OccurrenceStatus,
+} from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { OccurrencesService } from './occurrences.service';
+
+const SMALL_IMAGE_DATA_URL =
+  'data:image/png;base64,' + Buffer.from('small-image').toString('base64');
+const LARGE_IMAGE_DATA_URL =
+  'data:image/png;base64,' +
+  Buffer.alloc(3 * 1024 * 1024 + 1, 1).toString('base64');
 
 /**
  * Valida os dados visiveis e a ausencia de dados sensiveis nas respostas publicas.
@@ -17,6 +31,7 @@ describe('OccurrencesService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      update: jest.Mock;
     };
   };
 
@@ -29,6 +44,7 @@ describe('OccurrencesService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -121,14 +137,117 @@ describe('OccurrencesService', () => {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         description: 'Candeeiro apagado',
         location: 'Rua A',
-        imageUrls: [],
+        imageUrls: [SMALL_IMAGE_DATA_URL],
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: 999 },
-      select: { id: true },
+      select: { id: true, certStatus: true },
     });
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que apenas utilizadores certificados podem submeter ocorrencias.
+   * @return void
+   */
+  it('should reject occurrence creation for non-certified users', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+      certStatus: CertificationStatus.PENDING,
+    });
+
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+        imageUrls: [SMALL_IMAGE_DATA_URL],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que a criacao valida o tamanho real das fotografias recebidas.
+   * @return void
+   */
+  it('should reject images whose decoded payload exceeds the backend limit', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+        imageUrls: [LARGE_IMAGE_DATA_URL],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que a criacao associa a ocorrencia ao utilizador autenticado e define o estado inicial.
+   * @return void
+   */
+  it('should create an occurrence with authenticated user and initial submitted status', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 12,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.occurrence.create.mockResolvedValue({ id: 1 });
+
+    await service.create(12, {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      location: ' Rua A ',
+      description: '  Candeeiro apagado  ',
+      imageUrls: [SMALL_IMAGE_DATA_URL],
+    });
+
+    expect(prisma.occurrence.create).toHaveBeenCalledWith({
+      data: {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        otherCategoryDetail: null,
+        description: 'Candeeiro apagado',
+        location: ' Rua A ',
+        imageUrls: [SMALL_IMAGE_DATA_URL],
+        status: OccurrenceStatus.SUBMETIDA,
+        userId: 12,
+      },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+      },
+    });
+  });
+
+  /**
+   * Garante que transicoes de estado regressivas sao rejeitadas.
+   * @return void
+   */
+  it('should reject invalid backward status transitions', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 1,
+      status: OccurrenceStatus.CONCLUIDA,
+      user: { id: 10 },
+    });
+
+    await expect(
+      service.updateStatus(1, OccurrenceStatus.SUBMETIDA),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
   });
 });

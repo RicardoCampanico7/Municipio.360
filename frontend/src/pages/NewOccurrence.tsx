@@ -18,7 +18,7 @@ import { clearAccessToken, getAccessToken, getRawAccessToken } from "../services
 import "./NewOccurrence.css";
 
 const categories = [
-  { label: "Buracos e pavimento", icon: Construction },
+  { label: "Buracos no pavimento", icon: Construction },
   { label: "Iluminação pública", icon: Lightbulb },
   { label: "Limpeza urbana", icon: TriangleAlert },
   { label: "Ruído", icon: Volume2 },
