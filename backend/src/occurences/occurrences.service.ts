@@ -9,10 +9,22 @@ import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import {
+  occurrenceUploadConfig,
   removeOccurrenceImagesByUrls,
   saveOccurrenceImages,
   type UploadedOccurrenceImage,
 } from './occurrence-upload';
+
+const INLINE_IMAGE_DATA_URL_PREFIX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
+const OCCURRENCE_CATEGORY_LABELS: Record<OccurrenceCategory, string> = {
+  [OccurrenceCategory.BURACOS_PAVIMENTO]: 'Buracos no pavimento',
+  [OccurrenceCategory.ILUMINACAO_PUBLICA]: 'Iluminacao publica',
+  [OccurrenceCategory.LIMPEZA_URBANA]: 'Limpeza urbana',
+  [OccurrenceCategory.RUIDO]: 'Ruido',
+  [OccurrenceCategory.ESPACOS_PUBLICOS]: 'Espacos publicos',
+  [OccurrenceCategory.SINALIZACAO]: 'Sinalizacao',
+  [OccurrenceCategory.OUTROS]: 'Outros',
+};
 const ALLOWED_STATUS_TRANSITIONS: Record<
   OccurrenceStatus,
   readonly OccurrenceStatus[]
@@ -25,10 +37,27 @@ const ALLOWED_STATUS_TRANSITIONS: Record<
   [OccurrenceStatus.CONCLUIDA]: [],
 };
 
+type PresentableOccurrence = {
+  category: OccurrenceCategory;
+  otherCategoryDetail: string | null;
+  status: OccurrenceStatus;
+};
+
+type PresentedOccurrence<T extends PresentableOccurrence> = Omit<
+  T,
+  'category' | 'status'
+> & {
+  title: string;
+  category: string;
+  categoryKey: OccurrenceCategory;
+  status: string;
+  statusKey: OccurrenceStatus;
+};
+
 /**
  * Centraliza a logica de criacao, consulta e gestao de ocorrencias.
  * @author Alan Martynyuk e Guilherme Gaspar
- * @version 16/03/2026
+ * @version 19/03/2026
  * @inv As consultas publicas nao devem expor dados sensiveis do autor das ocorrencias.
  */
 @Injectable()
@@ -69,6 +98,115 @@ export class OccurrencesService {
     throw new BadRequestException(
       `Transicao de estado invalida: ${currentStatus} -> ${nextStatus}`,
     );
+  }
+
+  /**
+   * Converte o estado persistido para um valor estavel compativel com o frontend atual.
+   * @param status Estado persistido no enum.
+   * @return Estado apresentado ao cliente.
+   */
+  private getPresentationStatus(status: OccurrenceStatus) {
+    switch (status) {
+      case OccurrenceStatus.CONCLUIDA:
+        return 'resolved';
+      case OccurrenceStatus.EM_TRATAMENTO:
+        return 'progress';
+      case OccurrenceStatus.SUBMETIDA:
+      default:
+        return 'open';
+    }
+  }
+
+  /**
+   * Produz o texto legivel apresentado como titulo/categoria para o utilizador final.
+   * @param category Categoria persistida.
+   * @param otherCategoryDetail Detalhe livre quando a categoria e OUTROS.
+   * @return Texto legivel da ocorrencia.
+   */
+  private getPresentationCategory(
+    category: OccurrenceCategory,
+    otherCategoryDetail: string | null,
+  ) {
+    if (category === OccurrenceCategory.OUTROS) {
+      const customLabel = otherCategoryDetail?.trim();
+      if (customLabel) return customLabel;
+    }
+
+    return OCCURRENCE_CATEGORY_LABELS[category];
+  }
+
+  /**
+   * Valida e normaliza imagens inline enviadas em JSON no formato data URL.
+   * @param imageUrls Lista de imagens recebidas no body.
+   * @return Lista normalizada de imagens inline.
+   */
+  private normalizeInlineImageUrls(imageUrls: string[] | undefined) {
+    const normalizedImageUrls = (imageUrls ?? [])
+      .map((imageUrl) => imageUrl.trim())
+      .filter(Boolean);
+
+    normalizedImageUrls.forEach((imageUrl, index) => {
+      if (!INLINE_IMAGE_DATA_URL_PREFIX.test(imageUrl)) {
+        throw new BadRequestException(
+          `A imagem inline ${index + 1} nao tem um formato valido`,
+        );
+      }
+
+      const base64Payload = imageUrl.replace(INLINE_IMAGE_DATA_URL_PREFIX, '');
+
+      let sizeInBytes = 0;
+      try {
+        sizeInBytes = Buffer.from(base64Payload, 'base64').byteLength;
+      } catch {
+        throw new BadRequestException(
+          `A imagem inline ${index + 1} nao tem um formato valido`,
+        );
+      }
+
+      if (sizeInBytes > occurrenceUploadConfig.maxFileSizeBytes) {
+        const maxSizeMb = Math.floor(
+          occurrenceUploadConfig.maxFileSizeBytes / (1024 * 1024),
+        );
+
+        throw new BadRequestException(
+          `Cada fotografia pode ter no maximo ${maxSizeMb} MB`,
+        );
+      }
+    });
+
+    return normalizedImageUrls;
+  }
+
+  /**
+   * Ajusta a resposta de uma ocorrencia para os campos legiveis esperados pelo frontend atual.
+   * @param occurrence Ocorrencia persistida.
+   * @return Ocorrencia pronta para consumo pelo cliente.
+   */
+  private presentOccurrence<T extends PresentableOccurrence>(
+    occurrence: T,
+  ): PresentedOccurrence<T> {
+    const title = this.getPresentationCategory(
+      occurrence.category,
+      occurrence.otherCategoryDetail,
+    );
+
+    return {
+      ...occurrence,
+      title,
+      categoryKey: occurrence.category,
+      statusKey: occurrence.status,
+      category: title,
+      status: this.getPresentationStatus(occurrence.status),
+    };
+  }
+
+  /**
+   * Ajusta uma lista de ocorrencias para o formato apresentado ao cliente.
+   * @param occurrences Lista persistida.
+   * @return Lista pronta para consumo pelo cliente.
+   */
+  private presentOccurrences<T extends PresentableOccurrence>(occurrences: T[]) {
+    return occurrences.map((occurrence) => this.presentOccurrence(occurrence));
   }
 
   /**
@@ -140,10 +278,12 @@ export class OccurrencesService {
       dto.category === OccurrenceCategory.OUTROS
         ? dto.otherCategoryDetail?.trim()
         : null;
-    const imageUrls = await saveOccurrenceImages(files);
+    const uploadedImageUrls = await saveOccurrenceImages(files);
+    const inlineImageUrls = this.normalizeInlineImageUrls(dto.imageUrls);
+    const imageUrls = uploadedImageUrls.length ? uploadedImageUrls : inlineImageUrls;
 
     try {
-      return await this.prisma.occurrence.create({
+      const occurrence = await this.prisma.occurrence.create({
         data: {
           category: dto.category,
           otherCategoryDetail,
@@ -155,8 +295,10 @@ export class OccurrencesService {
         },
         select: this.getOwnerSelect(),
       });
+
+      return this.presentOccurrence(occurrence);
     } catch (error) {
-      await removeOccurrenceImagesByUrls(imageUrls);
+      await removeOccurrenceImagesByUrls(uploadedImageUrls);
       throw error;
     }
   }
@@ -166,10 +308,12 @@ export class OccurrencesService {
    * @return Lista publica de ocorrencias ordenada por data de criacao.
    */
   async findAll() {
-    return this.prisma.occurrence.findMany({
+    const occurrences = await this.prisma.occurrence.findMany({
       orderBy: { createdAt: 'desc' },
       select: this.getPublicSelect(),
     });
+
+    return this.presentOccurrences(occurrences);
   }
 
   /**
@@ -178,11 +322,13 @@ export class OccurrencesService {
    * @return Lista de ocorrencias do utilizador.
    */
   async findMine(userId: number) {
-    return this.prisma.occurrence.findMany({
+    const occurrences = await this.prisma.occurrence.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       select: this.getOwnerSelect(),
     });
+
+    return this.presentOccurrences(occurrences);
   }
 
   /**
@@ -234,10 +380,16 @@ export class OccurrencesService {
   async findMineById(id: number, userId: number) {
     await this.findOneOwned(id, userId);
 
-    return this.prisma.occurrence.findUnique({
+    const occurrence = await this.prisma.occurrence.findUnique({
       where: { id },
       select: this.getOwnerSelect(),
     });
+
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
+    return this.presentOccurrence(occurrence);
   }
 
   /**
@@ -315,6 +467,6 @@ export class OccurrencesService {
       throw new NotFoundException('Occurrence not found');
     }
 
-    return occurrence;
+    return this.presentOccurrence(occurrence);
   }
 }
