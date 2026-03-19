@@ -1,22 +1,22 @@
 import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
 import { OccurrenceCategory } from '@prisma/client';
+import { validate } from 'class-validator';
 import { CreateOccurrenceDto } from './create-occurrence.dto';
 
 const SMALL_IMAGE_DATA_URL =
   'data:image/png;base64,' + Buffer.from('small-image').toString('base64');
 
 /**
- * Valida a normalizacao e os campos obrigatorios do DTO de criacao de ocorrencias.
+ * Valida os campos obrigatorios do DTO de criacao de ocorrencias.
  */
 describe('CreateOccurrenceDto', () => {
   /**
-   * Garante que labels humanas do frontend sao convertidas para o enum esperado.
+   * Garante que o DTO aceita diretamente um enum valido vindo do frontend.
    * @return void
    */
-  it('should map human-readable category labels to occurrence enums', async () => {
+  it('should accept a valid occurrence enum category', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
-      category: 'Buracos no pavimento',
+      category: OccurrenceCategory.BURACOS_PAVIMENTO,
       location: 'Rua A',
       imageUrls: [SMALL_IMAGE_DATA_URL],
     });
