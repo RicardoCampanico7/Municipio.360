@@ -15,6 +15,12 @@ import {
   getRawAccessToken,
   isAuthenticated,
 } from "../services/token";
+import {
+  getOccurrenceStatusLabel,
+  getOccurrenceTitle,
+  getOccurrenceTone,
+  type OccurrenceTone,
+} from "../utils/occurrences";
 import "./Dashboard.css";
 
 const languageOptions = [
@@ -24,14 +30,12 @@ const languageOptions = [
   { code: "fr", flag: "🇫🇷" },
 ] as const;
 
-type ReportTone = "progress" | "open" | "done";
-
 type DashboardReport = {
   id: string;
   status: string;
   title: string;
   time: string;
-  tone: ReportTone;
+  tone: OccurrenceTone;
 };
 
 function toTimeLabel(value: string | undefined, locale: string, fallback: string) {
@@ -105,24 +109,12 @@ export default function Dashboard() {
     });
 
     return sorted.slice(0, 3).map((item, index) => {
-      const normalizedStatus = (item.status || "").toLowerCase();
-      const tone: ReportTone =
-        normalizedStatus.includes("resolv")
-          ? "done"
-          : normalizedStatus.includes("progress") || normalizedStatus.includes("andamento")
-            ? "progress"
-            : "open";
-
-      const statusByTone: Record<ReportTone, string> = {
-        open: t("dashboard.reports.open"),
-        progress: t("dashboard.reports.progress"),
-        done: t("dashboard.reports.resolved"),
-      };
+      const tone = getOccurrenceTone(item.status);
 
       return {
         id: String(item.id ?? `occ-${index}`),
-        status: statusByTone[tone],
-        title: item.title || item.category || t("dashboard.reports.untitled"),
+        status: getOccurrenceStatusLabel(item.status, t),
+        title: getOccurrenceTitle(item, t, i18n.language),
         time: toTimeLabel(item.createdAt || item.updatedAt, i18n.language, t("dashboard.reports.noDate")),
         tone,
       };
@@ -132,23 +124,17 @@ export default function Dashboard() {
   const reportStats = useMemo(
     () => [
       {
-        value: occurrences.filter((item) => {
-          const status = (item.status || "").toLowerCase();
-          return !status.includes("resolv") && !status.includes("progress") && !status.includes("andamento");
-        }).length,
+        value: occurrences.filter((item) => getOccurrenceTone(item.status) === "open").length,
         label: t("dashboard.stats.open"),
         tone: "open" as const,
       },
       {
-        value: occurrences.filter((item) => {
-          const status = (item.status || "").toLowerCase();
-          return status.includes("progress") || status.includes("andamento");
-        }).length,
+        value: occurrences.filter((item) => getOccurrenceTone(item.status) === "progress").length,
         label: t("dashboard.stats.progress"),
         tone: "progress" as const,
       },
       {
-        value: occurrences.filter((item) => (item.status || "").toLowerCase().includes("resolv")).length,
+        value: occurrences.filter((item) => getOccurrenceTone(item.status) === "done").length,
         label: t("dashboard.stats.resolved"),
         tone: "done" as const,
       },

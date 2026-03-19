@@ -10,20 +10,12 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import { fetchPublicOccurrences, type ApiOccurrence } from "../services/occurrences";
+import {
+  getOccurrenceStatusLabel,
+  getOccurrenceTitle,
+  getOccurrenceTone,
+} from "../utils/occurrences";
 import "./PublicReports.css";
-
-type ReportTone = "progress" | "open" | "done";
-
-function getTone(status: string | undefined): ReportTone {
-  const normalizedStatus = (status || "").toLowerCase();
-
-  if (normalizedStatus.includes("resolv")) return "done";
-  if (normalizedStatus.includes("progress") || normalizedStatus.includes("andamento")) {
-    return "progress";
-  }
-
-  return "open";
-}
 
 function getFormattedDate(value: string | undefined, locale: string, fallback: string) {
   if (!value) return fallback;
@@ -118,17 +110,17 @@ export default function PublicReports() {
 
   const stats = useMemo(
     () => [
-        {
+      {
         label: pageText.stats.total,
         value: occurrences.length,
       },
       {
         label: pageText.stats.progress,
-        value: occurrences.filter((item) => getTone(item.status) === "progress").length,
+        value: occurrences.filter((item) => getOccurrenceTone(item.status) === "progress").length,
       },
       {
         label: pageText.stats.resolved,
-        value: occurrences.filter((item) => getTone(item.status) === "done").length,
+        value: occurrences.filter((item) => getOccurrenceTone(item.status) === "done").length,
       },
     ],
     [occurrences, pageText.stats.progress, pageText.stats.resolved, pageText.stats.total],
@@ -197,8 +189,9 @@ export default function PublicReports() {
           {!loading && !error && occurrences.length > 0 && (
             <div className="public-reports-grid">
               {occurrences.map((occurrence, index) => {
-                const tone = getTone(occurrence.status);
-                const statusLabel = t(`dashboard.reports.${tone === "done" ? "resolved" : tone}`);
+                const tone = getOccurrenceTone(occurrence.status);
+                const statusLabel = getOccurrenceStatusLabel(occurrence.status, t);
+                const occurrenceTitle = getOccurrenceTitle(occurrence, t, i18n.language);
                 const imageUrl = occurrence.imageUrls?.[0];
 
                 return (
@@ -217,7 +210,7 @@ export default function PublicReports() {
                       <img
                         className="public-reports-card-image"
                         src={imageUrl}
-                        alt={occurrence.category || pageText.imageAlt}
+                        alt={occurrenceTitle || pageText.imageAlt}
                       />
                     ) : (
                       <div className="public-reports-card-placeholder" aria-hidden="true">
@@ -226,7 +219,7 @@ export default function PublicReports() {
                     )}
 
                     <div className="public-reports-card-body">
-                      <h3>{occurrence.category || t("dashboard.reports.untitled")}</h3>
+                      <h3>{occurrenceTitle}</h3>
                       <p>{occurrence.description || pageText.noDescription}</p>
                     </div>
 

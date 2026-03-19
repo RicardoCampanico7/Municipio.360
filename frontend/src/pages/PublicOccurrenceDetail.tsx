@@ -8,20 +8,12 @@ import {
   fetchPublicOccurrenceById,
   type ApiOccurrence,
 } from "../services/occurrences";
+import {
+  getOccurrenceStatusLabel,
+  getOccurrenceTitle,
+  getOccurrenceTone,
+} from "../utils/occurrences";
 import "./PublicOccurrenceDetail.css";
-
-type ReportTone = "progress" | "open" | "done";
-
-function getTone(status: string | undefined): ReportTone {
-  const normalizedStatus = (status || "").toLowerCase();
-
-  if (normalizedStatus.includes("resolv")) return "done";
-  if (normalizedStatus.includes("progress") || normalizedStatus.includes("andamento")) {
-    return "progress";
-  }
-
-  return "open";
-}
 
 function getFormattedDate(value: string | undefined, locale: string, fallback: string) {
   if (!value) return fallback;
@@ -116,10 +108,13 @@ export default function PublicOccurrenceDetail() {
     };
   }, [occurrenceId, pageText.loadError, pageText.notFound]);
 
-  const tone = getTone(occurrence?.status);
+  const tone = getOccurrenceTone(occurrence?.status);
+  const occurrenceTitle = occurrence
+    ? getOccurrenceTitle(occurrence, t, i18n.language)
+    : t("dashboard.reports.untitled");
   const statusLabel = useMemo(
-    () => t(`dashboard.reports.${tone === "done" ? "resolved" : tone}`),
-    [t, tone],
+    () => getOccurrenceStatusLabel(occurrence?.status, t),
+    [occurrence?.status, t],
   );
   const heroImage = occurrence?.imageUrls?.[0] || "/banner.ocorrencias.png";
 
@@ -154,11 +149,11 @@ export default function PublicOccurrenceDetail() {
               <img
                 className="public-occurrence-hero-background"
                 src={heroImage}
-                alt={occurrence.category || pageText.occurrenceImageAlt}
+                alt={occurrenceTitle || pageText.occurrenceImageAlt}
               />
               <div className="public-occurrence-hero-copy">
                 <p className="public-occurrence-eyebrow">{pageText.eyebrow}</p>
-                <h1>{occurrence.category || t("dashboard.reports.untitled")}</h1>
+                <h1>{occurrenceTitle}</h1>
                 <p>{occurrence.description || pageText.noDescription}</p>
               </div>
 

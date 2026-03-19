@@ -318,6 +318,44 @@ describe('Occurrences permissions (e2e)', () => {
       .expect(403);
   });
 
+  it('returns the public occurrences list without authentication', async () => {
+    const occurrences = [
+      {
+        id: 21,
+        category: 'ILUMINACAO_PUBLICA',
+        otherCategoryDetail: null,
+        description: 'Candeeiro desligado',
+        location: 'Rua da Liberdade',
+        imageUrls: [],
+        status: 'SUBMETIDA',
+        createdAt: '2026-03-19T08:00:00.000Z',
+        updatedAt: '2026-03-19T08:00:00.000Z',
+      },
+    ];
+
+    prisma.occurrence.findMany.mockResolvedValue(occurrences);
+
+    await request(httpApp).get('/occurrences').expect(200).expect(occurrences);
+  });
+
+  it('returns the public occurrence detail without authentication', async () => {
+    const occurrence = {
+      id: 22,
+      category: 'SINALIZACAO',
+      otherCategoryDetail: null,
+      description: 'Sinal tombado',
+      location: 'Avenida do Municipio',
+      imageUrls: [SMALL_IMAGE_DATA_URL],
+      status: 'EM_TRATAMENTO',
+      createdAt: '2026-03-19T09:00:00.000Z',
+      updatedAt: '2026-03-19T11:30:00.000Z',
+    };
+
+    prisma.occurrence.findUnique.mockResolvedValue(occurrence);
+
+    await request(httpApp).get('/occurrences/22').expect(200).expect(occurrence);
+  });
+
   it('returns 403 when a CIVIL user tries to access management routes', async () => {
     const token = signToken({
       sub: 14,
