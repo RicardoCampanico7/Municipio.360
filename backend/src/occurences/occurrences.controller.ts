@@ -9,22 +9,33 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
+  UseFilters,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { OccurrenceCategory, Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
+import { OccurrenceUploadExceptionFilter } from './occurrence-upload-exception.filter';
+import {
+  getOccurrenceMulterOptions,
+  occurrenceUploadConfig,
+  type UploadedOccurrenceImage,
+} from './occurrence-upload';
 import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
 import { OccurrencesService } from './occurrences.service';
 
@@ -187,15 +198,62 @@ export class OccurrencesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
+  @UseFilters(OccurrenceUploadExceptionFilter)
+  @UseInterceptors(
+    FilesInterceptor(
+      'imageUrls',
+      occurrenceUploadConfig.maxFiles,
+      getOccurrenceMulterOptions(),
+    ),
+  )
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar ocorrencia (apenas CIVIL autenticado)' })
-  @ApiBody({ type: CreateOccurrenceDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['category', 'location'],
+      properties: {
+        category: {
+          type: 'string',
+          enum: Object.values(OccurrenceCategory),
+        },
+        otherCategoryDetail: {
+          type: 'string',
+          minLength: 3,
+          nullable: true,
+        },
+        description: {
+          type: 'string',
+          minLength: 3,
+          nullable: true,
+        },
+        location: {
+          type: 'string',
+          minLength: 2,
+        },
+        imageUrls: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          maxItems: occurrenceUploadConfig.maxFiles,
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 201, description: 'Ocorrencia criada' })
+  @ApiResponse({ status: 400, description: 'Pedido invalido ou upload rejeitado' })
   @ApiResponse({ status: 401, description: 'Sem autenticacao' })
   @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
-  create(@Req() req: Request, @Body() dto: CreateOccurrenceDto) {
+  create(
+    @Req() req: Request,
+    @Body() dto: CreateOccurrenceDto,
+    @UploadedFiles() files: UploadedOccurrenceImage[] = [],
+  ) {
     const userId = this.getUserId(req);
-    return this.occurrencesService.create(userId, dto);
+    return this.occurrencesService.create(userId, dto, files);
   }
 
   /**

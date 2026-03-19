@@ -1,4 +1,5 @@
 import { OccurrenceCategory } from '@prisma/client';
+import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -9,6 +10,30 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+
+const CATEGORY_ALIASES: Record<string, OccurrenceCategory> = {
+  BURACOS_PAVIMENTO: OccurrenceCategory.BURACOS_PAVIMENTO,
+  'BURACOS NO PAVIMENTO': OccurrenceCategory.BURACOS_PAVIMENTO,
+  ILUMINACAO_PUBLICA: OccurrenceCategory.ILUMINACAO_PUBLICA,
+  'ILUMINACAO PUBLICA': OccurrenceCategory.ILUMINACAO_PUBLICA,
+  LIMPEZA_URBANA: OccurrenceCategory.LIMPEZA_URBANA,
+  'LIMPEZA URBANA': OccurrenceCategory.LIMPEZA_URBANA,
+  RUIDO: OccurrenceCategory.RUIDO,
+  ESPACOS_PUBLICOS: OccurrenceCategory.ESPACOS_PUBLICOS,
+  'ESPACOS PUBLICOS': OccurrenceCategory.ESPACOS_PUBLICOS,
+  SINALIZACAO: OccurrenceCategory.SINALIZACAO,
+  OUTROS: OccurrenceCategory.OUTROS,
+};
+
+function normalizeCategoryAlias(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/-/g, ' ')
+    .toUpperCase();
+}
 
 /**
  * Representa os dados necessarios para criar uma nova ocorrencia.
@@ -43,10 +68,4 @@ export class CreateOccurrenceDto {
   @IsString()
   @MinLength(2)
   declare location: string;
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(3)
-  @IsString({ each: true })
-  declare imageUrls: string[];
 }

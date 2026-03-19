@@ -8,9 +8,11 @@ import {
 import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
-
-const MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
-const IMAGE_DATA_URL_PREFIX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
+import {
+  removeOccurrenceImagesByUrls,
+  saveOccurrenceImages,
+  type UploadedOccurrenceImage,
+} from './occurrence-upload';
 const ALLOWED_STATUS_TRANSITIONS: Record<
   OccurrenceStatus,
   readonly OccurrenceStatus[]
@@ -46,38 +48,6 @@ export class OccurrencesService {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true },
-    });
-  }
-
-  /**
-   * Valida que as imagens recebidas sao data URLs de imagem e respeitam o limite real de tamanho.
-   * @param imageUrls Lista de imagens recebidas no pedido.
-   * @return Promise<void> Promessa resolvida quando todas as imagens sao validas.
-   */
-  private validateImages(imageUrls: string[]) {
-    imageUrls.forEach((imageUrl, index) => {
-      if (!IMAGE_DATA_URL_PREFIX.test(imageUrl)) {
-        throw new BadRequestException(
-          `A fotografia ${index + 1} nao tem um formato valido`,
-        );
-      }
-
-      const base64Payload = imageUrl.replace(IMAGE_DATA_URL_PREFIX, '');
-
-      let sizeInBytes = 0;
-      try {
-        sizeInBytes = Buffer.from(base64Payload, 'base64').byteLength;
-      } catch {
-        throw new BadRequestException(
-          `A fotografia ${index + 1} nao tem um formato valido`,
-        );
-      }
-
-      if (sizeInBytes > MAX_IMAGE_SIZE_BYTES) {
-        throw new BadRequestException(
-          `A fotografia ${index + 1} excede 3 MB`,
-        );
-      }
     });
   }
 
@@ -156,31 +126,39 @@ export class OccurrencesService {
    * @param dto Dados da ocorrencia.
    * @return Ocorrencia criada.
    */
-  async create(userId: number, dto: CreateOccurrenceDto) {
+  async create(
+    userId: number,
+    dto: CreateOccurrenceDto,
+    files: UploadedOccurrenceImage[] = [],
+  ) {
     const user = await this.ensureExistingUser(userId);
     if (!user) {
       throw new UnauthorizedException('Utilizador autenticado invalido');
     }
 
-    this.validateImages(dto.imageUrls);
-
     const otherCategoryDetail =
       dto.category === OccurrenceCategory.OUTROS
         ? dto.otherCategoryDetail?.trim()
         : null;
+    const imageUrls = await saveOccurrenceImages(files);
 
-    return this.prisma.occurrence.create({
-      data: {
-        category: dto.category,
-        otherCategoryDetail,
-        description: dto.description?.trim() ?? '',
-        location: dto.location,
-        imageUrls: dto.imageUrls,
-        status: OccurrenceStatus.SUBMETIDA,
-        userId,
-      },
-      select: this.getOwnerSelect(),
-    });
+    try {
+      return await this.prisma.occurrence.create({
+        data: {
+          category: dto.category,
+          otherCategoryDetail,
+          description: dto.description?.trim() ?? '',
+          location: dto.location,
+          imageUrls,
+          status: OccurrenceStatus.SUBMETIDA,
+          userId,
+        },
+        select: this.getOwnerSelect(),
+      });
+    } catch (error) {
+      await removeOccurrenceImagesByUrls(imageUrls);
+      throw error;
+    }
   }
 
   /**
