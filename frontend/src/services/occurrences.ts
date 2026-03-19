@@ -97,3 +97,5 @@ export async function fetchPublicOccurrenceById(id: string, fallbackMessage: str
   const response = await fetch(`/api/occurrences/${id}`);
   return parseOccurrenceResponse(response, fallbackMessage);
 }
+
+
