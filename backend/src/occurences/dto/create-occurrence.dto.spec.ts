@@ -11,12 +11,12 @@ const SMALL_IMAGE_DATA_URL =
  */
 describe('CreateOccurrenceDto', () => {
   /**
-   * Garante que labels humanas do frontend sao convertidas para o enum esperado.
+   * Garante que o DTO aceita categorias canónicas do enum esperado pelo backend.
    * @return void
    */
-  it('should map human-readable category labels to occurrence enums', async () => {
+  it('should accept canonical occurrence category enum values', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
-      category: 'Buracos no pavimento',
+      category: OccurrenceCategory.BURACOS_PAVIMENTO,
       location: 'Rua A',
       imageUrls: [SMALL_IMAGE_DATA_URL],
     });

@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { CertificationStatus, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -15,8 +16,8 @@ type SafeUser = {
   biNumber: string;
   postalCode: string;
   email: string;
-  role: unknown;
-  certStatus: unknown;
+  role: Role;
+  certStatus: CertificationStatus;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -89,6 +90,7 @@ export class AuthService {
         postalCode: normalizedPostalCode,
         email: normalizedEmail,
         passwordHash,
+        certStatus: CertificationStatus.CERTIFIED,
       },
       select: {
         id: true,
