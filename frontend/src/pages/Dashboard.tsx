@@ -198,6 +198,12 @@ export default function Dashboard() {
 
     if (target === "reports") {
       navigate("/occurrences/public");
+      return;
+    }
+
+    if (target === "profile") {
+      navigate("/profile");
+      return;
     }
   };
 

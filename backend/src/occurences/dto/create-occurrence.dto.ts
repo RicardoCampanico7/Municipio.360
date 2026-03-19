@@ -1,7 +1,7 @@
 import { OccurrenceCategory } from '@prisma/client';
 import {
-  ArrayMinSize,
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsEnum,
   IsOptional,

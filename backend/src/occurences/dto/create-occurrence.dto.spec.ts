@@ -1,13 +1,13 @@
 import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
 import { OccurrenceCategory } from '@prisma/client';
+import { validate } from 'class-validator';
 import { CreateOccurrenceDto } from './create-occurrence.dto';
 
 const SMALL_IMAGE_DATA_URL =
   'data:image/png;base64,' + Buffer.from('small-image').toString('base64');
 
 /**
- * Valida a normalizacao e os campos obrigatorios do DTO de criacao de ocorrencias.
+ * Valida os campos obrigatorios do DTO de criacao de ocorrencias.
  */
 describe('CreateOccurrenceDto', () => {
   /**
