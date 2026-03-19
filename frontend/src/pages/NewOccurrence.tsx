@@ -17,13 +17,21 @@ import AppLogo from "../components/AppLogo";
 import { clearAccessToken, getAccessToken, getRawAccessToken } from "../services/token";
 import "./NewOccurrence.css";
 
+type OccurrenceCategoryValue =
+  | "BURACOS_PAVIMENTO"
+  | "ILUMINACAO_PUBLICA"
+  | "LIMPEZA_URBANA"
+  | "RUIDO"
+  | "ESPACOS_PUBLICOS"
+  | "SINALIZACAO";
+
 const categories = [
-  { label: "Buracos no pavimento", icon: Construction },
-  { label: "Iluminação pública", icon: Lightbulb },
-  { label: "Limpeza urbana", icon: TriangleAlert },
-  { label: "Ruído", icon: Volume2 },
-  { label: "Espaços públicos", icon: Trees },
-  { label: "Sinalização", icon: Signpost },
+  { label: "Buracos no pavimento", value: "BURACOS_PAVIMENTO", icon: Construction },
+  { label: "Iluminacao publica", value: "ILUMINACAO_PUBLICA", icon: Lightbulb },
+  { label: "Limpeza urbana", value: "LIMPEZA_URBANA", icon: TriangleAlert },
+  { label: "Ruido", value: "RUIDO", icon: Volume2 },
+  { label: "Espacos publicos", value: "ESPACOS_PUBLICOS", icon: Trees },
+  { label: "Sinalizacao", value: "SINALIZACAO", icon: Signpost },
 ] as const;
 
 const MAX_IMAGES = 3;
@@ -45,9 +53,9 @@ function readFileAsDataUrl(file: File) {
         resolve(reader.result);
         return;
       }
-      reject(new Error("Não foi possível ler a imagem selecionada."));
+      reject(new Error("Nao foi possivel ler a imagem selecionada."));
     };
-    reader.onerror = () => reject(new Error("Não foi possível ler a imagem selecionada."));
+    reader.onerror = () => reject(new Error("Nao foi possivel ler a imagem selecionada."));
     reader.readAsDataURL(file);
   });
 }
@@ -69,7 +77,7 @@ export default function NewOccurrence() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [category, setCategory] = useState<string>(categories[0].label);
+  const [category, setCategory] = useState<OccurrenceCategoryValue>(categories[0].value);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
@@ -77,7 +85,7 @@ export default function NewOccurrence() {
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [mapNote, setMapNote] = useState(
-    "Escreve a morada ou usa a tua localização atual para atualizar o Google Maps.",
+    "Escreve a morada ou usa a tua localizacao atual para atualizar o Google Maps.",
   );
 
   const trimmedLocation = location.trim();
@@ -105,7 +113,7 @@ export default function NewOccurrence() {
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setError("O teu navegador não suporta geolocalização.");
+      setError("O teu navegador nao suporta geolocalizacao.");
       return;
     }
 
@@ -117,12 +125,12 @@ export default function NewOccurrence() {
         const coordinates = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
         setLocation(coordinates);
         setMapNote(
-          "Localização atual aplicada. Se quiseres, podes ajustar a morada manualmente depois.",
+          "Localizacao atual aplicada. Se quiseres, podes ajustar a morada manualmente depois.",
         );
         setLocationLoading(false);
       },
       () => {
-        setError("Não foi possível obter a tua localização atual. Verifica as permissões do navegador.");
+        setError("Nao foi possivel obter a tua localizacao atual. Verifica as permissoes do navegador.");
         setLocationLoading(false);
       },
       {
@@ -134,7 +142,7 @@ export default function NewOccurrence() {
 
   const handleOpenFilePicker = () => {
     if (selectedImages.length >= MAX_IMAGES) {
-      setError(`Podes adicionar até ${MAX_IMAGES} fotografias.`);
+      setError(`Podes adicionar ate ${MAX_IMAGES} fotografias.`);
       return;
     }
 
@@ -153,12 +161,12 @@ export default function NewOccurrence() {
     const rejectedMessages: string[] = [];
 
     files.slice(remainingSlots).forEach(() => {
-      rejectedMessages.push(`Podes adicionar no máximo ${MAX_IMAGES} fotografias.`);
+      rejectedMessages.push(`Podes adicionar no maximo ${MAX_IMAGES} fotografias.`);
     });
 
     nextFiles.forEach((file) => {
       if (!file.type.startsWith("image/")) {
-        rejectedMessages.push(`O ficheiro "${file.name}" não é uma imagem válida.`);
+        rejectedMessages.push(`O ficheiro "${file.name}" nao e uma imagem valida.`);
         return;
       }
 
@@ -186,7 +194,7 @@ export default function NewOccurrence() {
         const message =
           imageError instanceof Error
             ? imageError.message
-            : "Não foi possível carregar as fotografias selecionadas.";
+            : "Nao foi possivel carregar as fotografias selecionadas.";
         setError(message);
         return;
       }
@@ -221,7 +229,7 @@ export default function NewOccurrence() {
       const trimmedDescription = description.trim();
 
       if (!trimmedLocation || !trimmedDescription) {
-        setError("Preenche a localização e a descrição antes de enviar.");
+        setError("Preenche a localizacao e a descricao antes de enviar.");
         setLoading(false);
         return;
       }
@@ -251,7 +259,7 @@ export default function NewOccurrence() {
         }
         const message =
           Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-        throw new Error(message || "Não foi possível criar a ocorrência.");
+        throw new Error(message || "Nao foi possivel criar a ocorrencia.");
       }
 
       navigate("/dashboard");
@@ -259,7 +267,7 @@ export default function NewOccurrence() {
       if (submitError instanceof Error) {
         setError(submitError.message);
       } else {
-        setError("Não foi possível criar a ocorrência.");
+        setError("Nao foi possivel criar a ocorrencia.");
       }
     } finally {
       setLoading(false);
@@ -268,7 +276,7 @@ export default function NewOccurrence() {
 
   return (
     <main className="occ-screen">
-      <section className="occ-shell" aria-label="Nova ocorrência">
+      <section className="occ-shell" aria-label="Nova ocorrencia">
         <aside className="occ-panel">
           <div className="occ-map-actions">
             <button
@@ -278,7 +286,7 @@ export default function NewOccurrence() {
               disabled={locationLoading}
             >
               <MapPinned size={16} strokeWidth={2.2} />
-              {locationLoading ? "A localizar..." : "Usar a minha localização"}
+              {locationLoading ? "A localizar..." : "Usar a minha localizacao"}
             </button>
             <a
               className="occ-map-action occ-map-action-secondary"
@@ -294,7 +302,7 @@ export default function NewOccurrence() {
             <div className="occ-map">
               <iframe
                 className="occ-map-embed"
-                title="Google Maps da localização selecionada"
+                title="Google Maps da localizacao selecionada"
                 src={googleMapsEmbedUrl}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
@@ -317,16 +325,16 @@ export default function NewOccurrence() {
           </div>
 
           <div>
-            <h1 className="occ-title">Nova ocorrência</h1>
+            <h1 className="occ-title">Nova ocorrencia</h1>
             <p className="occ-subtitle">
-              Preenche o formulário e envia o reporte diretamente para análise.
+              Preenche o formulario e envia o reporte diretamente para analise.
             </p>
           </div>
 
           <form className="occ-form" onSubmit={handleSubmit}>
             <label className="occ-field-label" htmlFor="occ-location">
               <MapPinned size={16} strokeWidth={2.2} />
-              Localização
+              Localizacao
             </label>
             <input
               id="occ-location"
@@ -349,12 +357,12 @@ export default function NewOccurrence() {
 
                   return (
                     <button
-                      key={item.label}
+                      key={item.value}
                       type="button"
-                      className={["occ-chip", item.label === category ? "is-active" : ""]
+                      className={["occ-chip", item.value === category ? "is-active" : ""]
                         .filter(Boolean)
                         .join(" ")}
-                      onClick={() => setCategory(item.label)}
+                      onClick={() => setCategory(item.value)}
                     >
                       <span className="occ-chip-icon" aria-hidden="true">
                         <Icon size={18} strokeWidth={2.2} />
@@ -368,12 +376,12 @@ export default function NewOccurrence() {
 
             <label className="occ-field-label" htmlFor="occ-description">
               <TriangleAlert size={16} strokeWidth={2.2} />
-              Descrição
+              Descricao
             </label>
             <textarea
               id="occ-description"
               className="occ-textarea"
-              placeholder="Descreve o que está a acontecer e qualquer detalhe útil."
+              placeholder="Descreve o que esta a acontecer e qualquer detalhe util."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
@@ -427,7 +435,7 @@ export default function NewOccurrence() {
                 </div>
               ) : (
                 <div className="occ-upload-empty">
-                  Seleciona fotografias do teu dispositivo para juntar à ocorrência.
+                  Seleciona fotografias do teu dispositivo para juntar a ocorrencia.
                 </div>
               )}
             </fieldset>
@@ -443,7 +451,7 @@ export default function NewOccurrence() {
                 Cancelar
               </button>
               <button className="occ-button occ-button-primary" type="submit" disabled={loading}>
-                {loading ? "A enviar..." : "Enviar ocorrência"}
+                {loading ? "A enviar..." : "Enviar ocorrencia"}
               </button>
             </div>
           </form>

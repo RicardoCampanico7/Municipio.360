@@ -1,6 +1,9 @@
 import { OccurrenceCategory } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsEnum,
   IsOptional,
   IsString,
