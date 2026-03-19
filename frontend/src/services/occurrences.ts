@@ -2,7 +2,6 @@ export type ApiOccurrence = {
   id?: string | number;
   title?: string;
   category?: string;
-  otherCategoryDetail?: string | null;
   description?: string;
   location?: string;
   status?: string;
@@ -97,5 +96,3 @@ export async function fetchPublicOccurrenceById(id: string, fallbackMessage: str
   const response = await fetch(`/api/occurrences/${id}`);
   return parseOccurrenceResponse(response, fallbackMessage);
 }
-
-
