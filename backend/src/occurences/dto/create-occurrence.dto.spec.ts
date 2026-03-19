@@ -1,3 +1,4 @@
+import { OccurrenceCategory } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateOccurrenceDto } from './create-occurrence.dto';
