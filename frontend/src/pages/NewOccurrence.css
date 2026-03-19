@@ -39,56 +39,90 @@
   overflow: hidden;
   border-radius: 30px;
   background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.24), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(255, 210, 168, 0.18), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
-    linear-gradient(135deg, #ff8c2d 0%, #f67810 100%);
-  padding: 28px;
+    linear-gradient(145deg, #ffa247 0%, #ff7f1f 50%, #e45d08 100%);
+  padding: 24px;
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -24px 48px rgba(122, 41, 0, 0.14),
+    0 24px 40px rgba(171, 73, 8, 0.14);
 }
 
+.occ-panel::before,
 .occ-panel::after {
   content: "";
   position: absolute;
-  inset: auto -10% -18% auto;
-  width: 280px;
-  height: 280px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 70%);
+  pointer-events: none;
 }
 
-.occ-map-toolbar,
-.occ-map-frame,
-.occ-map-location {
+.occ-panel::before {
+  inset: -16% auto auto -14%;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 72%);
+}
+
+.occ-panel::after {
+  inset: auto -12% -20% auto;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 70%);
+}
+
+.occ-map-actions,
+.occ-map-frame {
   position: relative;
   z-index: 1;
 }
 
-.occ-map-toolbar {
-  display: grid;
+.occ-map-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  justify-content: flex-start;
 }
 
-.occ-map-kicker {
+.occ-map-action {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  width: fit-content;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.occ-map-toolbar p {
-  margin: 0;
-  max-width: 34ch;
-  font-size: 0.98rem;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.84);
+.occ-map-action:hover {
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+.occ-map-action:disabled {
+  opacity: 0.72;
+  cursor: wait;
+  transform: none;
+}
+
+.occ-map-action-primary {
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.occ-map-action-secondary {
+  background: #f3f4f6;
+  color: #1f2937;
 }
 
 .occ-map-frame {
@@ -100,79 +134,33 @@
   position: relative;
   height: 100%;
   min-height: 420px;
-  border-radius: 28px;
+  border-radius: 30px;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0.18)),
-    linear-gradient(135deg, #f4f0eb 0%, #ece7df 100%);
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 18px 36px rgba(255, 255, 255, 0.08),
+    0 20px 36px rgba(122, 41, 0, 0.16);
 }
 
-.occ-map-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.24) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.24) 1px, transparent 1px);
-  background-size: 34px 34px;
-}
-
-.occ-map-road {
-  position: absolute;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-}
-
-.occ-map-road-main {
-  top: 34px;
-  left: -30px;
-  width: 118%;
-  height: 34px;
-  transform: rotate(-18deg);
-}
-
-.occ-map-road-side {
-  left: 74px;
-  bottom: 28px;
-  width: 60%;
-  height: 28px;
-  transform: rotate(28deg);
-}
-
-.occ-map-pin {
-  position: absolute;
-  top: 76px;
-  right: 84px;
-  width: 28px;
-  height: 28px;
-  border-radius: 28px 28px 28px 4px;
-  transform: rotate(-45deg);
-  background: radial-gradient(circle at 34% 34%, #ffbab5 0%, #ff6a57 42%, #d91c1c 100%);
-  box-shadow: 0 14px 24px rgba(217, 28, 28, 0.22);
-}
-
-.occ-map-pin::after {
+.occ-map::before {
   content: "";
   position: absolute;
-  top: 9px;
-  left: 9px;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 22%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.08), transparent 18%);
 }
 
-.occ-map-location {
-  display: grid;
-  gap: 10px;
-}
-
-.occ-map-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.occ-map-embed {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  border: 0;
+  display: block;
+  filter: saturate(1.05) contrast(1.03) brightness(1.01);
 }
 
 .occ-panel .occ-input {
@@ -345,23 +333,86 @@
   background: #fff;
 }
 
-.occ-image-list {
+.occ-file-input {
+  display: none;
+}
+
+.occ-upload-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.occ-upload-counter {
+  font-size: 0.9rem;
+  color: var(--occ-muted);
+  font-weight: 700;
+}
+
+.occ-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.occ-upload-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  background: #f8f8f8;
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-.occ-image-row {
+.occ-upload-preview {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+  object-fit: cover;
+  background: #ececec;
+}
+
+.occ-upload-meta {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.occ-upload-meta strong,
+.occ-upload-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.occ-upload-meta strong {
+  font-size: 0.92rem;
+  color: var(--occ-text);
+}
+
+.occ-upload-meta span {
+  font-size: 0.82rem;
+  color: var(--occ-muted);
+}
+
+.occ-upload-empty {
+  border: 1px dashed rgba(255, 138, 42, 0.3);
+  border-radius: 20px;
+  padding: 18px;
+  background: rgba(255, 138, 42, 0.04);
+  color: var(--occ-muted);
+  font-size: 0.94rem;
 }
 
 .occ-image-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 42px;
+  gap: 8px;
+  min-height: 42px;
   border: 0;
   border-radius: 16px;
   background: rgba(220, 38, 38, 0.08);
@@ -452,7 +503,8 @@
     min-height: 320px;
   }
 
-  .occ-map {
+  .occ-map,
+  .occ-map-embed {
     min-height: 260px;
   }
 
@@ -468,6 +520,12 @@
 
   .occ-grid {
     grid-template-columns: 1fr;
+  }
+
+  .occ-upload-toolbar,
+  .occ-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .occ-actions {

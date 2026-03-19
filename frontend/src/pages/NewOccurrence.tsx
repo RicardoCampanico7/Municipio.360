@@ -10,7 +10,7 @@ import {
   TriangleAlert,
   Volume2,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
@@ -26,16 +26,64 @@ const categories = [
   { label: "Sinalização", icon: Signpost },
 ] as const;
 
+const MAX_IMAGES = 3;
+const MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
+const DEFAULT_MAP_QUERY = "Faro Portugal";
+
+type SelectedImage = {
+  id: string;
+  name: string;
+  size: number;
+  dataUrl: string;
+};
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("Não foi possível ler a imagem selecionada."));
+    };
+    reader.onerror = () => reject(new Error("Não foi possível ler a imagem selecionada."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatFileSize(sizeInBytes: number) {
+  if (sizeInBytes >= 1024 * 1024) {
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  if (sizeInBytes >= 1024) {
+    return `${Math.round(sizeInBytes / 1024)} KB`;
+  }
+
+  return `${sizeInBytes} B`;
+}
+
 export default function NewOccurrence() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [category, setCategory] = useState<string>(categories[0].label);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
-  const [imageUrls, setImageUrls] = useState([""]);
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [mapNote, setMapNote] = useState(
+    "Escreve a morada ou usa a tua localização atual para atualizar o Google Maps.",
+  );
+
+  const trimmedLocation = location.trim();
+  const mapQuery = trimmedLocation || DEFAULT_MAP_QUERY;
+  const googleMapsEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`;
+  const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
 
   const redirectToLoginForExpiredSession = () => {
     const hadStoredSession = !!getRawAccessToken();
@@ -49,26 +97,112 @@ export default function NewOccurrence() {
     });
   };
 
-  const filledImageUrls = imageUrls.map((url) => url.trim()).filter(Boolean);
+  const handleLocationChange = (value: string) => {
+    setLocation(value);
+    setMapNote("O mapa atualiza com a morada ou coordenadas que introduzires.");
+    if (error) setError("");
+  };
 
-  const handleImageChange = (index: number, value: string) => {
-    setImageUrls((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? value : item)),
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError("O teu navegador não suporta geolocalização.");
+      return;
+    }
+
+    setLocationLoading(true);
+    setError("");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coordinates = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+        setLocation(coordinates);
+        setMapNote(
+          "Localização atual aplicada. Se quiseres, podes ajustar a morada manualmente depois.",
+        );
+        setLocationLoading(false);
+      },
+      () => {
+        setError("Não foi possível obter a tua localização atual. Verifica as permissões do navegador.");
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      },
     );
   };
 
-  const handleAddImage = () => {
-    setImageUrls((current) => {
-      if (current.length >= 3) return current;
-      return [...current, ""];
-    });
+  const handleOpenFilePicker = () => {
+    if (selectedImages.length >= MAX_IMAGES) {
+      setError(`Podes adicionar até ${MAX_IMAGES} fotografias.`);
+      return;
+    }
+
+    fileInputRef.current?.click();
   };
 
-  const handleRemoveImage = (index: number) => {
-    setImageUrls((current) => {
-      if (current.length === 1) return [""];
-      return current.filter((_, itemIndex) => itemIndex !== index);
+  const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    if (!files.length) return;
+
+    const remainingSlots = MAX_IMAGES - selectedImages.length;
+    const nextFiles = files.slice(0, remainingSlots);
+    const acceptedFiles: File[] = [];
+    const rejectedMessages: string[] = [];
+
+    files.slice(remainingSlots).forEach(() => {
+      rejectedMessages.push(`Podes adicionar no máximo ${MAX_IMAGES} fotografias.`);
     });
+
+    nextFiles.forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        rejectedMessages.push(`O ficheiro "${file.name}" não é uma imagem válida.`);
+        return;
+      }
+
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        rejectedMessages.push(`A imagem "${file.name}" excede 3 MB.`);
+        return;
+      }
+
+      acceptedFiles.push(file);
+    });
+
+    if (acceptedFiles.length) {
+      try {
+        const processedImages = await Promise.all(
+          acceptedFiles.map(async (file) => ({
+            id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+            name: file.name,
+            size: file.size,
+            dataUrl: await readFileAsDataUrl(file),
+          })),
+        );
+
+        setSelectedImages((current) => [...current, ...processedImages]);
+      } catch (imageError) {
+        const message =
+          imageError instanceof Error
+            ? imageError.message
+            : "Não foi possível carregar as fotografias selecionadas.";
+        setError(message);
+        return;
+      }
+    }
+
+    if (rejectedMessages.length) {
+      setError(rejectedMessages[0]);
+      return;
+    }
+
+    if (error) setError("");
+  };
+
+  const handleRemoveImage = (imageId: string) => {
+    setSelectedImages((current) => current.filter((image) => image.id !== imageId));
+    if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,11 +218,10 @@ export default function NewOccurrence() {
     }
 
     try {
-      const trimmedLocation = location.trim();
       const trimmedDescription = description.trim();
 
       if (!trimmedLocation || !trimmedDescription) {
-        setError("Preenche a localizacao e a descricao antes de enviar.");
+        setError("Preenche a localização e a descrição antes de enviar.");
         setLoading(false);
         return;
       }
@@ -103,7 +236,9 @@ export default function NewOccurrence() {
           category,
           location: trimmedLocation,
           description: trimmedDescription,
-          imageUrls: filledImageUrls.length ? filledImageUrls : undefined,
+          imageUrls: selectedImages.length
+            ? selectedImages.map((image) => image.dataUrl)
+            : undefined,
         }),
       });
 
@@ -134,38 +269,37 @@ export default function NewOccurrence() {
   return (
     <main className="occ-screen">
       <section className="occ-shell" aria-label="Nova ocorrência">
-        <aside className="occ-panel" aria-hidden="true">
-          <div className="occ-map-toolbar">
-            <span className="occ-map-kicker">
-              <MapPinned size={15} strokeWidth={2.2} />
-              Localização da ocorrência
-            </span>
-            <p>Define o ponto no mapa e confirma a morada no campo abaixo.</p>
+        <aside className="occ-panel">
+          <div className="occ-map-actions">
+            <button
+              className="occ-map-action occ-map-action-primary"
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={locationLoading}
+            >
+              <MapPinned size={16} strokeWidth={2.2} />
+              {locationLoading ? "A localizar..." : "Usar a minha localização"}
+            </button>
+            <a
+              className="occ-map-action occ-map-action-secondary"
+              href={googleMapsLink}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Ver no Google Maps
+            </a>
           </div>
 
           <div className="occ-map-frame">
             <div className="occ-map">
-              <div className="occ-map-grid" />
-              <div className="occ-map-road occ-map-road-main" />
-              <div className="occ-map-road occ-map-road-side" />
-              <div className="occ-map-pin" />
+              <iframe
+                className="occ-map-embed"
+                title="Google Maps da localização selecionada"
+                src={googleMapsEmbedUrl}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
-          </div>
-
-          <div className="occ-map-location">
-            <label className="occ-map-label" htmlFor="occ-location-preview">
-              <MapPinned size={16} strokeWidth={2.2} />
-              Morada selecionada
-            </label>
-            <input
-              id="occ-location-preview"
-              className="occ-input"
-              type="text"
-              placeholder="Ex.: Avenida Central, Faro"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              required
-            />
           </div>
         </aside>
 
@@ -192,7 +326,7 @@ export default function NewOccurrence() {
           <form className="occ-form" onSubmit={handleSubmit}>
             <label className="occ-field-label" htmlFor="occ-location">
               <MapPinned size={16} strokeWidth={2.2} />
-              Localizacao
+              Localização
             </label>
             <input
               id="occ-location"
@@ -200,7 +334,7 @@ export default function NewOccurrence() {
               type="text"
               placeholder="Ex.: Avenida Central, Faro"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => handleLocationChange(e.target.value)}
               required
             />
 
@@ -248,35 +382,54 @@ export default function NewOccurrence() {
             <fieldset className="occ-fieldset">
               <legend>
                 <Camera size={16} strokeWidth={2.2} />
-                Fotografias (URLs opcionais)
+                Fotografias
               </legend>
-              <div className="occ-image-list">
-                {imageUrls.map((url, index) => (
-                  <div className="occ-image-row" key={`${index}-${url}`}>
-                    <input
-                      className="occ-input"
-                      type="url"
-                      placeholder="https://exemplo.com/foto.jpg"
-                      value={url}
-                      onChange={(e) => handleImageChange(index, e.target.value)}
-                    />
-                    <button
-                      className="occ-image-remove"
-                      type="button"
-                      onClick={() => handleRemoveImage(index)}
-                      aria-label="Remover imagem"
-                    >
-                      <Trash2 size={16} strokeWidth={2.2} />
-                    </button>
-                  </div>
-                ))}
-                {imageUrls.length < 3 && (
-                  <button className="occ-image-add" type="button" onClick={handleAddImage}>
-                    <Camera size={16} strokeWidth={2.2} />
-                    Adicionar outra imagem
-                  </button>
-                )}
+
+              <input
+                ref={fileInputRef}
+                className="occ-file-input"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFilesSelected}
+              />
+
+              <div className="occ-upload-toolbar">
+                <button className="occ-image-add" type="button" onClick={handleOpenFilePicker}>
+                  <Camera size={16} strokeWidth={2.2} />
+                  {selectedImages.length ? "Adicionar mais fotos" : "Escolher fotografias"}
+                </button>
+                <span className="occ-upload-counter">
+                  {selectedImages.length}/{MAX_IMAGES} fotografias
+                </span>
               </div>
+
+              {selectedImages.length ? (
+                <div className="occ-upload-grid">
+                  {selectedImages.map((image) => (
+                    <article className="occ-upload-card" key={image.id}>
+                      <img className="occ-upload-preview" src={image.dataUrl} alt={image.name} />
+                      <div className="occ-upload-meta">
+                        <strong>{image.name}</strong>
+                        <span>{formatFileSize(image.size)}</span>
+                      </div>
+                      <button
+                        className="occ-image-remove"
+                        type="button"
+                        onClick={() => handleRemoveImage(image.id)}
+                        aria-label={`Apagar ${image.name}`}
+                      >
+                        <Trash2 size={16} strokeWidth={2.2} />
+                        Apagar
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="occ-upload-empty">
+                  Seleciona fotografias do teu dispositivo para juntar à ocorrência.
+                </div>
+              )}
             </fieldset>
 
             {error && <div className="occ-error">{error}</div>}
@@ -299,4 +452,3 @@ export default function NewOccurrence() {
     </main>
   );
 }
-
