@@ -2,6 +2,7 @@ export type ApiOccurrence = {
   id?: string | number;
   title?: string;
   category?: string;
+  otherCategoryDetail?: string | null;
   description?: string;
   location?: string;
   status?: string;

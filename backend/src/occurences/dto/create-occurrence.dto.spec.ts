@@ -28,6 +28,23 @@ describe('CreateOccurrenceDto', () => {
   });
 
   /**
+   * Garante que aliases legiveis continuam compativeis com o enum persistido.
+   * @return void
+   */
+  it('should normalize human readable occurrence category aliases', async () => {
+    const dto = plainToInstance(CreateOccurrenceDto, {
+      category: 'Iluminacao publica',
+      location: 'Rua A',
+      imageUrls: [SMALL_IMAGE_DATA_URL],
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.category).toBe(OccurrenceCategory.ILUMINACAO_PUBLICA);
+  });
+
+  /**
    * Garante que fotografias passam a ser obrigatorias no pedido.
    * @return void
    */
