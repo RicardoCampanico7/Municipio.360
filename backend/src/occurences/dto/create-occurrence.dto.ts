@@ -29,6 +29,14 @@ const CATEGORY_ALIASES: Record<string, OccurrenceCategory> = {
   'Outros': OccurrenceCategory.OUTROS,
 };
 
+function normalizeCategoryAlias(value: string) {
+  return value
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
 /**
  * Representa os dados necessarios para criar uma nova ocorrencia.
  * @author Alan Martynyuk e Guilherme Gaspar
@@ -36,26 +44,36 @@ const CATEGORY_ALIASES: Record<string, OccurrenceCategory> = {
  * @inv O DTO deve garantir a presenca dos campos essenciais de uma ocorrencia.
  */
 export class CreateOccurrenceDto {
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+
+    return (
+      CATEGORY_ALIASES[value] ??
+      CATEGORY_ALIASES[value.trim()] ??
+      CATEGORY_ALIASES[normalizeCategoryAlias(value)] ??
+      value
+    );
+  })
   @IsEnum(OccurrenceCategory)
-  category: OccurrenceCategory;
+  declare category: OccurrenceCategory;
 
   @ValidateIf((dto: CreateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS)
   @IsString()
   @MinLength(3)
-  otherCategoryDetail?: string;
+  declare otherCategoryDetail?: string;
 
   @IsOptional()
   @IsString()
   @MinLength(3)
-  description?: string;
+  declare description?: string;
 
   @IsString()
   @MinLength(2)
-  location: string;
+  declare location: string;
 
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(3)
   @IsString({ each: true })
-  imageUrls: string[];
+  declare imageUrls: string[];
 }
