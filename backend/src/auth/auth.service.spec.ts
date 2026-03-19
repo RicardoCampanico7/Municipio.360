@@ -71,7 +71,7 @@ describe('AuthService', () => {
       postalCode: '8000-000',
       email: 'maria@teste.pt',
       role: Role.CIVIL,
-      certStatus: CertificationStatus.NONE,
+      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T10:00:00.000Z'),
       updatedAt: new Date('2026-03-17T10:00:00.000Z'),
     });
@@ -92,6 +92,7 @@ describe('AuthService', () => {
           biNumber: '12345678 1 AB2',
           email: 'maria@teste.pt',
           passwordHash: 'hashed-password',
+          certStatus: CertificationStatus.CERTIFIED,
         }),
       }),
     );
@@ -102,7 +103,7 @@ describe('AuthService', () => {
       postalCode: '8000-000',
       email: 'maria@teste.pt',
       role: Role.CIVIL,
-      certStatus: CertificationStatus.NONE,
+      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T10:00:00.000Z'),
       updatedAt: new Date('2026-03-17T10:00:00.000Z'),
     });

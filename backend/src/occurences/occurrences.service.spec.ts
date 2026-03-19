@@ -1,13 +1,8 @@
 import {
   BadRequestException,
-  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  CertificationStatus,
-  OccurrenceCategory,
-  OccurrenceStatus,
-} from '@prisma/client';
+import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { OccurrencesService } from './occurrences.service';
@@ -143,30 +138,28 @@ describe('OccurrencesService', () => {
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: 999 },
-      select: { id: true, certStatus: true },
+      select: { id: true },
     });
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
   /**
-   * Garante que apenas utilizadores certificados podem submeter ocorrencias.
+   * Garante que um utilizador autenticado com conta criada pode submeter ocorrencias.
    * @return void
    */
-  it('should reject occurrence creation for non-certified users', async () => {
+  it('should allow occurrence creation for an authenticated citizen account', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
-      certStatus: CertificationStatus.PENDING,
+    });
+    prisma.occurrence.create.mockResolvedValue({ id: 2 });
+
+    await service.create(7, {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      location: 'Rua A',
+      imageUrls: [SMALL_IMAGE_DATA_URL],
     });
 
-    await expect(
-      service.create(7, {
-        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-        location: 'Rua A',
-        imageUrls: [SMALL_IMAGE_DATA_URL],
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-
-    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).toHaveBeenCalled();
   });
 
   /**
@@ -176,7 +169,6 @@ describe('OccurrencesService', () => {
   it('should reject images whose decoded payload exceeds the backend limit', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
-      certStatus: CertificationStatus.CERTIFIED,
     });
 
     await expect(
@@ -197,7 +189,6 @@ describe('OccurrencesService', () => {
   it('should create an occurrence with authenticated user and initial submitted status', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 12,
-      certStatus: CertificationStatus.CERTIFIED,
     });
     prisma.occurrence.create.mockResolvedValue({ id: 1 });
 

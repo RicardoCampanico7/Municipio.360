@@ -11,10 +11,10 @@ const SMALL_IMAGE_DATA_URL =
  */
 describe('CreateOccurrenceDto', () => {
   /**
-   * Garante que o DTO aceita diretamente um enum valido vindo do frontend.
+   * Garante que o DTO aceita categorias canónicas do enum esperado pelo backend.
    * @return void
    */
-  it('should accept a valid occurrence enum category', async () => {
+  it('should accept canonical occurrence category enum values', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
       category: OccurrenceCategory.BURACOS_PAVIMENTO,
       location: 'Rua A',

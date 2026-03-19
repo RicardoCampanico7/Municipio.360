@@ -5,11 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  CertificationStatus,
-  OccurrenceCategory,
-  OccurrenceStatus,
-} from '@prisma/client';
+import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 
@@ -47,31 +43,10 @@ export class OccurrencesService {
    * @return Promise<void> Promessa resolvida quando o utilizador existe.
    */
   private async ensureExistingUser(userId: number) {
-    const user = await this.prisma.user.findUnique({
+    return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, certStatus: true },
+      select: { id: true },
     });
-
-    if (!user) {
-      throw new UnauthorizedException('Utilizador autenticado invalido');
-    }
-
-    return user;
-  }
-
-  /**
-   * Garante que apenas utilizadores certificados podem submeter ocorrencias.
-   * @param userId Identificador do utilizador autenticado.
-   * @return Promise<void> Promessa resolvida quando o utilizador esta certificado.
-   */
-  private async ensureCertifiedUser(userId: number) {
-    const user = await this.ensureExistingUser(userId);
-
-    if (user.certStatus !== CertificationStatus.CERTIFIED) {
-      throw new ForbiddenException(
-        'Apenas cidadaos certificados podem submeter ocorrencias',
-      );
-    }
   }
 
   /**
@@ -182,7 +157,11 @@ export class OccurrencesService {
    * @return Ocorrencia criada.
    */
   async create(userId: number, dto: CreateOccurrenceDto) {
-    await this.ensureCertifiedUser(userId);
+    const user = await this.ensureExistingUser(userId);
+    if (!user) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
     this.validateImages(dto.imageUrls);
 
     const otherCategoryDetail =
