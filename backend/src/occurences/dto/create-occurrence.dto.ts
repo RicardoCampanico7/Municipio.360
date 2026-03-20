@@ -17,11 +17,6 @@ import {
  * @inv O DTO deve garantir a presenca dos campos essenciais de uma ocorrencia.
  */
 export class CreateOccurrenceDto {
-  @Transform(({ value }) => {
-    if (typeof value !== 'string') return value;
-
-    return CATEGORY_ALIASES[normalizeCategoryAlias(value)] ?? value;
-  })
   @IsEnum(OccurrenceCategory)
   declare category: OccurrenceCategory;
 
