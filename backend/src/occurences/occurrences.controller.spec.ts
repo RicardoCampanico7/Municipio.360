@@ -26,6 +26,7 @@ describe('OccurrencesController', () => {
             findAllForOperator: jest.fn(),
             findOneForOperator: jest.fn(),
             findOnePublic: jest.fn(),
+            uploadImages: jest.fn(),
             create: jest.fn(),
             updateStatus: jest.fn(),
             remove: jest.fn(),
@@ -46,7 +47,10 @@ describe('OccurrencesController', () => {
       GUARDS_METADATA,
       controller.findAllForOperator,
     ) as unknown[];
-    const roles = Reflect.getMetadata(ROLES_KEY, controller.findAllForOperator) as Role[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.findAllForOperator,
+    ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
     expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
@@ -61,7 +65,10 @@ describe('OccurrencesController', () => {
       GUARDS_METADATA,
       controller.findOneForOperator,
     ) as unknown[];
-    const roles = Reflect.getMetadata(ROLES_KEY, controller.findOneForOperator) as Role[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.findOneForOperator,
+    ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
     expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
@@ -76,10 +83,31 @@ describe('OccurrencesController', () => {
       GUARDS_METADATA,
       controller.updateStatus,
     ) as unknown[];
-    const roles = Reflect.getMetadata(ROLES_KEY, controller.updateStatus) as Role[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.updateStatus,
+    ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
     expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
+  });
+
+  /**
+   * Garante que o upload de imagens exige autenticacao CIVIL.
+   * @return void
+   */
+  it('should protect the image upload route with JWT and citizen role', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.uploadImages,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.uploadImages,
+    ) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([Role.CIVIL]);
   });
 
   /**
@@ -87,7 +115,10 @@ describe('OccurrencesController', () => {
    * @return void
    */
   it('should protect deletes with JWT and backoffice roles', () => {
-    const guards = Reflect.getMetadata(GUARDS_METADATA, controller.remove) as unknown[];
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.remove,
+    ) as unknown[];
     const roles = Reflect.getMetadata(ROLES_KEY, controller.remove) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);

@@ -62,7 +62,9 @@ export class OccurrencesController {
    * Pos-condicao: E lancada excecao 400 quando o utilizador nao e valido.
    */
   private getUserId(req: Request): number {
-    const user = req.user as { sub?: number; userId?: number; id?: number } | undefined;
+    const user = req.user as
+      | { sub?: number; userId?: number; id?: number }
+      | undefined;
     const id = user?.sub ?? user?.userId ?? user?.id;
     const parsedId = Number(id);
 
@@ -104,7 +106,9 @@ export class OccurrencesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar ocorrencias do utilizador autenticado (CIVIL)' })
+  @ApiOperation({
+    summary: 'Listar ocorrencias do utilizador autenticado (CIVIL)',
+  })
   @ApiResponse({ status: 200, description: 'Lista devolvida' })
   @ApiResponse({ status: 401, description: 'Sem autenticacao' })
   @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
@@ -122,7 +126,9 @@ export class OccurrencesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Alias legado para listar ocorrencias do utilizador autenticado' })
+  @ApiOperation({
+    summary: 'Alias legado para listar ocorrencias do utilizador autenticado',
+  })
   findMineLegacy(@Req() req: Request) {
     const userId = this.getUserId(req);
     return this.occurrencesService.findMine(userId);
@@ -138,10 +144,15 @@ export class OccurrencesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Detalhe de uma ocorrencia do utilizador autenticado (CIVIL)' })
+  @ApiOperation({
+    summary: 'Detalhe de uma ocorrencia do utilizador autenticado (CIVIL)',
+  })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
   @ApiResponse({ status: 200, description: 'Ocorrencia encontrada' })
-  @ApiResponse({ status: 403, description: 'A ocorrencia nao pertence ao utilizador autenticado' })
+  @ApiResponse({
+    status: 403,
+    description: 'A ocorrencia nao pertence ao utilizador autenticado',
+  })
   findMineById(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
     const userId = this.getUserId(req);
     return this.occurrencesService.findMineById(id, userId);
@@ -155,7 +166,9 @@ export class OccurrencesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar ocorrencias com dados do autor para operadores' })
+  @ApiOperation({
+    summary: 'Listar ocorrencias com dados do autor para operadores',
+  })
   findAllForOperator() {
     return this.occurrencesService.findAllForOperator();
   }
@@ -187,6 +200,59 @@ export class OccurrencesController {
   @ApiResponse({ status: 404, description: 'Ocorrencia nao existe' })
   findOnePublic(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOnePublic(id);
+  }
+
+  /**
+   * Faz upload de fotografias avulsas para posterior anexo a uma ocorrencia.
+   * @param req Pedido HTTP autenticado.
+   * @param files Ficheiros de imagem recebidos em multipart.
+   * @return Lista de URLs publicas das imagens guardadas.
+   */
+  @Post('images')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CIVIL)
+  @UseFilters(OccurrenceUploadExceptionFilter)
+  @UseInterceptors(
+    FilesInterceptor(
+      'imageUrls',
+      occurrenceUploadConfig.maxFiles,
+      getOccurrenceMulterOptions(),
+    ),
+  )
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Fazer upload de imagens para anexar a uma ocorrencia',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['imageUrls'],
+      properties: {
+        imageUrls: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          maxItems: occurrenceUploadConfig.maxFiles,
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Imagens carregadas com sucesso' })
+  @ApiResponse({
+    status: 400,
+    description: 'Pedido invalido ou upload rejeitado',
+  })
+  @ApiResponse({ status: 401, description: 'Sem autenticacao' })
+  @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
+  uploadImages(
+    @Req() req: Request,
+    @UploadedFiles() files: UploadedOccurrenceImage[] = [],
+  ) {
+    const userId = this.getUserId(req);
+    return this.occurrencesService.uploadImages(userId, files);
   }
 
   /**
@@ -244,7 +310,10 @@ export class OccurrencesController {
     },
   })
   @ApiResponse({ status: 201, description: 'Ocorrencia criada' })
-  @ApiResponse({ status: 400, description: 'Pedido invalido ou upload rejeitado' })
+  @ApiResponse({
+    status: 400,
+    description: 'Pedido invalido ou upload rejeitado',
+  })
   @ApiResponse({ status: 401, description: 'Sem autenticacao' })
   @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
   create(
@@ -266,7 +335,9 @@ export class OccurrencesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Atualizar estado de uma ocorrencia (OPERADOR ou ADMINISTRADOR)' })
+  @ApiOperation({
+    summary: 'Atualizar estado de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
+  })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
   updateStatus(
     @Param('id', ParseIntPipe) id: number,

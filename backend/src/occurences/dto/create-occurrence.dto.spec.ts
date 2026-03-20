@@ -28,10 +28,10 @@ describe('CreateOccurrenceDto', () => {
   });
 
   /**
-   * Garante que labels humanas continuam compativeis com o enum persistido.
+   * Garante que apenas valores canonicos do enum sao aceites.
    * @return void
    */
-  it('should normalize human-friendly category labels', async () => {
+  it('should reject human-friendly category labels', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
       category: 'Iluminacao publica',
       location: 'Rua A',
@@ -40,8 +40,7 @@ describe('CreateOccurrenceDto', () => {
 
     const errors = await validate(dto);
 
-    expect(errors).toHaveLength(0);
-    expect(dto.category).toBe(OccurrenceCategory.ILUMINACAO_PUBLICA);
+    expect(errors).not.toHaveLength(0);
   });
 
   /**
