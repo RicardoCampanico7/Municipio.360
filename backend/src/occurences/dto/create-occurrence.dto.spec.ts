@@ -11,7 +11,7 @@ const SMALL_IMAGE_DATA_URL =
  */
 describe('CreateOccurrenceDto', () => {
   /**
-   * Garante que o DTO aceita categorias canónicas do enum esperado pelo backend.
+   * Garante que o DTO aceita categorias canonicas do enum esperado pelo backend.
    * @return void
    */
   it('should accept canonical occurrence category enum values', async () => {
@@ -28,34 +28,34 @@ describe('CreateOccurrenceDto', () => {
   });
 
   /**
-   * Garante que o DTO rejeita labels humanas quando o frontend nao envia o enum canonico.
+   * Garante que labels humanas continuam compativeis com o enum persistido.
    * @return void
    */
-  it('should reject human-friendly category labels', async () => {
+  it('should normalize human-friendly category labels', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
-      category: 'Iluminação pública',
+      category: 'Iluminacao publica',
       location: 'Rua A',
       imageUrls: [SMALL_IMAGE_DATA_URL],
     });
 
     const errors = await validate(dto);
 
-    expect(errors.some((error) => error.property === 'category')).toBe(true);
+    expect(errors).toHaveLength(0);
+    expect(dto.category).toBe(OccurrenceCategory.ILUMINACAO_PUBLICA);
   });
 
   /**
-   * Garante que fotografias continuam obrigatorias no pedido.
+   * Garante que fotografias podem ser omitidas em pedidos multipart ou JSON sem imagens.
    * @return void
    */
-  it('should require at least one image', async () => {
+  it('should allow requests without imageUrls in the body', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
       category: OccurrenceCategory.ILUMINACAO_PUBLICA,
       location: 'Rua A',
-      imageUrls: [],
     });
 
     const errors = await validate(dto);
 
-    expect(errors.some((error) => error.property === 'imageUrls')).toBe(true);
+    expect(errors).toHaveLength(0);
   });
 });

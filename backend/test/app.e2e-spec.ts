@@ -12,6 +12,8 @@ import { PrismaService } from './../src/prisma/prisma.service';
 
 const JWT_SECRET = 'municipio360-e2e-secret';
 const SMALL_IMAGE_BUFFER = Buffer.from('small-image');
+const SMALL_IMAGE_DATA_URL =
+  'data:image/png;base64,' + SMALL_IMAGE_BUFFER.toString('base64');
 const LARGE_IMAGE_BUFFER = Buffer.alloc(3 * 1024 * 1024 + 1, 1);
 
 describe('Occurrences permissions (e2e)', () => {
@@ -231,6 +233,49 @@ describe('Occurrences permissions (e2e)', () => {
     });
   });
 
+  it('returns 201 when a certified CIVIL user creates an occurrence using JSON data URLs', async () => {
+    const token = signToken({
+      sub: 24,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 24,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.occurrence.create.mockImplementation(async ({ data }) => ({
+      id: 24,
+      title: 'Iluminacao publica',
+      category: 'Iluminacao publica',
+      categoryKey: 'ILUMINACAO_PUBLICA',
+      otherCategoryDetail: data.otherCategoryDetail,
+      description: data.description,
+      location: data.location,
+      imageUrls: data.imageUrls,
+      status: 'open',
+      statusKey: 'SUBMETIDA',
+      createdAt: new Date('2026-03-19T20:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T20:00:00.000Z'),
+      userId: data.userId,
+    }));
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'ILUMINACAO_PUBLICA',
+        location: 'Rua C',
+        description: 'Candeeiro apagado',
+        imageUrls: [SMALL_IMAGE_DATA_URL],
+      })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body.imageUrls).toEqual([SMALL_IMAGE_DATA_URL]);
+        expect(body.status).toBe('open');
+      });
+  });
+
   it('returns 400 when a non-image file is uploaded', async () => {
     const token = signToken({
       sub: 21,
@@ -335,7 +380,25 @@ describe('Occurrences permissions (e2e)', () => {
 
     prisma.occurrence.findMany.mockResolvedValue(occurrences);
 
-    await request(httpApp).get('/occurrences').expect(200).expect(occurrences);
+    await request(httpApp)
+      .get('/occurrences')
+      .expect(200)
+      .expect([
+        {
+          id: 21,
+          title: 'Iluminacao publica',
+          category: 'Iluminacao publica',
+          categoryKey: 'ILUMINACAO_PUBLICA',
+          otherCategoryDetail: null,
+          description: 'Candeeiro desligado',
+          location: 'Rua da Liberdade',
+          imageUrls: [],
+          status: 'open',
+          statusKey: 'SUBMETIDA',
+          createdAt: '2026-03-19T08:00:00.000Z',
+          updatedAt: '2026-03-19T08:00:00.000Z',
+        },
+      ]);
   });
 
   it('returns the public occurrence detail without authentication', async () => {
@@ -353,7 +416,23 @@ describe('Occurrences permissions (e2e)', () => {
 
     prisma.occurrence.findUnique.mockResolvedValue(occurrence);
 
-    await request(httpApp).get('/occurrences/22').expect(200).expect(occurrence);
+    await request(httpApp)
+      .get('/occurrences/22')
+      .expect(200)
+      .expect({
+        id: 22,
+        title: 'Sinalizacao',
+        category: 'Sinalizacao',
+        categoryKey: 'SINALIZACAO',
+        otherCategoryDetail: null,
+        description: 'Sinal tombado',
+        location: 'Avenida do Municipio',
+        imageUrls: [SMALL_IMAGE_DATA_URL],
+        status: 'progress',
+        statusKey: 'EM_TRATAMENTO',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T11:30:00.000Z',
+      });
   });
 
   it('returns 403 when a CIVIL user tries to access management routes', async () => {
