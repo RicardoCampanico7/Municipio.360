@@ -10,28 +10,6 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-const CATEGORY_ALIASES: Record<string, OccurrenceCategory> = {
-  BURACOS_PAVIMENTO: OccurrenceCategory.BURACOS_PAVIMENTO,
-  BURACOS_NO_PAVIMENTO: OccurrenceCategory.BURACOS_PAVIMENTO,
-  BURACO_NA_ESTRADA: OccurrenceCategory.BURACOS_PAVIMENTO,
-  ILUMINACAO_PUBLICA: OccurrenceCategory.ILUMINACAO_PUBLICA,
-  LIMPEZA_URBANA: OccurrenceCategory.LIMPEZA_URBANA,
-  RUIDO: OccurrenceCategory.RUIDO,
-  ESPACOS_PUBLICOS: OccurrenceCategory.ESPACOS_PUBLICOS,
-  SINALIZACAO: OccurrenceCategory.SINALIZACAO,
-  OUTROS: OccurrenceCategory.OUTROS,
-};
-
-function normalizeCategoryAlias(value: string) {
-  return value
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
 /**
  * Representa os dados necessarios para criar uma nova ocorrencia.
  * @author Alan Martynyuk e Guilherme Gaspar
