@@ -15,6 +15,9 @@ jest.mock('./occurrence-upload', () => ({
     uploadsRoot: '/tmp/occurrences',
     publicBasePath: '/uploads/occurrences',
   },
+  isOccurrenceUploadPublicUrl: jest.fn((imageUrl: string) =>
+    imageUrl.startsWith('/uploads/occurrences/'),
+  ),
   saveOccurrenceImages: jest.fn(),
   removeOccurrenceImagesByUrls: jest.fn(),
 }));
@@ -98,12 +101,12 @@ describe('OccurrencesService', () => {
         updatedAt: true,
       },
     });
-    expect(prisma.occurrence.findMany.mock.calls[0][0].select).not.toHaveProperty(
-      'user',
-    );
-    expect(prisma.occurrence.findMany.mock.calls[0][0].select).not.toHaveProperty(
-      'userId',
-    );
+    expect(
+      prisma.occurrence.findMany.mock.calls[0][0].select,
+    ).not.toHaveProperty('user');
+    expect(
+      prisma.occurrence.findMany.mock.calls[0][0].select,
+    ).not.toHaveProperty('userId');
     expect(result).toEqual([
       expect.objectContaining({
         title: 'Iluminacao publica',
@@ -317,6 +320,95 @@ describe('OccurrencesService', () => {
         status: 'open',
       }),
     );
+  });
+
+  /**
+   * Garante que a criacao tambem aceita URLs publicas previamente carregadas.
+   * @return void
+   */
+  it('should accept previously uploaded public image URLs when no new files are provided', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
+    prisma.occurrence.create.mockResolvedValue({
+      id: 78,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: '',
+      location: 'Rua A',
+      imageUrls: ['/uploads/occurrences/existing.png'],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
+      userId: 7,
+    });
+
+    const result = await service.create(7, {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      location: 'Rua A',
+      imageUrls: ['/uploads/occurrences/existing.png'],
+    });
+
+    expect(prisma.occurrence.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        imageUrls: ['/uploads/occurrences/existing.png'],
+      }),
+      select: expect.any(Object),
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        imageUrls: ['/uploads/occurrences/existing.png'],
+        status: 'open',
+      }),
+    );
+  });
+
+  /**
+   * Garante que o endpoint dedicado devolve URLs publicas quando recebe imagens validas.
+   * @return void
+   */
+  it('should upload occurrence images for a valid authenticated user', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([
+      '/uploads/occurrences/uploaded.png',
+    ]);
+
+    const result = await service.uploadImages(7, [
+      {
+        buffer: Buffer.from('img'),
+        mimetype: 'image/png',
+        originalname: 'uploaded.png',
+        size: 3,
+      },
+    ]);
+
+    expect(saveOccurrenceImages).toHaveBeenCalledWith([
+      expect.objectContaining({
+        originalname: 'uploaded.png',
+      }),
+    ]);
+    expect(result).toEqual({
+      imageUrls: ['/uploads/occurrences/uploaded.png'],
+    });
+  });
+
+  /**
+   * Garante que o upload dedicado rejeita pedidos sem fotografias.
+   * @return void
+   */
+  it('should reject dedicated image upload requests without files', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+
+    await expect(service.uploadImages(7, [])).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
   });
 
   /**

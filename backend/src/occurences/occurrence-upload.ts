@@ -32,6 +32,8 @@ export const occurrenceUploadConfig = {
     process.env.OCCURRENCES_UPLOAD_PUBLIC_PATH ?? DEFAULT_PUBLIC_BASE_PATH,
 } as const;
 
+const OCCURRENCE_PUBLIC_URL_PREFIX = `${occurrenceUploadConfig.publicBasePath}/`;
+
 function getFileExtension(mimetype: string, originalname: string) {
   const originalExtension = extname(originalname).toLowerCase();
   if (originalExtension) {
@@ -79,6 +81,18 @@ export function getOccurrenceMulterOptions() {
   };
 }
 
+export function isOccurrenceUploadPublicUrl(imageUrl: string) {
+  if (!imageUrl.startsWith(OCCURRENCE_PUBLIC_URL_PREFIX)) {
+    return false;
+  }
+
+  const filename = imageUrl.slice(OCCURRENCE_PUBLIC_URL_PREFIX.length);
+
+  return (
+    Boolean(filename) && !filename.includes('/') && !filename.includes('\\')
+  );
+}
+
 export async function ensureOccurrenceUploadsDirectory() {
   await mkdir(occurrenceUploadConfig.uploadsRoot, { recursive: true });
 }
@@ -116,13 +130,11 @@ export async function saveOccurrenceImages(files: UploadedOccurrenceImage[]) {
 
 export async function removeOccurrenceImagesByUrls(imageUrls: string[]) {
   const paths = imageUrls
-    .filter((imageUrl) =>
-      imageUrl.startsWith(`${occurrenceUploadConfig.publicBasePath}/`),
-    )
+    .filter((imageUrl) => isOccurrenceUploadPublicUrl(imageUrl))
     .map((imageUrl) =>
       join(
         occurrenceUploadConfig.uploadsRoot,
-        imageUrl.replace(`${occurrenceUploadConfig.publicBasePath}/`, ''),
+        imageUrl.slice(OCCURRENCE_PUBLIC_URL_PREFIX.length),
       ),
     );
 

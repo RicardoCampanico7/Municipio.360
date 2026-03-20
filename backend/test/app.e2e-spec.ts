@@ -76,7 +76,10 @@ describe('Occurrences permissions (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
-    await rm(occurrenceUploadConfig.uploadsRoot, { recursive: true, force: true });
+    await rm(occurrenceUploadConfig.uploadsRoot, {
+      recursive: true,
+      force: true,
+    });
   });
 
   function signToken({
@@ -100,7 +103,7 @@ describe('Occurrences permissions (e2e)', () => {
   it('returns 401 when creating an occurrence without authentication', async () => {
     await request(httpApp)
       .post('/occurrences')
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .expect(401);
   });
@@ -115,7 +118,7 @@ describe('Occurrences permissions (e2e)', () => {
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .expect(403);
   });
@@ -147,7 +150,7 @@ describe('Occurrences permissions (e2e)', () => {
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .expect(201);
   });
@@ -178,7 +181,7 @@ describe('Occurrences permissions (e2e)', () => {
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Buracos no pavimento')
+      .field('category', 'BURACOS_PAVIMENTO')
       .field('location', 'Rua B')
       .expect(201);
   });
@@ -210,7 +213,7 @@ describe('Occurrences permissions (e2e)', () => {
     const response = await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .field('description', 'Candeeiro apagado')
       .attach('imageUrls', SMALL_IMAGE_BUFFER, {
@@ -224,7 +227,9 @@ describe('Occurrences permissions (e2e)', () => {
       .expect(201);
 
     expect(response.body.imageUrls).toHaveLength(2);
-    expect(response.body.imageUrls[0]).toMatch(/^\/uploads\/occurrences\/.+\.png$/);
+    expect(response.body.imageUrls[0]).toMatch(
+      /^\/uploads\/occurrences\/.+\.png$/,
+    );
     expect(prisma.occurrence.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         imageUrls: response.body.imageUrls,
@@ -276,6 +281,95 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('returns 201 and public image URLs when a certified CIVIL user uploads images to the dedicated endpoint', async () => {
+    const token = signToken({
+      sub: 25,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 25,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .post('/occurrences/images')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
+        filename: 'standalone.png',
+        contentType: 'image/png',
+      })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body.imageUrls).toHaveLength(1);
+        expect(body.imageUrls[0]).toMatch(/^\/uploads\/occurrences\/.+\.png$/);
+      });
+  });
+
+  it('returns 400 when the dedicated image upload endpoint receives no files', async () => {
+    const token = signToken({
+      sub: 26,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 26,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .post('/occurrences/images')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain('pelo menos uma fotografia');
+      });
+  });
+
+  it('returns 201 when a certified CIVIL user creates an occurrence using previously uploaded public image URLs', async () => {
+    const token = signToken({
+      sub: 27,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 27,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.occurrence.create.mockImplementation(async ({ data }) => ({
+      id: 27,
+      title: 'Iluminacao publica',
+      category: 'Iluminacao publica',
+      categoryKey: 'ILUMINACAO_PUBLICA',
+      otherCategoryDetail: data.otherCategoryDetail,
+      description: data.description,
+      location: data.location,
+      imageUrls: data.imageUrls,
+      status: 'open',
+      statusKey: 'SUBMETIDA',
+      createdAt: new Date('2026-03-19T20:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T20:00:00.000Z'),
+      userId: data.userId,
+    }));
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'ILUMINACAO_PUBLICA',
+        location: 'Rua D',
+        description: 'Candeeiro partido',
+        imageUrls: ['/uploads/occurrences/existing.png'],
+      })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body.imageUrls).toEqual(['/uploads/occurrences/existing.png']);
+      });
+  });
+
   it('returns 400 when a non-image file is uploaded', async () => {
     const token = signToken({
       sub: 21,
@@ -286,7 +380,7 @@ describe('Occurrences permissions (e2e)', () => {
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .attach('imageUrls', Buffer.from('not-an-image'), {
         filename: 'note.txt',
@@ -308,7 +402,7 @@ describe('Occurrences permissions (e2e)', () => {
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .attach('imageUrls', LARGE_IMAGE_BUFFER, {
         filename: 'large.png',
@@ -330,7 +424,7 @@ describe('Occurrences permissions (e2e)', () => {
     let requestBuilder = request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
-      .field('category', 'Iluminação pública')
+      .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A');
 
     for (let index = 0; index < 4; index += 1) {

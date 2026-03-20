@@ -9,6 +9,7 @@ import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import {
+  isOccurrenceUploadPublicUrl,
   occurrenceUploadConfig,
   removeOccurrenceImagesByUrls,
   saveOccurrenceImages,
@@ -140,15 +141,25 @@ export class OccurrencesService {
    * @param imageUrls Lista de imagens recebidas no body.
    * @return Lista normalizada de imagens inline.
    */
-  private normalizeInlineImageUrls(imageUrls: string[] | undefined) {
+  private normalizeImageUrls(imageUrls: string[] | undefined) {
     const normalizedImageUrls = (imageUrls ?? [])
       .map((imageUrl) => imageUrl.trim())
       .filter(Boolean);
 
+    if (normalizedImageUrls.length > occurrenceUploadConfig.maxFiles) {
+      throw new BadRequestException(
+        `Pode enviar no maximo ${occurrenceUploadConfig.maxFiles} fotografias`,
+      );
+    }
+
     normalizedImageUrls.forEach((imageUrl, index) => {
+      if (isOccurrenceUploadPublicUrl(imageUrl)) {
+        return;
+      }
+
       if (!INLINE_IMAGE_DATA_URL_PREFIX.test(imageUrl)) {
         throw new BadRequestException(
-          `A imagem inline ${index + 1} nao tem um formato valido`,
+          `A imagem ${index + 1} nao tem um formato valido`,
         );
       }
 
@@ -159,7 +170,7 @@ export class OccurrencesService {
         sizeInBytes = Buffer.from(base64Payload, 'base64').byteLength;
       } catch {
         throw new BadRequestException(
-          `A imagem inline ${index + 1} nao tem um formato valido`,
+          `A imagem ${index + 1} nao tem um formato valido`,
         );
       }
 
@@ -205,7 +216,9 @@ export class OccurrencesService {
    * @param occurrences Lista persistida.
    * @return Lista pronta para consumo pelo cliente.
    */
-  private presentOccurrences<T extends PresentableOccurrence>(occurrences: T[]) {
+  private presentOccurrences<T extends PresentableOccurrence>(
+    occurrences: T[],
+  ) {
     return occurrences.map((occurrence) => this.presentOccurrence(occurrence));
   }
 
@@ -279,8 +292,10 @@ export class OccurrencesService {
         ? dto.otherCategoryDetail?.trim()
         : null;
     const uploadedImageUrls = await saveOccurrenceImages(files);
-    const inlineImageUrls = this.normalizeInlineImageUrls(dto.imageUrls);
-    const imageUrls = uploadedImageUrls.length ? uploadedImageUrls : inlineImageUrls;
+    const requestedImageUrls = this.normalizeImageUrls(dto.imageUrls);
+    const imageUrls = uploadedImageUrls.length
+      ? uploadedImageUrls
+      : requestedImageUrls;
 
     try {
       const occurrence = await this.prisma.occurrence.create({
@@ -301,6 +316,29 @@ export class OccurrencesService {
       await removeOccurrenceImagesByUrls(uploadedImageUrls);
       throw error;
     }
+  }
+
+  /**
+   * Guarda fotografias avulsas para posterior anexo a uma ocorrencia.
+   * @param userId Identificador do utilizador autenticado.
+   * @param files Ficheiros recebidos no pedido multipart.
+   * @return URLs publicas das imagens guardadas.
+   */
+  async uploadImages(userId: number, files: UploadedOccurrenceImage[] = []) {
+    const user = await this.ensureExistingUser(userId);
+    if (!user) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
+    if (!files.length) {
+      throw new BadRequestException('Envie pelo menos uma fotografia');
+    }
+
+    const imageUrls = await saveOccurrenceImages(files);
+
+    return {
+      imageUrls,
+    };
   }
 
   /**
