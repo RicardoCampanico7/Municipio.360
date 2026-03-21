@@ -8,7 +8,27 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:3000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        rewrite: (path) => {
+          const swaggerPaths = [
+            "/api",
+            "/api/",
+            "/api-json",
+          ];
+
+          const swaggerAssetPrefixes = [
+            "/api/swagger-ui",
+            "/api/favicon",
+          ];
+
+          if (
+            swaggerPaths.includes(path) ||
+            swaggerAssetPrefixes.some((prefix) => path.startsWith(prefix))
+          ) {
+            return path;
+          }
+
+          return path.replace(/^\/api/, "");
+        },
       },
     },
   },
