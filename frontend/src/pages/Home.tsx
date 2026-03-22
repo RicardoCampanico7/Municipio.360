@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import "./Home.css";
 
-const SPLASH_DURATION_MS = 2600;
+const SPLASH_DURATION_MS =4000;
 const MAIN_PUBLIC_ROUTE = "/dashboard";
 
 export default function Home() {

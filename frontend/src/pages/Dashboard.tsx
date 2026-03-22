@@ -1,4 +1,4 @@
-import { FileText, Home, Map, Plus, Sparkles, User } from "lucide-react";
+import { FileText, Home, Map, Plus, User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -212,7 +212,12 @@ export default function Dashboard() {
       return;
     }
 
-    if (target === "map" || target === "reports") {
+    if (target === "map") {
+      navigate("/occurrences/map");
+      return;
+    }
+
+    if (target === "reports") {
       navigate("/occurrences/public");
       return;
     }
@@ -354,10 +359,6 @@ export default function Dashboard() {
             <section className="dashboard-side-panel">
               <div className="dashboard-side-head">
                 <div>
-                  <span className="dashboard-side-kicker">
-                    <Sparkles size={14} strokeWidth={2.2} />
-                    Painel rápido
-                  </span>
                   <h3 className="dashboard-section-title">{t("dashboard.summaryTitle")}</h3>
                 </div>
                 <p className="dashboard-side-copy">
