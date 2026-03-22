@@ -98,20 +98,24 @@ export class OccurrencesController {
   }
 
   /**
-   * Lista as ocorrencias do utilizador autenticado com role CIVIL.
+   * Lista as ocorrencias do utilizador autenticado para qualquer perfil autorizado.
    * @param req Pedido HTTP autenticado.
    * @return Lista das ocorrencias do utilizador.
    */
   @Get('mine')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.CIVIL)
+  @Roles(Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Listar ocorrencias do utilizador autenticado (CIVIL)',
+    summary:
+      'Listar ocorrencias do utilizador autenticado (CIVIL, OPERADOR ou ADMINISTRADOR)',
   })
   @ApiResponse({ status: 200, description: 'Lista devolvida' })
   @ApiResponse({ status: 401, description: 'Sem autenticacao' })
-  @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
+  @ApiResponse({
+    status: 403,
+    description: 'Sem permissoes para consultar ocorrencias proprias',
+  })
   findMine(@Req() req: Request) {
     const userId = this.getUserId(req);
     return this.occurrencesService.findMine(userId);
@@ -124,7 +128,7 @@ export class OccurrencesController {
    */
   @Get('mine/list')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.CIVIL)
+  @Roles(Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Alias legado para listar ocorrencias do utilizador autenticado',
@@ -142,10 +146,11 @@ export class OccurrencesController {
    */
   @Get('mine/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.CIVIL)
+  @Roles(Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Detalhe de uma ocorrencia do utilizador autenticado (CIVIL)',
+    summary:
+      'Detalhe de uma ocorrencia do utilizador autenticado (CIVIL, OPERADOR ou ADMINISTRADOR)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
   @ApiResponse({ status: 200, description: 'Ocorrencia encontrada' })
@@ -210,7 +215,7 @@ export class OccurrencesController {
    */
   @Post('images')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.CIVIL)
+  @Roles(Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR)
   @UseFilters(OccurrenceUploadExceptionFilter)
   @UseInterceptors(
     FilesInterceptor(
@@ -246,7 +251,10 @@ export class OccurrencesController {
     description: 'Pedido invalido ou upload rejeitado',
   })
   @ApiResponse({ status: 401, description: 'Sem autenticacao' })
-  @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
+  @ApiResponse({
+    status: 403,
+    description: 'Sem permissoes para carregar imagens de ocorrencias',
+  })
   uploadImages(
     @Req() req: Request,
     @UploadedFiles() files: UploadedOccurrenceImage[] = [],
@@ -263,7 +271,7 @@ export class OccurrencesController {
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.CIVIL)
+  @Roles(Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR)
   @UseFilters(OccurrenceUploadExceptionFilter)
   @UseInterceptors(
     FilesInterceptor(
@@ -273,7 +281,10 @@ export class OccurrencesController {
     ),
   )
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Criar ocorrencia (apenas CIVIL autenticado)' })
+  @ApiOperation({
+    summary:
+      'Criar ocorrencia (CIVIL, OPERADOR ou ADMINISTRADOR autenticado)',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -315,7 +326,10 @@ export class OccurrencesController {
     description: 'Pedido invalido ou upload rejeitado',
   })
   @ApiResponse({ status: 401, description: 'Sem autenticacao' })
-  @ApiResponse({ status: 403, description: 'Sem permissoes (nao e CIVIL)' })
+  @ApiResponse({
+    status: 403,
+    description: 'Sem permissoes para criar ocorrencias',
+  })
   create(
     @Req() req: Request,
     @Body() dto: CreateOccurrenceDto,
