@@ -175,6 +175,7 @@ export default function Register() {
     }
   };
 
+  
   return (
     <main className="auth-screen">
       <section className="auth-shell" aria-label={t("auth.registerButton")}>
