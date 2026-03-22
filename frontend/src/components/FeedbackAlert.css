@@ -1,0 +1,57 @@
+.feedback-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 18px;
+  padding: 16px 18px;
+  border: 1px solid transparent;
+}
+
+.feedback-alert-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.feedback-alert-copy strong {
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.feedback-alert-copy p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.feedback-alert-action {
+  flex: 0 0 auto;
+}
+
+.feedback-alert.is-success {
+  border-color: rgba(22, 163, 74, 0.18);
+  background: rgba(22, 163, 74, 0.08);
+  color: #166534;
+}
+
+.feedback-alert.is-error {
+  border-color: rgba(220, 38, 38, 0.18);
+  background: rgba(220, 38, 38, 0.06);
+  color: #b42318;
+}
+
+.feedback-alert.is-info {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: rgba(37, 99, 235, 0.06);
+  color: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+  .feedback-alert {
+    flex-direction: column;
+  }
+
+  .feedback-alert-action {
+    width: 100%;
+  }
+}
