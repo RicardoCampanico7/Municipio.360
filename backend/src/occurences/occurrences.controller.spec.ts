@@ -93,10 +93,10 @@ describe('OccurrencesController', () => {
   });
 
   /**
-   * Garante que o upload de imagens exige autenticacao CIVIL.
+   * Garante que o upload de imagens aceita qualquer perfil autenticado autorizado.
    * @return void
    */
-  it('should protect the image upload route with JWT and citizen role', () => {
+  it('should protect the image upload route with JWT and authenticated occurrence roles', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       controller.uploadImages,
@@ -107,7 +107,49 @@ describe('OccurrencesController', () => {
     ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
-    expect(roles).toEqual([Role.CIVIL]);
+    expect(roles).toEqual([
+      Role.CIVIL,
+      Role.OPERADOR,
+      Role.ADMINISTRADOR,
+    ]);
+  });
+
+  /**
+   * Garante que a criacao de ocorrencias aceita qualquer perfil autenticado autorizado.
+   * @return void
+   */
+  it('should protect creation with JWT and authenticated occurrence roles', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.create,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(ROLES_KEY, controller.create) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([
+      Role.CIVIL,
+      Role.OPERADOR,
+      Role.ADMINISTRADOR,
+    ]);
+  });
+
+  /**
+   * Garante que a listagem propria aceita qualquer perfil autenticado autorizado.
+   * @return void
+   */
+  it('should protect own occurrences listing with JWT and authenticated occurrence roles', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.findMine,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(ROLES_KEY, controller.findMine) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([
+      Role.CIVIL,
+      Role.OPERADOR,
+      Role.ADMINISTRADOR,
+    ]);
   });
 
   /**
