@@ -32,15 +32,8 @@ function App() {
         }
       />
 
-      {/* Rotas protegidas */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
+      {/* Rotas publicas e protegidas */}
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route
         path="/occurrences/new"
         element={

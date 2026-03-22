@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import OccurrenceCard from "../components/OccurrenceCard";
 import {
   OccurrencesRequestError,
+  fetchPublicOccurrences,
   fetchMyOccurrences,
   type ApiOccurrence,
 } from "../services/occurrences";
@@ -44,8 +45,9 @@ function toTimeLabel(value: string | undefined, locale: string, fallback: string
 export default function Dashboard() {
   const navigate = useNavigate();
   const { i18n, t } = useTranslation();
+  const authenticated = isAuthenticated();
   const sessionUser = getAuthenticatedUser();
-  const userName = sessionUser?.name || t("dashboard.defaultUserName");
+  const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : "visitante";
   const userAvatar = "/user-avatar.jpg";
   const bannerImage = "/dashboard-banner.png";
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
@@ -53,16 +55,27 @@ export default function Dashboard() {
   const [reportsLoading, setReportsLoading] = useState(true);
   const [reportsError, setReportsError] = useState("");
 
-  const ensureAuthenticatedSession = () => {
-    if (isAuthenticated()) return true;
+  const publicContent = i18n.language.startsWith("pt")
+    ? {
+        greetingName: "visitante",
+        reportsTitle: "Ocorrências públicas",
+        reportsEmpty: "Ainda não existem ocorrências públicas.",
+        reportsLoadError: "Não foi possível carregar as ocorrências públicas.",
+      }
+    : {
+        greetingName: "visitor",
+        reportsTitle: "Public occurrences",
+        reportsEmpty: "There are no public occurrences yet.",
+        reportsLoadError: "Could not load public occurrences.",
+      };
+
+  const redirectToLogin = (from: string) => {
     clearAccessToken();
-    navigate("/login", { replace: true, state: { from: "/dashboard" } });
-    return false;
+    navigate("/login", { replace: true, state: { from } });
   };
 
   useEffect(() => {
     const token = getAccessToken();
-    if (!token) return;
 
     let mounted = true;
     const loadOccurrences = async () => {
@@ -70,7 +83,9 @@ export default function Dashboard() {
       setReportsError("");
 
       try {
-        const data = await fetchMyOccurrences(token, t("dashboard.reportsLoadError"));
+        const data = token
+          ? await fetchMyOccurrences(token, t("dashboard.reportsLoadError"))
+          : await fetchPublicOccurrences(publicContent.reportsLoadError);
         if (!mounted) return;
         setOccurrences(data);
       } catch (error) {
@@ -84,7 +99,7 @@ export default function Dashboard() {
           });
           return;
         }
-        setReportsError(t("dashboard.reportsLoadError"));
+        setReportsError(token ? t("dashboard.reportsLoadError") : publicContent.reportsLoadError);
       } finally {
         if (!mounted) return;
         setReportsLoading(false);
@@ -95,7 +110,7 @@ export default function Dashboard() {
     return () => {
       mounted = false;
     };
-  }, [navigate, t]);
+  }, [navigate, publicContent.reportsLoadError, t]);
 
   const reports = useMemo<DashboardReport[]>(() => {
     const sorted = [...occurrences].sort((a, b) => {
@@ -168,7 +183,12 @@ export default function Dashboard() {
     languageOptions.find((option) => option.code === i18n.language) ||
     languageOptions[0];
 
-  const handleLogout = () => {
+  const handleSessionAction = () => {
+    if (!authenticated) {
+      navigate("/login", { replace: true, state: { from: "/dashboard" } });
+      return;
+    }
+
     clearAccessToken();
     navigate("/login", { replace: true });
   };
@@ -179,29 +199,38 @@ export default function Dashboard() {
   };
 
   const handleCreateOccurrence = () => {
-    if (!ensureAuthenticatedSession()) return;
+    if (!authenticated) {
+      redirectToLogin("/occurrences/new");
+      return;
+    }
     navigate("/occurrences/new");
   };
 
   const handleNavClick = (target: "home" | "create" | "map" | "reports" | "profile") => {
-    if (!ensureAuthenticatedSession()) return;
-
     if (target === "home") {
       navigate("/dashboard");
       return;
     }
 
-    if (target === "create") {
-      navigate("/occurrences/new");
-      return;
-    }
-
-    if (target === "reports") {
+    if (target === "map" || target === "reports") {
       navigate("/occurrences/public");
       return;
     }
 
+    if (target === "create") {
+      if (!authenticated) {
+        redirectToLogin("/occurrences/new");
+        return;
+      }
+      navigate("/occurrences/new");
+      return;
+    }
+
     if (target === "profile") {
+      if (!authenticated) {
+        redirectToLogin("/profile");
+        return;
+      }
       navigate("/profile");
       return;
     }
@@ -261,10 +290,10 @@ export default function Dashboard() {
             <button
               className="dashboard-icon-button dashboard-logout-button"
               type="button"
-              aria-label={t("dashboard.logoutAria")}
-              onClick={handleLogout}
+              aria-label={authenticated ? t("dashboard.logoutAria") : t("auth.loginButton")}
+              onClick={handleSessionAction}
             >
-              {t("dashboard.logout")}
+              {authenticated ? t("dashboard.logout") : t("auth.loginButton")}
             </button>
           </div>
         </header>
@@ -288,7 +317,9 @@ export default function Dashboard() {
           <div className="dashboard-primary">
             <section className="dashboard-section">
               <div className="dashboard-section-head">
-                <h3 className="dashboard-section-title">{t("dashboard.reportsTitle")}</h3>
+                <h3 className="dashboard-section-title">
+                  {authenticated ? t("dashboard.reportsTitle") : publicContent.reportsTitle}
+                </h3>
                 <button
                   className="dashboard-view-all"
                   type="button"
@@ -302,7 +333,7 @@ export default function Dashboard() {
                 {reportsLoading && <p>{t("dashboard.reportsLoading")}</p>}
                 {!reportsLoading && reportsError && <p>{reportsError}</p>}
                 {!reportsLoading && !reportsError && reports.length === 0 && (
-                  <p>{t("dashboard.reportsEmpty")}</p>
+                  <p>{authenticated ? t("dashboard.reportsEmpty") : publicContent.reportsEmpty}</p>
                 )}
                 {!reportsLoading &&
                   !reportsError &&

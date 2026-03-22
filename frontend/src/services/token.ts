@@ -9,12 +9,14 @@ type JwtPayload = {
   name?: string;
   fullName?: string;
   email?: string;
+  role?: string;
 };
 
 export type AuthUser = {
   id: string;
   name: string;
   email: string;
+  role?: string;
 };
 
 export function setAccessToken(token: string) {
@@ -87,9 +89,10 @@ function sanitizeAuthUser(value: unknown): AuthUser | null {
   const id = normalizeStringValue(candidate.id);
   const email = normalizeStringValue(candidate.email).toLowerCase();
   const name = normalizeStringValue(candidate.name) || (email ? buildDisplayName(email) : "");
+  const role = normalizeStringValue(candidate.role).toUpperCase();
 
   if (!id || !name || !email) return null;
-  return { id, name, email };
+  return { id, name, email, ...(role ? { role } : {}) };
 }
 
 function buildAuthUserFromToken(token: string): AuthUser | null {
@@ -102,9 +105,10 @@ function buildAuthUserFromToken(token: string): AuthUser | null {
   const name =
     normalizeStringValue(payload.name || payload.fullName) ||
     (email ? buildDisplayName(email) : "");
+  const role = normalizeStringValue(payload.role).toUpperCase();
 
   if (!id || !name || !email) return null;
-  return { id, name, email };
+  return { id, name, email, ...(role ? { role } : {}) };
 }
 
 export function setAuthenticatedUser(user: AuthUser) {
@@ -145,4 +149,8 @@ export function getAuthenticatedUser(): AuthUser | null {
 
 export function isAuthenticated(): boolean {
   return !!getAccessToken();
+}
+
+export function isBackofficeRole(role: string | undefined | null): boolean {
+  return role === "OPERADOR" || role === "ADMINISTRADOR";
 }

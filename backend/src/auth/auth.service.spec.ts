@@ -70,7 +70,7 @@ describe('AuthService', () => {
       biNumber: '12345678 1 AB2',
       postalCode: '8000-000',
       email: 'maria@teste.pt',
-      role: Role.CIVIL,
+      role: Role.ADMINISTRADOR,
       certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T10:00:00.000Z'),
       updatedAt: new Date('2026-03-17T10:00:00.000Z'),
@@ -83,6 +83,7 @@ describe('AuthService', () => {
       postalCode: '8000-000',
       email: 'MARIA@TESTE.PT',
       password: 'Password123!',
+      role: Role.ADMINISTRADOR,
     });
 
     expect(prisma.user.create).toHaveBeenCalledWith(
@@ -92,6 +93,7 @@ describe('AuthService', () => {
           biNumber: '12345678 1 AB2',
           email: 'maria@teste.pt',
           passwordHash: 'hashed-password',
+          role: Role.ADMINISTRADOR,
           certStatus: CertificationStatus.CERTIFIED,
         }),
       }),
@@ -102,7 +104,7 @@ describe('AuthService', () => {
       biNumber: '12345678 1 AB2',
       postalCode: '8000-000',
       email: 'maria@teste.pt',
-      role: Role.CIVIL,
+      role: Role.ADMINISTRADOR,
       certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T10:00:00.000Z'),
       updatedAt: new Date('2026-03-17T10:00:00.000Z'),

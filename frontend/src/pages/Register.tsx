@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import "./Login.css";
 
+type RegisterRole = "CIVIL" | "OPERADOR" | "ADMINISTRADOR";
+
 type ApiErrorResponse = {
   message?: string | string[];
   error?: string;
@@ -88,6 +90,7 @@ export default function Register() {
   const [postalCode, setPostalCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<RegisterRole>("CIVIL");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -140,6 +143,7 @@ export default function Register() {
           postalCode: normalizedPostalCode,
           email: normalizedEmail,
           password,
+          role,
         }),
       });
 
@@ -261,6 +265,23 @@ export default function Register() {
               }}
               required
             />
+
+            <label className="sr-only" htmlFor="register-role">
+              {t("profile.metrics.role")}
+            </label>
+            <select
+              id="register-role"
+              className="auth-input"
+              value={role}
+              onChange={(e) => {
+                setRole(e.target.value as RegisterRole);
+                if (error) setError("");
+              }}
+            >
+              <option value="CIVIL">{t("profile.roles.civil")}</option>
+              <option value="OPERADOR">{t("profile.roles.operador")}</option>
+              <option value="ADMINISTRADOR">{t("profile.roles.administrador")}</option>
+            </select>
 
             <div className="password-wrap">
               <label className="sr-only" htmlFor="register-password">

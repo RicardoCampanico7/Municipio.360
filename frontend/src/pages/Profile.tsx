@@ -64,10 +64,11 @@ function normalizeCacheUser(profile: ApiProfileUser) {
   const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
   const name = typeof profile.name === "string" ? profile.name.trim() : "";
   const email = typeof profile.email === "string" ? profile.email.trim().toLowerCase() : "";
+  const role = typeof profile.role === "string" ? profile.role.trim().toUpperCase() : "";
 
   if (!id || !name || !email) return null;
 
-  return { id, name, email };
+  return { id, name, email, ...(role ? { role } : {}) };
 }
 
 type NavTarget = "home" | "map" | "create" | "reports" | "profile";

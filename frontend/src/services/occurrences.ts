@@ -5,10 +5,13 @@ export type ApiOccurrence = {
   description?: string;
   location?: string;
   status?: string;
+  statusKey?: OccurrenceStatusKey;
   createdAt?: string;
   updatedAt?: string;
   imageUrls?: string[];
 };
+
+export type OccurrenceStatusKey = "SUBMETIDA" | "EM_TRATAMENTO" | "CONCLUIDA";
 
 export type PublicOccurrence = {
   id?: string | number;
@@ -16,6 +19,7 @@ export type PublicOccurrence = {
   description?: string;
   location?: string;
   status?: string;
+  statusKey?: OccurrenceStatusKey;
   createdAt?: string;
   updatedAt?: string;
   imageUrls?: string[];
@@ -33,6 +37,26 @@ export class OccurrencesRequestError extends Error {
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : undefined;
+}
+
+function normalizeStatusKey(value: unknown): OccurrenceStatusKey | undefined {
+  if (value === "SUBMETIDA" || value === "EM_TRATAMENTO" || value === "CONCLUIDA") {
+    return value;
+  }
+
+  if (value === "open") return "SUBMETIDA";
+  if (value === "progress") return "EM_TRATAMENTO";
+  if (value === "resolved") return "CONCLUIDA";
+
+  return undefined;
+}
+
+function normalizePresentationStatus(value: unknown): string | undefined {
+  if (value === "SUBMETIDA" || value === "open") return "open";
+  if (value === "EM_TRATAMENTO" || value === "progress") return "progress";
+  if (value === "CONCLUIDA" || value === "resolved") return "resolved";
+
+  return normalizeString(value);
 }
 
 function normalizeId(value: unknown) {
@@ -60,7 +84,8 @@ function sanitizeOccurrence(value: unknown): ApiOccurrence | null {
     category: normalizeString(source.category),
     description: normalizeString(source.description),
     location: normalizeString(source.location),
-    status: normalizeString(source.status),
+    status: normalizePresentationStatus(source.status),
+    statusKey: normalizeStatusKey(source.statusKey ?? source.status),
     createdAt: normalizeString(source.createdAt),
     updatedAt: normalizeString(source.updatedAt),
     imageUrls: normalizeImageUrls(source.imageUrls),
@@ -74,6 +99,7 @@ function toPublicOccurrence(value: ApiOccurrence): PublicOccurrence {
     description: value.description,
     location: value.location,
     status: value.status,
+    statusKey: value.statusKey,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
     imageUrls: value.imageUrls,
@@ -176,4 +202,29 @@ export async function fetchPublicOccurrenceById(id: string, fallbackMessage: str
     const occurrence = sanitizeOccurrence(value);
     return occurrence ? toPublicOccurrence(occurrence) : null;
   });
+}
+
+export async function updateOccurrenceStatus(
+  id: string,
+  status: OccurrenceStatusKey,
+  token: string,
+  fallbackMessage: string,
+) {
+  const response = await fetch(`/api/occurrences/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+  }
+
+  return data;
 }
