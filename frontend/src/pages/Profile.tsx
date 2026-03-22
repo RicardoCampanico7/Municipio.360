@@ -148,17 +148,18 @@ export default function Profile() {
   const displayEmail = profile?.email || sessionUser?.email || t("profile.unknownValue");
   const roleKey = typeof profile?.role === "string" ? profile.role.toLowerCase() : "";
   const certKey = typeof profile?.certStatus === "string" ? profile.certStatus.toLowerCase() : "";
+  const effectiveCertKey = sessionUser ? "certified" : certKey;
   const roleLabel = roleKey
     ? t(`profile.roles.${roleKey}`, {
         defaultValue: humanizeEnum(profile?.role, t("profile.unknownValue")),
       })
     : t("profile.unknownValue");
-  const certificationLabel = certKey
-    ? t(`profile.certification.${certKey}`, {
+  const certificationLabel = effectiveCertKey
+    ? t(`profile.certification.${effectiveCertKey}`, {
         defaultValue: humanizeEnum(profile?.certStatus, t("profile.unknownValue")),
       })
     : t("profile.unknownValue");
-  const isVerified = certKey === "certified";
+  const isVerified = Boolean(sessionUser) || certKey === "certified";
   const joinedAtLabel = formatDate(
     profile?.createdAt,
     i18n.language,
@@ -187,7 +188,12 @@ export default function Profile() {
       return;
     }
 
-    if (target === "reports" || target === "map") {
+    if (target === "map") {
+      navigate("/occurrences/map");
+      return;
+    }
+
+    if (target === "reports") {
       navigate("/occurrences/public");
       return;
     }
@@ -222,7 +228,6 @@ export default function Profile() {
           </div>
 
           <div className="profile-hero-copy">
-            <p className="profile-kicker">{t("profile.kicker")}</p>
             <h1 className="profile-name-row">
               <span>{displayName}</span>
               {isVerified && (
@@ -255,7 +260,6 @@ export default function Profile() {
             <section className="profile-panel">
               <div className="profile-section-head">
                 <div>
-                  <p className="profile-section-kicker">{t("profile.sections.detailsKicker")}</p>
                   <h2>{t("profile.sections.detailsTitle")}</h2>
                 </div>
                 <p>{t("profile.sections.detailsCopy")}</p>
@@ -300,7 +304,6 @@ export default function Profile() {
               <section className="profile-summary-card">
                 <div className="profile-section-head">
                   <div>
-                    <p className="profile-section-kicker">{t("profile.sections.summaryKicker")}</p>
                     <h2>{t("profile.sections.summaryTitle")}</h2>
                   </div>
                 </div>
@@ -328,7 +331,6 @@ export default function Profile() {
               <section className="profile-actions-card">
                 <div className="profile-section-head">
                   <div>
-                    <p className="profile-section-kicker">{t("profile.sections.actionsKicker")}</p>
                     <h2>{t("profile.sections.actionsTitle")}</h2>
                   </div>
                   <p>{t("profile.sections.actionsCopy")}</p>

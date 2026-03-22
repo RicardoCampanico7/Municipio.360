@@ -3,7 +3,6 @@ import {
   Clock3,
   FileText,
   MapPin,
-  Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -51,7 +50,7 @@ export default function PublicReports() {
         kicker: "Ocorrências",
         eyebrow: "Consulta aberta",
         pageTitle: "Ocorrências do município",
-        pageCopy: "Acompanha o estado das ocorrências registadas com a mesma linguagem visual da plataforma.",
+        pageCopy: "Consulta as ocorrências públicas registadas no município e acompanha o respetivo estado.",
         statsAria: "Resumo das ocorrências",
         sectionTitle: "Lista de ocorrências",
         sectionCopy: "Consulta os registos mais recentes e o respetivo estado.",
@@ -150,10 +149,6 @@ export default function PublicReports() {
             </div>
           </div>
 
-          <span className="public-reports-kicker">
-            <Sparkles size={14} strokeWidth={2.2} />
-            {pageText.kicker}
-          </span>
         </header>
 
         <section className="public-reports-hero">
