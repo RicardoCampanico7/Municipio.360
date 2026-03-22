@@ -6,8 +6,15 @@ import AppLogo from "../components/AppLogo";
 import {
   OccurrencesRequestError,
   fetchPublicOccurrenceById,
+  updateOccurrenceStatus,
+  type OccurrenceStatusKey,
   type ApiOccurrence,
 } from "../services/occurrences";
+import {
+  getAccessToken,
+  getAuthenticatedUser,
+  isBackofficeRole,
+} from "../services/token";
 import "./PublicOccurrenceDetail.css";
 
 type ReportTone = "progress" | "open" | "done";
@@ -35,13 +42,28 @@ function getFormattedDate(value: string | undefined, locale: string, fallback: s
   }).format(date);
 }
 
+function getStatusKey(
+  occurrence: Pick<ApiOccurrence, "status" | "statusKey"> | null | undefined,
+): OccurrenceStatusKey {
+  if (occurrence?.statusKey) return occurrence.statusKey;
+  if (occurrence?.status === "progress") return "EM_TRATAMENTO";
+  if (occurrence?.status === "resolved") return "CONCLUIDA";
+  return "SUBMETIDA";
+}
+
 export default function PublicOccurrenceDetail() {
   const navigate = useNavigate();
   const { occurrenceId = "" } = useParams();
   const { i18n, t } = useTranslation();
+  const sessionUser = getAuthenticatedUser();
+  const canManageOccurrence = isBackofficeRole(sessionUser?.role);
   const [occurrence, setOccurrence] = useState<ApiOccurrence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<OccurrenceStatusKey>("SUBMETIDA");
+  const [manageError, setManageError] = useState("");
+  const [manageSuccess, setManageSuccess] = useState("");
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   const pageText = i18n.language.startsWith("pt")
     ? {
@@ -60,6 +82,22 @@ export default function PublicOccurrenceDetail() {
         summaryTitle: "Resumo",
         summaryCopy: "Consulta os dados visiveis desta ocorrencia publica.",
         occurrenceImageAlt: "Imagem da ocorrencia",
+        management: {
+          title: "Gestão da ocorrência",
+          copy: "Disponível apenas para operador e administrador.",
+          field: "Estado da ocorrência",
+          updateButton: "Atualizar estado",
+          updateLoading: "A atualizar...",
+          updateSuccess: "Estado atualizado com sucesso.",
+          updateError: "Não foi possível atualizar o estado da ocorrência.",
+          editButton: "Editar ocorrência",
+          editNote: "A edição completa será adicionada numa próxima página de gestão.",
+          statuses: {
+            SUBMETIDA: "Submetida",
+            EM_TRATAMENTO: "Em tratamento",
+            CONCLUIDA: "Concluída",
+          },
+        },
       }
     : {
         back: "Back to reports",
@@ -77,6 +115,22 @@ export default function PublicOccurrenceDetail() {
         summaryTitle: "Summary",
         summaryCopy: "Review the public details for this occurrence.",
         occurrenceImageAlt: t("publicReports.imageAlt"),
+        management: {
+          title: "Occurrence management",
+          copy: "Available only to operator and administrator roles.",
+          field: "Occurrence status",
+          updateButton: "Update status",
+          updateLoading: "Updating...",
+          updateSuccess: "Status updated successfully.",
+          updateError: "Could not update the occurrence status.",
+          editButton: "Edit occurrence",
+          editNote: "Full editing will be added in a future management page.",
+          statuses: {
+            SUBMETIDA: "Submitted",
+            EM_TRATAMENTO: "In progress",
+            CONCLUIDA: "Completed",
+          },
+        },
       };
 
   useEffect(() => {
@@ -116,12 +170,81 @@ export default function PublicOccurrenceDetail() {
     };
   }, [occurrenceId, pageText.loadError, pageText.notFound]);
 
+  useEffect(() => {
+    setSelectedStatus(getStatusKey(occurrence));
+  }, [occurrence]);
+
   const tone = getTone(occurrence?.status);
   const statusLabel = useMemo(
     () => t(`dashboard.reports.${tone === "done" ? "resolved" : tone}`),
     [t, tone],
   );
+  const currentStatusKey = getStatusKey(occurrence);
+  const allowedStatusOptions = useMemo(() => {
+    const allOptions: OccurrenceStatusKey[] = [
+      "SUBMETIDA",
+      "EM_TRATAMENTO",
+      "CONCLUIDA",
+    ];
+
+    if (currentStatusKey === "SUBMETIDA") return allOptions;
+    if (currentStatusKey === "EM_TRATAMENTO") {
+      return ["EM_TRATAMENTO", "CONCLUIDA"];
+    }
+
+    return ["CONCLUIDA"];
+  }, [currentStatusKey]);
   const heroImage = occurrence?.imageUrls?.[0] || "/banner.ocorrencias.png";
+
+  const handleUpdateStatus = async () => {
+    if (!occurrenceId) return;
+
+    const token = getAccessToken();
+    if (!token) {
+      navigate("/login", {
+        replace: true,
+        state: { from: `/occurrences/public/${occurrenceId}` },
+      });
+      return;
+    }
+
+    setStatusUpdating(true);
+    setManageError("");
+    setManageSuccess("");
+
+    try {
+      await updateOccurrenceStatus(
+        occurrenceId,
+        selectedStatus,
+        token,
+        pageText.management.updateError,
+      );
+
+      const refreshedOccurrence = await fetchPublicOccurrenceById(
+        occurrenceId,
+        pageText.loadError,
+      );
+
+      setOccurrence(refreshedOccurrence);
+      setManageSuccess(pageText.management.updateSuccess);
+    } catch (updateError) {
+      if (updateError instanceof OccurrencesRequestError && updateError.status === 401) {
+        navigate("/login", {
+          replace: true,
+          state: { from: `/occurrences/public/${occurrenceId}` },
+        });
+        return;
+      }
+
+      setManageError(
+        updateError instanceof Error && updateError.message
+          ? updateError.message
+          : pageText.management.updateError,
+      );
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
 
   return (
     <main className="public-occurrence-screen">
@@ -195,6 +318,74 @@ export default function PublicOccurrenceDetail() {
                     <dd>#{occurrence.id ?? occurrenceId}</dd>
                   </div>
                 </dl>
+
+                {canManageOccurrence && (
+                  <div className="public-occurrence-management">
+                    <div className="public-occurrence-management-head">
+                      <h3>{pageText.management.title}</h3>
+                      <p>{pageText.management.copy}</p>
+                    </div>
+
+                    <label
+                      className="public-occurrence-management-label"
+                      htmlFor="occurrence-status"
+                    >
+                      {pageText.management.field}
+                    </label>
+                    <select
+                      id="occurrence-status"
+                      className="public-occurrence-management-select"
+                      value={selectedStatus}
+                      onChange={(event) => {
+                        setSelectedStatus(event.target.value as OccurrenceStatusKey);
+                        if (manageError) setManageError("");
+                        if (manageSuccess) setManageSuccess("");
+                      }}
+                    >
+                      {allowedStatusOptions.map((statusOption) => (
+                        <option key={statusOption} value={statusOption}>
+                          {pageText.management.statuses[statusOption as OccurrenceStatusKey]}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="public-occurrence-management-actions">
+                      <button
+                        className="public-occurrence-management-button is-primary"
+                        type="button"
+                        onClick={handleUpdateStatus}
+                        disabled={statusUpdating || selectedStatus === currentStatusKey}
+                      >
+                        {statusUpdating
+                          ? pageText.management.updateLoading
+                          : pageText.management.updateButton}
+                      </button>
+                      <button
+                        className="public-occurrence-management-button is-secondary"
+                        type="button"
+                        disabled
+                        title={pageText.management.editNote}
+                      >
+                        {pageText.management.editButton}
+                      </button>
+                    </div>
+
+                    {manageSuccess && (
+                      <p className="public-occurrence-management-feedback is-success">
+                        {manageSuccess}
+                      </p>
+                    )}
+                    {manageError && (
+                      <p className="public-occurrence-management-feedback is-error">
+                        {manageError}
+                      </p>
+                    )}
+
+                    <p className="public-occurrence-management-note">
+                      {pageText.management.editNote}
+                    </p>
+                  </div>
+                )}
               </aside>
             </section>
 

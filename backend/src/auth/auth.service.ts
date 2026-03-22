@@ -71,6 +71,7 @@ export class AuthService {
     const normalizedBiNumber = dto.biNumber.trim().toUpperCase();
     const normalizedPostalCode = dto.postalCode.trim();
     const normalizedName = dto.name.trim();
+    const normalizedRole = dto.role ?? Role.CIVIL;
 
     const exists = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -90,6 +91,7 @@ export class AuthService {
         postalCode: normalizedPostalCode,
         email: normalizedEmail,
         passwordHash,
+        role: normalizedRole,
         certStatus: CertificationStatus.CERTIFIED,
       },
       select: {
