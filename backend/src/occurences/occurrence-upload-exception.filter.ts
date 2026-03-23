@@ -10,9 +10,9 @@ import { MulterError } from 'multer';
 import { occurrenceUploadConfig } from './occurrence-upload';
 
 @Catch(MulterError, BadRequestException, PayloadTooLargeException)
-export class OccurrenceUploadExceptionFilter
-  implements ExceptionFilter<MulterError | BadRequestException | PayloadTooLargeException>
-{
+export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
+  MulterError | BadRequestException | PayloadTooLargeException
+> {
   catch(
     exception: MulterError | BadRequestException | PayloadTooLargeException,
     host: ArgumentsHost,
@@ -37,8 +37,9 @@ export class OccurrenceUploadExceptionFilter
 
     if (
       message === 'Too many files' ||
-      exception instanceof MulterError &&
-        (exception.code === 'LIMIT_FILE_COUNT' || exception.code === 'LIMIT_UNEXPECTED_FILE')
+      (exception instanceof MulterError &&
+        (exception.code === 'LIMIT_FILE_COUNT' ||
+          exception.code === 'LIMIT_UNEXPECTED_FILE'))
     ) {
       response.status(400).json({
         statusCode: 400,
@@ -48,12 +49,24 @@ export class OccurrenceUploadExceptionFilter
       return;
     }
 
-    if (exception instanceof BadRequestException || exception instanceof PayloadTooLargeException) {
-      response.status(exception instanceof PayloadTooLargeException ? 400 : exception.getStatus()).json({
-        statusCode: exception instanceof PayloadTooLargeException ? 400 : exception.getStatus(),
-        message,
-        error: BadRequestException.name,
-      });
+    if (
+      exception instanceof BadRequestException ||
+      exception instanceof PayloadTooLargeException
+    ) {
+      response
+        .status(
+          exception instanceof PayloadTooLargeException
+            ? 400
+            : exception.getStatus(),
+        )
+        .json({
+          statusCode:
+            exception instanceof PayloadTooLargeException
+              ? 400
+              : exception.getStatus(),
+          message,
+          error: BadRequestException.name,
+        });
       return;
     }
 

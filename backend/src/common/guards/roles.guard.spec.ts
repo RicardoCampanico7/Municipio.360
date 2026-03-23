@@ -56,7 +56,10 @@ describe('RolesGuard', () => {
    * @return void
    */
   it('should reject access when the authenticated user role is not allowed', () => {
-    reflector.getAllAndOverride.mockReturnValue([Role.OPERADOR, Role.ADMINISTRADOR]);
+    reflector.getAllAndOverride.mockReturnValue([
+      Role.OPERADOR,
+      Role.ADMINISTRADOR,
+    ]);
 
     const context = {
       getHandler: jest.fn(),
@@ -74,7 +77,10 @@ describe('RolesGuard', () => {
    * @return void
    */
   it('should allow access when the authenticated user role is allowed', () => {
-    reflector.getAllAndOverride.mockReturnValue([Role.OPERADOR, Role.ADMINISTRADOR]);
+    reflector.getAllAndOverride.mockReturnValue([
+      Role.OPERADOR,
+      Role.ADMINISTRADOR,
+    ]);
 
     const context = {
       getHandler: jest.fn(),

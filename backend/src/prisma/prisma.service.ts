@@ -8,7 +8,10 @@ import { PrismaClient } from '@prisma/client';
  * @inv A ligacao a base de dados deve ser aberta no init do modulo e fechada no destroy.
  */
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   /**
    * Estabelece a ligacao a base de dados no arranque do modulo.
    * @return Promise<void> Promessa resolvida apos ligacao bem sucedida.
