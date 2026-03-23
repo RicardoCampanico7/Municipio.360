@@ -37,6 +37,13 @@ export class CreateOccurrenceDto {
   declare location: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+
+    return Array.isArray(value) ? value : [value];
+  })
   @IsArray()
   @ArrayMaxSize(3)
   @IsString({ each: true })
