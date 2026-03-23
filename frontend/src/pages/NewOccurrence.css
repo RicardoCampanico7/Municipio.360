@@ -238,6 +238,13 @@
   font-size: 0.98rem;
 }
 
+.occ-map-note {
+  margin: -4px 0 4px;
+  color: var(--occ-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .occ-form {
   display: flex;
   flex-direction: column;
@@ -435,15 +442,6 @@
   font-weight: 700;
 }
 
-.occ-error {
-  border: 1px solid rgba(220, 38, 38, 0.18);
-  border-radius: 16px;
-  padding: 14px 16px;
-  background: rgba(220, 38, 38, 0.06);
-  color: #b42318;
-  font-size: 0.95rem;
-}
-
 .occ-actions {
   display: flex;
   gap: 12px;
@@ -458,6 +456,28 @@
   font-size: 0.96rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.occ-chip:disabled,
+.occ-image-add:disabled,
+.occ-image-remove:disabled,
+.occ-button:disabled,
+.occ-inline-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.occ-inline-action {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: inherit;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .occ-button-secondary {

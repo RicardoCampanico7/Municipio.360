@@ -3,7 +3,7 @@ import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
 /**
  * Representa os dados necessarios para registar um utilizador civil.
  * @author Alan Martynyuk e Guilherme Gaspar
- * @version 16/03/2026
+ * @version 23/03/2026
  * @inv O DTO deve conter dados minimamente validos para criacao do utilizador.
  */
 export class RegisterDto {

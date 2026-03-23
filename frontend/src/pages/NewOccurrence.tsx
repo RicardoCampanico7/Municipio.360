@@ -10,10 +10,11 @@ import {
   TriangleAlert,
   Volume2,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
+import FeedbackAlert from "../components/FeedbackAlert";
 import { clearAccessToken, getAccessToken, getRawAccessToken } from "../services/token";
 import "./NewOccurrence.css";
 
@@ -24,6 +25,19 @@ type OccurrenceCategoryValue =
   | "RUIDO"
   | "ESPACOS_PUBLICOS"
   | "SINALIZACAO";
+
+type SelectedImage = {
+  id: string;
+  name: string;
+  size: number;
+  dataUrl: string;
+};
+
+type SubmissionState = "idle" | "loading" | "success" | "error";
+
+type ApiErrorPayload = {
+  message?: string | string[];
+};
 
 const categories = [
   { label: "Buracos no pavimento", value: "BURACOS_PAVIMENTO", icon: Construction },
@@ -37,13 +51,8 @@ const categories = [
 const MAX_IMAGES = 3;
 const MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
 const DEFAULT_MAP_QUERY = "Faro Portugal";
-
-type SelectedImage = {
-  id: string;
-  name: string;
-  size: number;
-  dataUrl: string;
-};
+const DEFAULT_MAP_NOTE = "Escreve a morada ou usa a tua localizacao atual para atualizar o Google Maps.";
+const SUCCESS_REDIRECT_SECONDS = 8;
 
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -53,6 +62,7 @@ function readFileAsDataUrl(file: File) {
         resolve(reader.result);
         return;
       }
+
       reject(new Error("Nao foi possivel ler a imagem selecionada."));
     };
     reader.onerror = () => reject(new Error("Nao foi possivel ler a imagem selecionada."));
@@ -72,6 +82,47 @@ function formatFileSize(sizeInBytes: number) {
   return `${sizeInBytes} B`;
 }
 
+function extractApiMessage(payload: ApiErrorPayload | null) {
+  if (!payload) return "";
+  return Array.isArray(payload.message) ? payload.message.join(", ") : payload.message ?? "";
+}
+
+function getSubmissionErrorMessage(status: number, payload: ApiErrorPayload | null) {
+  const rawMessage = extractApiMessage(payload).toLowerCase();
+
+  if (status === 400 || status === 422) {
+    if (rawMessage.includes("3 mb")) {
+      return "Cada fotografia pode ter no maximo 3 MB.";
+    }
+
+    if (rawMessage.includes("maximo 3 fotografias")) {
+      return "Podes anexar no maximo 3 fotografias por ocorrencia.";
+    }
+
+    if (
+      rawMessage.includes("png") ||
+      rawMessage.includes("jpeg") ||
+      rawMessage.includes("webp") ||
+      rawMessage.includes("gif") ||
+      rawMessage.includes("imagem")
+    ) {
+      return "Adiciona fotografias em formato valido: PNG, JPEG, WEBP ou GIF.";
+    }
+
+    return "Verifica os campos do formulario e tenta novamente.";
+  }
+
+  if (status === 401) {
+    return "A tua sessao expirou. Inicia sessao novamente para submeter a ocorrencia.";
+  }
+
+  if (status === 403) {
+    return "Nao tens permissao para submeter esta ocorrencia com a sessao atual.";
+  }
+
+  return "Nao foi possivel submeter a ocorrencia. Tenta novamente dentro de instantes.";
+}
+
 export default function NewOccurrence() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -81,17 +132,32 @@ export default function NewOccurrence() {
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
-  const [error, setError] = useState("");
+  const [submitState, setSubmitState] = useState<SubmissionState>("idle");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [mapNote, setMapNote] = useState(
-    "Escreve a morada ou usa a tua localizacao atual para atualizar o Google Maps.",
-  );
+  const [redirectCountdown, setRedirectCountdown] = useState(SUCCESS_REDIRECT_SECONDS);
+  const [mapNote, setMapNote] = useState(DEFAULT_MAP_NOTE);
 
   const trimmedLocation = location.trim();
   const mapQuery = trimmedLocation || DEFAULT_MAP_QUERY;
   const googleMapsEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`;
   const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+
+  const clearErrorFeedback = () => {
+    if (submitState === "error") {
+      setSubmitState("idle");
+      setFeedbackMessage("");
+    }
+  };
+
+  const resetForm = () => {
+    setCategory(categories[0].value);
+    setLocation("");
+    setDescription("");
+    setSelectedImages([]);
+    setMapNote(DEFAULT_MAP_NOTE);
+  };
 
   const redirectToLoginForExpiredSession = () => {
     const hadStoredSession = !!getRawAccessToken();
@@ -105,32 +171,57 @@ export default function NewOccurrence() {
     });
   };
 
+  useEffect(() => {
+    if (submitState !== "success") {
+      setRedirectCountdown(SUCCESS_REDIRECT_SECONDS);
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setRedirectCountdown((current) => (current > 1 ? current - 1 : current));
+    }, 1000);
+
+    const timeoutId = window.setTimeout(() => {
+      navigate("/dashboard");
+    }, SUCCESS_REDIRECT_SECONDS * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [navigate, submitState]);
+
   const handleLocationChange = (value: string) => {
     setLocation(value);
     setMapNote("O mapa atualiza com a morada ou coordenadas que introduzires.");
-    if (error) setError("");
+    clearErrorFeedback();
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    setDescription(value);
+    clearErrorFeedback();
   };
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setError("O teu navegador nao suporta geolocalizacao.");
+      setSubmitState("error");
+      setFeedbackMessage("O teu navegador nao suporta geolocalizacao.");
       return;
     }
 
     setLocationLoading(true);
-    setError("");
+    clearErrorFeedback();
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coordinates = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
         setLocation(coordinates);
-        setMapNote(
-          "Localizacao atual aplicada. Se quiseres, podes ajustar a morada manualmente depois.",
-        );
+        setMapNote("Localizacao atual aplicada. Se quiseres, podes ajustar a morada manualmente depois.");
         setLocationLoading(false);
       },
       () => {
-        setError("Nao foi possivel obter a tua localizacao atual. Verifica as permissoes do navegador.");
+        setSubmitState("error");
+        setFeedbackMessage("Nao foi possivel obter a tua localizacao atual. Verifica as permissoes do navegador.");
         setLocationLoading(false);
       },
       {
@@ -142,7 +233,8 @@ export default function NewOccurrence() {
 
   const handleOpenFilePicker = () => {
     if (selectedImages.length >= MAX_IMAGES) {
-      setError(`Podes adicionar ate ${MAX_IMAGES} fotografias.`);
+      setSubmitState("error");
+      setFeedbackMessage(`Podes adicionar ate ${MAX_IMAGES} fotografias.`);
       return;
     }
 
@@ -191,31 +283,34 @@ export default function NewOccurrence() {
 
         setSelectedImages((current) => [...current, ...processedImages]);
       } catch (imageError) {
-        const message =
+        setSubmitState("error");
+        setFeedbackMessage(
           imageError instanceof Error
             ? imageError.message
-            : "Nao foi possivel carregar as fotografias selecionadas.";
-        setError(message);
+            : "Nao foi possivel carregar as fotografias selecionadas.",
+        );
         return;
       }
     }
 
     if (rejectedMessages.length) {
-      setError(rejectedMessages[0]);
+      setSubmitState("error");
+      setFeedbackMessage(rejectedMessages[0]);
       return;
     }
 
-    if (error) setError("");
+    clearErrorFeedback();
   };
 
   const handleRemoveImage = (imageId: string) => {
     setSelectedImages((current) => current.filter((image) => image.id !== imageId));
-    if (error) setError("");
+    clearErrorFeedback();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitState("loading");
+    setFeedbackMessage("");
     setLoading(true);
 
     const token = getAccessToken();
@@ -229,7 +324,8 @@ export default function NewOccurrence() {
       const trimmedDescription = description.trim();
 
       if (!trimmedLocation || !trimmedDescription) {
-        setError("Preenche a localizacao e a descricao antes de enviar.");
+        setSubmitState("error");
+        setFeedbackMessage("Preenche a localizacao e a descricao antes de enviar.");
         setLoading(false);
         return;
       }
@@ -244,31 +340,31 @@ export default function NewOccurrence() {
           category,
           location: trimmedLocation,
           description: trimmedDescription,
-          imageUrls: selectedImages.length
-            ? selectedImages.map((image) => image.dataUrl)
-            : undefined,
+          imageUrls: selectedImages.length ? selectedImages.map((image) => image.dataUrl) : undefined,
         }),
       });
 
-      const data = await response.json().catch(() => null);
+      const data = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
       if (!response.ok) {
         if (response.status === 401) {
           redirectToLoginForExpiredSession();
           return;
         }
-        const message =
-          Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-        throw new Error(message || "Nao foi possivel criar a ocorrencia.");
+
+        throw new Error(getSubmissionErrorMessage(response.status, data));
       }
 
-      navigate("/dashboard");
+      resetForm();
+      setSubmitState("success");
+      setFeedbackMessage("A ocorrencia foi submetida com sucesso e sera encaminhada para analise.");
     } catch (submitError) {
-      if (submitError instanceof Error) {
-        setError(submitError.message);
-      } else {
-        setError("Nao foi possivel criar a ocorrencia.");
-      }
+      setSubmitState("error");
+      setFeedbackMessage(
+        submitError instanceof Error
+          ? submitError.message
+          : "Nao foi possivel submeter a ocorrencia.",
+      );
     } finally {
       setLoading(false);
     }
@@ -283,7 +379,7 @@ export default function NewOccurrence() {
               className="occ-map-action occ-map-action-primary"
               type="button"
               onClick={handleUseCurrentLocation}
-              disabled={locationLoading}
+              disabled={locationLoading || loading}
             >
               <MapPinned size={16} strokeWidth={2.2} />
               {locationLoading ? "A localizar..." : "Usar a minha localizacao"}
@@ -326,9 +422,7 @@ export default function NewOccurrence() {
 
           <div>
             <h1 className="occ-title">Nova ocorrencia</h1>
-            <p className="occ-subtitle">
-              Preenche o formulario e envia o reporte diretamente para analise.
-            </p>
+            <p className="occ-subtitle">Preenche o formulario e envia o reporte diretamente para analise.</p>
           </div>
 
           <form className="occ-form" onSubmit={handleSubmit}>
@@ -342,9 +436,12 @@ export default function NewOccurrence() {
               type="text"
               placeholder="Ex.: Avenida Central, Faro"
               value={location}
-              onChange={(e) => handleLocationChange(e.target.value)}
+              onChange={(event) => handleLocationChange(event.target.value)}
+              disabled={loading}
               required
             />
+
+            <p className="occ-map-note">{mapNote}</p>
 
             <fieldset className="occ-fieldset">
               <legend>
@@ -359,10 +456,12 @@ export default function NewOccurrence() {
                     <button
                       key={item.value}
                       type="button"
-                      className={["occ-chip", item.value === category ? "is-active" : ""]
-                        .filter(Boolean)
-                        .join(" ")}
-                      onClick={() => setCategory(item.value)}
+                      className={["occ-chip", item.value === category ? "is-active" : ""].filter(Boolean).join(" ")}
+                      onClick={() => {
+                        setCategory(item.value);
+                        clearErrorFeedback();
+                      }}
+                      disabled={loading}
                     >
                       <span className="occ-chip-icon" aria-hidden="true">
                         <Icon size={18} strokeWidth={2.2} />
@@ -383,7 +482,8 @@ export default function NewOccurrence() {
               className="occ-textarea"
               placeholder="Descreve o que esta a acontecer e qualquer detalhe util."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(event) => handleDescriptionChange(event.target.value)}
+              disabled={loading}
               required
             />
 
@@ -400,10 +500,11 @@ export default function NewOccurrence() {
                 accept="image/*"
                 multiple
                 onChange={handleFilesSelected}
+                disabled={loading}
               />
 
               <div className="occ-upload-toolbar">
-                <button className="occ-image-add" type="button" onClick={handleOpenFilePicker}>
+                <button className="occ-image-add" type="button" onClick={handleOpenFilePicker} disabled={loading}>
                   <Camera size={16} strokeWidth={2.2} />
                   {selectedImages.length ? "Adicionar mais fotos" : "Escolher fotografias"}
                 </button>
@@ -426,6 +527,7 @@ export default function NewOccurrence() {
                         type="button"
                         onClick={() => handleRemoveImage(image.id)}
                         aria-label={`Apagar ${image.name}`}
+                        disabled={loading}
                       >
                         <Trash2 size={16} strokeWidth={2.2} />
                         Apagar
@@ -440,13 +542,41 @@ export default function NewOccurrence() {
               )}
             </fieldset>
 
-            {error && <div className="occ-error">{error}</div>}
+            {submitState === "loading" && (
+              <FeedbackAlert
+                variant="info"
+                title="A submeter ocorrencia"
+                message="Estamos a enviar os dados. Aguarda um instante."
+              />
+            )}
+
+            {submitState === "success" && (
+              <FeedbackAlert
+                variant="success"
+                title="Ocorrencia enviada com sucesso"
+                message={`${feedbackMessage} Vais ser redirecionado para o dashboard em ${redirectCountdown} segundos.`}
+                action={
+                  <button className="occ-inline-action" type="button" onClick={() => navigate("/dashboard")}>
+                    Ir agora
+                  </button>
+                }
+              />
+            )}
+
+            {submitState === "error" && (
+              <FeedbackAlert
+                variant="error"
+                title="Nao foi possivel enviar a ocorrencia"
+                message={feedbackMessage}
+              />
+            )}
 
             <div className="occ-actions">
               <button
                 className="occ-button occ-button-secondary"
                 type="button"
                 onClick={() => navigate("/dashboard")}
+                disabled={loading}
               >
                 Cancelar
               </button>

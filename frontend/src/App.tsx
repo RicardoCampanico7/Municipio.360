@@ -7,6 +7,7 @@ import NewOccurrence from "./pages/NewOccurrence";
 import Profile from "./pages/Profile";
 import PublicReports from "./pages/PublicReports";
 import PublicOccurrenceDetail from "./pages/PublicOccurrenceDetail";
+import OccurrenceMap from "./pages/OccurrenceMap";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 
@@ -32,15 +33,8 @@ function App() {
         }
       />
 
-      {/* Rotas protegidas */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
+      {/* Rotas publicas e protegidas */}
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route
         path="/occurrences/new"
         element={
@@ -58,6 +52,7 @@ function App() {
         }
       />
       <Route path="/occurrences/public" element={<PublicReports />} />
+      <Route path="/occurrences/map" element={<OccurrenceMap />} />
       <Route path="/occurrences/public/:occurrenceId" element={<PublicOccurrenceDetail />} />
     </Routes>
   );

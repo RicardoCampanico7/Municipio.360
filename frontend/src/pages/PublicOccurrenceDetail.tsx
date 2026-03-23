@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock3, FileText, MapPin, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock3, FileText, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -6,8 +6,15 @@ import AppLogo from "../components/AppLogo";
 import {
   OccurrencesRequestError,
   fetchPublicOccurrenceById,
+  updateOccurrenceStatus,
+  type OccurrenceStatusKey,
   type ApiOccurrence,
 } from "../services/occurrences";
+import {
+  getAccessToken,
+  getAuthenticatedUser,
+  isBackofficeRole,
+} from "../services/token";
 import "./PublicOccurrenceDetail.css";
 
 type ReportTone = "progress" | "open" | "done";
@@ -35,13 +42,50 @@ function getFormattedDate(value: string | undefined, locale: string, fallback: s
   }).format(date);
 }
 
+function formatOccurrenceReference(
+  occurrenceIdentifier: string | number | undefined,
+  timestamp: string | undefined,
+) {
+  const rawId =
+    typeof occurrenceIdentifier === "number"
+      ? occurrenceIdentifier
+      : Number.parseInt(String(occurrenceIdentifier ?? "").trim(), 10);
+
+  const year =
+    timestamp && !Number.isNaN(new Date(timestamp).getTime())
+      ? new Date(timestamp).getFullYear()
+      : new Date().getFullYear();
+
+  if (Number.isFinite(rawId)) {
+    return `M360-${year}-${String(rawId).padStart(6, "0")}`;
+  }
+
+  const fallbackId = String(occurrenceIdentifier ?? "000000").trim() || "000000";
+  return `M360-${year}-${fallbackId}`;
+}
+
+function getStatusKey(
+  occurrence: Pick<ApiOccurrence, "status" | "statusKey"> | null | undefined,
+): OccurrenceStatusKey {
+  if (occurrence?.statusKey) return occurrence.statusKey;
+  if (occurrence?.status === "progress") return "EM_TRATAMENTO";
+  if (occurrence?.status === "resolved") return "CONCLUIDA";
+  return "SUBMETIDA";
+}
+
 export default function PublicOccurrenceDetail() {
   const navigate = useNavigate();
   const { occurrenceId = "" } = useParams();
   const { i18n, t } = useTranslation();
+  const sessionUser = getAuthenticatedUser();
+  const canManageOccurrence = isBackofficeRole(sessionUser?.role);
   const [occurrence, setOccurrence] = useState<ApiOccurrence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<OccurrenceStatusKey>("SUBMETIDA");
+  const [manageError, setManageError] = useState("");
+  const [manageSuccess, setManageSuccess] = useState("");
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   const pageText = i18n.language.startsWith("pt")
     ? {
@@ -54,12 +98,30 @@ export default function PublicOccurrenceDetail() {
         noDescription: "Sem descricao disponivel.",
         noLocation: "Localizacao nao disponivel.",
         noDate: "Sem data",
-        sectionInfo: "Informacao",
+        sectionInfo: "Mapa",
+        mapTitle: "Mapa da ocorrencia",
+        mapCopy: "Vista rapida da localizacao associada a este registo.",
+        mapUnavailable: "Nao foi possivel apresentar o mapa desta ocorrencia.",
         sectionGallery: "Imagens",
         sectionGalleryCopy: "Registos visuais associados a esta ocorrencia.",
         summaryTitle: "Resumo",
-        summaryCopy: "Consulta os dados visiveis desta ocorrencia publica.",
         occurrenceImageAlt: "Imagem da ocorrencia",
+        management: {
+          title: "Gestão da ocorrência",
+          copy: "Disponível apenas para operador e administrador.",
+          field: "Estado da ocorrência",
+          updateButton: "Atualizar estado",
+          updateLoading: "A atualizar...",
+          updateSuccess: "Estado atualizado com sucesso.",
+          updateError: "Não foi possível atualizar o estado da ocorrência.",
+          editButton: "Editar ocorrência",
+          editNote: "A edição completa será adicionada numa próxima página de gestão.",
+          statuses: {
+            SUBMETIDA: "Submetida",
+            EM_TRATAMENTO: "Em tratamento",
+            CONCLUIDA: "Concluída",
+          },
+        },
       }
     : {
         back: "Back to reports",
@@ -71,12 +133,30 @@ export default function PublicOccurrenceDetail() {
         noDescription: t("publicReports.noDescription"),
         noLocation: t("publicReports.noLocation"),
         noDate: t("dashboard.reports.noDate"),
-        sectionInfo: "Information",
+        sectionInfo: "Map",
+        mapTitle: "Occurrence map",
+        mapCopy: "Quick view of the location associated with this record.",
+        mapUnavailable: "Could not display the map for this occurrence.",
         sectionGallery: "Images",
         sectionGalleryCopy: "Visual records associated with this occurrence.",
         summaryTitle: "Summary",
-        summaryCopy: "Review the public details for this occurrence.",
         occurrenceImageAlt: t("publicReports.imageAlt"),
+        management: {
+          title: "Occurrence management",
+          copy: "Available only to operator and administrator roles.",
+          field: "Occurrence status",
+          updateButton: "Update status",
+          updateLoading: "Updating...",
+          updateSuccess: "Status updated successfully.",
+          updateError: "Could not update the occurrence status.",
+          editButton: "Edit occurrence",
+          editNote: "Full editing will be added in a future management page.",
+          statuses: {
+            SUBMETIDA: "Submitted",
+            EM_TRATAMENTO: "In progress",
+            CONCLUIDA: "Completed",
+          },
+        },
       };
 
   useEffect(() => {
@@ -116,12 +196,89 @@ export default function PublicOccurrenceDetail() {
     };
   }, [occurrenceId, pageText.loadError, pageText.notFound]);
 
+  useEffect(() => {
+    setSelectedStatus(getStatusKey(occurrence));
+  }, [occurrence]);
+
   const tone = getTone(occurrence?.status);
   const statusLabel = useMemo(
     () => t(`dashboard.reports.${tone === "done" ? "resolved" : tone}`),
     [t, tone],
   );
+  const currentStatusKey = getStatusKey(occurrence);
+  const allowedStatusOptions = useMemo(() => {
+    const allOptions: OccurrenceStatusKey[] = [
+      "SUBMETIDA",
+      "EM_TRATAMENTO",
+      "CONCLUIDA",
+    ];
+
+    if (currentStatusKey === "SUBMETIDA") return allOptions;
+    if (currentStatusKey === "EM_TRATAMENTO") {
+      return ["EM_TRATAMENTO", "CONCLUIDA"];
+    }
+
+    return ["CONCLUIDA"];
+  }, [currentStatusKey]);
   const heroImage = occurrence?.imageUrls?.[0] || "/banner.ocorrencias.png";
+  const occurrenceReference = formatOccurrenceReference(
+    occurrence?.id ?? occurrenceId,
+    occurrence?.createdAt || occurrence?.updatedAt,
+  );
+  const mapQuery = occurrence?.location?.trim() || "";
+  const googleMapsEmbedUrl = mapQuery
+    ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`
+    : "";
+
+  const handleUpdateStatus = async () => {
+    if (!occurrenceId) return;
+
+    const token = getAccessToken();
+    if (!token) {
+      navigate("/login", {
+        replace: true,
+        state: { from: `/occurrences/public/${occurrenceId}` },
+      });
+      return;
+    }
+
+    setStatusUpdating(true);
+    setManageError("");
+    setManageSuccess("");
+
+    try {
+      await updateOccurrenceStatus(
+        occurrenceId,
+        selectedStatus,
+        token,
+        pageText.management.updateError,
+      );
+
+      const refreshedOccurrence = await fetchPublicOccurrenceById(
+        occurrenceId,
+        pageText.loadError,
+      );
+
+      setOccurrence(refreshedOccurrence);
+      setManageSuccess(pageText.management.updateSuccess);
+    } catch (updateError) {
+      if (updateError instanceof OccurrencesRequestError && updateError.status === 401) {
+        navigate("/login", {
+          replace: true,
+          state: { from: `/occurrences/public/${occurrenceId}` },
+        });
+        return;
+      }
+
+      setManageError(
+        updateError instanceof Error && updateError.message
+          ? updateError.message
+          : pageText.management.updateError,
+      );
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
 
   return (
     <main className="public-occurrence-screen">
@@ -139,10 +296,6 @@ export default function PublicOccurrenceDetail() {
             </div>
           </div>
 
-          <span className="public-occurrence-kicker">
-            <Sparkles size={14} strokeWidth={2.2} />
-            {pageText.kicker}
-          </span>
         </header>
 
         {loading && <p className="public-occurrence-feedback">{pageText.loading}</p>}
@@ -159,15 +312,17 @@ export default function PublicOccurrenceDetail() {
               <div className="public-occurrence-hero-copy">
                 <p className="public-occurrence-eyebrow">{pageText.eyebrow}</p>
                 <h1>{occurrence.category || t("dashboard.reports.untitled")}</h1>
-                <p>{occurrence.description || pageText.noDescription}</p>
+                <span className={`dashboard-pill dashboard-pill-${tone}`}>{statusLabel}</span>
               </div>
 
               <aside className="public-occurrence-summary">
-                <span className={`dashboard-pill dashboard-pill-${tone}`}>{statusLabel}</span>
                 <div className="public-occurrence-summary-copy">
                   <h2>{pageText.summaryTitle}</h2>
-                  <p>{pageText.summaryCopy}</p>
                 </div>
+
+                <p className="public-occurrence-summary-description">
+                  {occurrence.description || pageText.noDescription}
+                </p>
 
                 <dl className="public-occurrence-meta">
                   <div>
@@ -192,9 +347,77 @@ export default function PublicOccurrenceDetail() {
                     <dt>
                       <FileText size={16} strokeWidth={2.1} />
                     </dt>
-                    <dd>#{occurrence.id ?? occurrenceId}</dd>
+                    <dd>{occurrenceReference}</dd>
                   </div>
                 </dl>
+
+                {canManageOccurrence && (
+                  <div className="public-occurrence-management">
+                    <div className="public-occurrence-management-head">
+                      <h3>{pageText.management.title}</h3>
+                      <p>{pageText.management.copy}</p>
+                    </div>
+
+                    <label
+                      className="public-occurrence-management-label"
+                      htmlFor="occurrence-status"
+                    >
+                      {pageText.management.field}
+                    </label>
+                    <select
+                      id="occurrence-status"
+                      className="public-occurrence-management-select"
+                      value={selectedStatus}
+                      onChange={(event) => {
+                        setSelectedStatus(event.target.value as OccurrenceStatusKey);
+                        if (manageError) setManageError("");
+                        if (manageSuccess) setManageSuccess("");
+                      }}
+                    >
+                      {allowedStatusOptions.map((statusOption) => (
+                        <option key={statusOption} value={statusOption}>
+                          {pageText.management.statuses[statusOption as OccurrenceStatusKey]}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="public-occurrence-management-actions">
+                      <button
+                        className="public-occurrence-management-button is-primary"
+                        type="button"
+                        onClick={handleUpdateStatus}
+                        disabled={statusUpdating || selectedStatus === currentStatusKey}
+                      >
+                        {statusUpdating
+                          ? pageText.management.updateLoading
+                          : pageText.management.updateButton}
+                      </button>
+                      <button
+                        className="public-occurrence-management-button is-secondary"
+                        type="button"
+                        disabled
+                        title={pageText.management.editNote}
+                      >
+                        {pageText.management.editButton}
+                      </button>
+                    </div>
+
+                    {manageSuccess && (
+                      <p className="public-occurrence-management-feedback is-success">
+                        {manageSuccess}
+                      </p>
+                    )}
+                    {manageError && (
+                      <p className="public-occurrence-management-feedback is-error">
+                        {manageError}
+                      </p>
+                    )}
+
+                    <p className="public-occurrence-management-note">
+                      {pageText.management.editNote}
+                    </p>
+                  </div>
+                )}
               </aside>
             </section>
 
@@ -202,8 +425,24 @@ export default function PublicOccurrenceDetail() {
               <article className="public-occurrence-panel">
                 <div className="public-occurrence-panel-head">
                   <h3>{pageText.sectionInfo}</h3>
+                  <p>{pageText.mapCopy}</p>
                 </div>
-                <p>{occurrence.description || pageText.noDescription}</p>
+
+                <div className="public-occurrence-map-block">
+                  {googleMapsEmbedUrl ? (
+                    <div className="public-occurrence-map-frame">
+                      <iframe
+                        className="public-occurrence-map"
+                        title={pageText.mapTitle}
+                        src={googleMapsEmbedUrl}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    </div>
+                  ) : (
+                    <p className="public-occurrence-map-fallback">{pageText.mapUnavailable}</p>
+                  )}
+                </div>
               </article>
 
               <article className="public-occurrence-panel">

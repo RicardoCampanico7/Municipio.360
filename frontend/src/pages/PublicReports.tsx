@@ -3,7 +3,6 @@ import {
   Clock3,
   FileText,
   MapPin,
-  Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -48,21 +47,21 @@ export default function PublicReports() {
   const pageText = i18n.language.startsWith("pt")
     ? {
         back: "Voltar",
-        kicker: "Ocorrencias",
+        kicker: "Ocorrências",
         eyebrow: "Consulta aberta",
-        pageTitle: "Ocorrencias do municipio",
-        pageCopy: "Acompanha o estado das ocorrencias registadas com a mesma linguagem visual da plataforma.",
-        statsAria: "Resumo das ocorrencias",
-        sectionTitle: "Lista de ocorrencias",
+        pageTitle: "Ocorrências do município",
+        pageCopy: "Consulta as ocorrências públicas registadas no município e acompanha o respetivo estado.",
+        statsAria: "Resumo das ocorrências",
+        sectionTitle: "Lista de ocorrências",
         sectionCopy: "Consulta os registos mais recentes e o respetivo estado.",
-        loading: "A carregar ocorrencias...",
-        loadError: "Nao foi possivel carregar as ocorrencias.",
-        empty: "Ainda nao existem ocorrencias.",
-        noDescription: "Sem descricao disponivel.",
-        noLocation: "Localizacao nao disponivel.",
-        imageAlt: "Imagem da ocorrencia",
+        loading: "A carregar ocorrências...",
+        loadError: "Não foi possível carregar as ocorrências.",
+        empty: "Ainda não existem ocorrências.",
+        noDescription: "Sem descrição disponível.",
+        noLocation: "Localização não disponível.",
+        imageAlt: "Imagem da ocorrência",
         stats: {
-          total: "Total de ocorrencias",
+          total: "Total de ocorrências",
           progress: "Em progresso",
           resolved: "Resolvidas",
         },
@@ -150,10 +149,6 @@ export default function PublicReports() {
             </div>
           </div>
 
-          <span className="public-reports-kicker">
-            <Sparkles size={14} strokeWidth={2.2} />
-            {pageText.kicker}
-          </span>
         </header>
 
         <section className="public-reports-hero">

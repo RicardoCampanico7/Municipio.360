@@ -5,6 +5,21 @@ export type ApiOccurrence = {
   description?: string;
   location?: string;
   status?: string;
+  statusKey?: OccurrenceStatusKey;
+  createdAt?: string;
+  updatedAt?: string;
+  imageUrls?: string[];
+};
+
+export type OccurrenceStatusKey = "SUBMETIDA" | "EM_TRATAMENTO" | "CONCLUIDA";
+
+export type PublicOccurrence = {
+  id?: string | number;
+  category?: string;
+  description?: string;
+  location?: string;
+  status?: string;
+  statusKey?: OccurrenceStatusKey;
   createdAt?: string;
   updatedAt?: string;
   imageUrls?: string[];
@@ -20,36 +35,118 @@ export class OccurrencesRequestError extends Error {
   }
 }
 
-function normalizeOccurrencesPayload(payload: unknown): ApiOccurrence[] {
-  if (Array.isArray(payload)) {
-    return payload as ApiOccurrence[];
-  }
-
-  if (payload && typeof payload === "object") {
-    const source = payload as { data?: unknown; occurrences?: unknown };
-    if (Array.isArray(source.data)) return source.data as ApiOccurrence[];
-    if (Array.isArray(source.occurrences)) return source.occurrences as ApiOccurrence[];
-  }
-
-  return [];
+function normalizeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : undefined;
 }
 
-function normalizeOccurrencePayload(payload: unknown): ApiOccurrence | null {
+function normalizeStatusKey(value: unknown): OccurrenceStatusKey | undefined {
+  if (value === "SUBMETIDA" || value === "EM_TRATAMENTO" || value === "CONCLUIDA") {
+    return value;
+  }
+
+  if (value === "open") return "SUBMETIDA";
+  if (value === "progress") return "EM_TRATAMENTO";
+  if (value === "resolved") return "CONCLUIDA";
+
+  return undefined;
+}
+
+function normalizePresentationStatus(value: unknown): string | undefined {
+  if (value === "SUBMETIDA" || value === "open") return "open";
+  if (value === "EM_TRATAMENTO" || value === "progress") return "progress";
+  if (value === "CONCLUIDA" || value === "resolved") return "resolved";
+
+  return normalizeString(value);
+}
+
+function normalizeId(value: unknown) {
+  return typeof value === "string" || typeof value === "number" ? value : undefined;
+}
+
+function normalizeImageUrls(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+
+  const imageUrls = value
+    .map((item) => normalizeString(item))
+    .filter((item): item is string => Boolean(item));
+
+  return imageUrls.length > 0 ? imageUrls : undefined;
+}
+
+function sanitizeOccurrence(value: unknown): ApiOccurrence | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const source = value as Record<string, unknown>;
+
+  return {
+    id: normalizeId(source.id),
+    title: normalizeString(source.title),
+    category: normalizeString(source.category),
+    description: normalizeString(source.description),
+    location: normalizeString(source.location),
+    status: normalizePresentationStatus(source.status),
+    statusKey: normalizeStatusKey(source.statusKey ?? source.status),
+    createdAt: normalizeString(source.createdAt),
+    updatedAt: normalizeString(source.updatedAt),
+    imageUrls: normalizeImageUrls(source.imageUrls),
+  };
+}
+
+function toPublicOccurrence(value: ApiOccurrence): PublicOccurrence {
+  return {
+    id: value.id,
+    category: value.category,
+    description: value.description,
+    location: value.location,
+    status: value.status,
+    statusKey: value.statusKey,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    imageUrls: value.imageUrls,
+  };
+}
+
+function normalizeOccurrencesPayload<TOccurrence>(
+  payload: unknown,
+  sanitize: (value: unknown) => TOccurrence | null,
+): TOccurrence[] {
+  const list = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object"
+      ? (() => {
+          const source = payload as { data?: unknown; occurrences?: unknown };
+          if (Array.isArray(source.data)) return source.data;
+          if (Array.isArray(source.occurrences)) return source.occurrences;
+          return [];
+        })()
+      : [];
+
+  return list.map(sanitize).filter((item): item is TOccurrence => item !== null);
+}
+
+function normalizeOccurrencePayload<TOccurrence>(
+  payload: unknown,
+  sanitize: (value: unknown) => TOccurrence | null,
+): TOccurrence | null {
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const source = payload as { data?: unknown; occurrence?: unknown };
     if (source.data && typeof source.data === "object" && !Array.isArray(source.data)) {
-      return source.data as ApiOccurrence;
+      return sanitize(source.data);
     }
     if (source.occurrence && typeof source.occurrence === "object" && !Array.isArray(source.occurrence)) {
-      return source.occurrence as ApiOccurrence;
+      return sanitize(source.occurrence);
     }
-    return payload as ApiOccurrence;
+    return sanitize(payload);
   }
 
   return null;
 }
 
-async function parseOccurrencesResponse(response: Response, fallbackMessage: string) {
+async function parseOccurrencesResponse<TOccurrence>(
+  response: Response,
+  fallbackMessage: string,
+  sanitize: (value: unknown) => TOccurrence | null,
+) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -57,10 +154,14 @@ async function parseOccurrencesResponse(response: Response, fallbackMessage: str
     throw new OccurrencesRequestError(message || fallbackMessage, response.status);
   }
 
-  return normalizeOccurrencesPayload(data);
+  return normalizeOccurrencesPayload(data, sanitize);
 }
 
-async function parseOccurrenceResponse(response: Response, fallbackMessage: string) {
+async function parseOccurrenceResponse<TOccurrence>(
+  response: Response,
+  fallbackMessage: string,
+  sanitize: (value: unknown) => TOccurrence | null,
+) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -68,7 +169,7 @@ async function parseOccurrenceResponse(response: Response, fallbackMessage: stri
     throw new OccurrencesRequestError(message || fallbackMessage, response.status);
   }
 
-  const occurrence = normalizeOccurrencePayload(data);
+  const occurrence = normalizeOccurrencePayload(data, sanitize);
   if (!occurrence) {
     throw new OccurrencesRequestError(fallbackMessage, response.status);
   }
@@ -78,7 +179,10 @@ async function parseOccurrenceResponse(response: Response, fallbackMessage: stri
 
 export async function fetchPublicOccurrences(fallbackMessage: string) {
   const response = await fetch("/api/occurrences");
-  return parseOccurrencesResponse(response, fallbackMessage);
+  return parseOccurrencesResponse(response, fallbackMessage, (value) => {
+    const occurrence = sanitizeOccurrence(value);
+    return occurrence ? toPublicOccurrence(occurrence) : null;
+  });
 }
 
 export async function fetchMyOccurrences(token: string, fallbackMessage: string) {
@@ -89,10 +193,38 @@ export async function fetchMyOccurrences(token: string, fallbackMessage: string)
     },
   });
 
-  return parseOccurrencesResponse(response, fallbackMessage);
+  return parseOccurrencesResponse(response, fallbackMessage, sanitizeOccurrence);
 }
 
 export async function fetchPublicOccurrenceById(id: string, fallbackMessage: string) {
   const response = await fetch(`/api/occurrences/${id}`);
-  return parseOccurrenceResponse(response, fallbackMessage);
+  return parseOccurrenceResponse(response, fallbackMessage, (value) => {
+    const occurrence = sanitizeOccurrence(value);
+    return occurrence ? toPublicOccurrence(occurrence) : null;
+  });
+}
+
+export async function updateOccurrenceStatus(
+  id: string,
+  status: OccurrenceStatusKey,
+  token: string,
+  fallbackMessage: string,
+) {
+  const response = await fetch(`/api/occurrences/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+  }
+
+  return data;
 }
