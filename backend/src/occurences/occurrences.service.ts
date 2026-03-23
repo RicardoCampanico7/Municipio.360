@@ -9,14 +9,11 @@ import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import {
-  isOccurrenceUploadPublicUrl,
   occurrenceUploadConfig,
   removeOccurrenceImagesByUrls,
   saveOccurrenceImages,
   type UploadedOccurrenceImage,
 } from './occurrence-upload';
-
-const INLINE_IMAGE_DATA_URL_PREFIX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
 const OCCURRENCE_CATEGORY_LABELS: Record<OccurrenceCategory, string> = {
   [OccurrenceCategory.BURACOS_PAVIMENTO]: 'Buracos no pavimento',
   [OccurrenceCategory.ILUMINACAO_PUBLICA]: 'Iluminacao publica',
@@ -137,14 +134,18 @@ export class OccurrencesService {
   }
 
   /**
-   * Valida e normaliza imagens inline enviadas em JSON no formato data URL.
-   * @param imageUrls Lista de imagens recebidas no body.
-   * @return Lista normalizada de imagens inline.
+   * Garante que fotografias sao enviadas apenas como ficheiros multipart/form-data.
+   * @param imageUrls Referencias recebidas indevidamente no body.
+   * @return void
    */
-  private normalizeImageUrls(imageUrls: string[] | undefined) {
+  private ensureImagesAreProvidedAsFiles(imageUrls: string[] | undefined) {
     const normalizedImageUrls = (imageUrls ?? [])
       .map((imageUrl) => imageUrl.trim())
       .filter(Boolean);
+
+    if (!normalizedImageUrls.length) {
+      return;
+    }
 
     if (normalizedImageUrls.length > occurrenceUploadConfig.maxFiles) {
       throw new BadRequestException(
@@ -152,40 +153,9 @@ export class OccurrencesService {
       );
     }
 
-    normalizedImageUrls.forEach((imageUrl, index) => {
-      if (isOccurrenceUploadPublicUrl(imageUrl)) {
-        return;
-      }
-
-      if (!INLINE_IMAGE_DATA_URL_PREFIX.test(imageUrl)) {
-        throw new BadRequestException(
-          `A imagem ${index + 1} nao tem um formato valido`,
-        );
-      }
-
-      const base64Payload = imageUrl.replace(INLINE_IMAGE_DATA_URL_PREFIX, '');
-
-      let sizeInBytes = 0;
-      try {
-        sizeInBytes = Buffer.from(base64Payload, 'base64').byteLength;
-      } catch {
-        throw new BadRequestException(
-          `A imagem ${index + 1} nao tem um formato valido`,
-        );
-      }
-
-      if (sizeInBytes > occurrenceUploadConfig.maxFileSizeBytes) {
-        const maxSizeMb = Math.floor(
-          occurrenceUploadConfig.maxFileSizeBytes / (1024 * 1024),
-        );
-
-        throw new BadRequestException(
-          `Cada fotografia pode ter no maximo ${maxSizeMb} MB`,
-        );
-      }
-    });
-
-    return normalizedImageUrls;
+    throw new BadRequestException(
+      'As fotografias devem ser enviadas como ficheiros em multipart/form-data',
+    );
   }
 
   /**
@@ -291,11 +261,9 @@ export class OccurrencesService {
       dto.category === OccurrenceCategory.OUTROS
         ? dto.otherCategoryDetail?.trim()
         : null;
+    this.ensureImagesAreProvidedAsFiles(dto.imageUrls);
     const uploadedImageUrls = await saveOccurrenceImages(files);
-    const requestedImageUrls = this.normalizeImageUrls(dto.imageUrls);
-    const imageUrls = uploadedImageUrls.length
-      ? uploadedImageUrls
-      : requestedImageUrls;
+    const imageUrls = uploadedImageUrls;
 
     try {
       const occurrence = await this.prisma.occurrence.create({

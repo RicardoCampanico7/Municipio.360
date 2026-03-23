@@ -25,7 +25,10 @@ export class MenuController {
   @Get()
   @ApiOperation({ summary: 'Obter dados publicos do menu' })
   @ApiQuery({ name: 'lang', required: false, example: 'pt' })
-  @ApiResponse({ status: 200, description: 'Menu publico devolvido com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Menu publico devolvido com sucesso',
+  })
   findPublic(@Query('lang') lang?: string) {
     return this.menuService.getPublicMenu(lang);
   }
@@ -38,7 +41,10 @@ export class MenuController {
   @Get('public')
   @ApiOperation({ summary: 'Alias publico para obter os dados do menu' })
   @ApiQuery({ name: 'lang', required: false, example: 'pt' })
-  @ApiResponse({ status: 200, description: 'Menu publico devolvido com sucesso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Menu publico devolvido com sucesso',
+  })
   findPublicAlias(@Query('lang') lang?: string) {
     return this.menuService.getPublicMenu(lang);
   }

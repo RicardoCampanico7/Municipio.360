@@ -14,7 +14,13 @@ import { UsersModule } from './users/users.module';
  * @inv Os modulos registados devem manter a composicao necessaria para expor a API completa.
  */
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, OccurrencesModule, MenuModule],
+  imports: [
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    OccurrencesModule,
+    MenuModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

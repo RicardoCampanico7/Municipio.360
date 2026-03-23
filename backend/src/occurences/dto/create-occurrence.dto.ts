@@ -20,7 +20,9 @@ export class CreateOccurrenceDto {
   @IsEnum(OccurrenceCategory)
   declare category: OccurrenceCategory;
 
-  @ValidateIf((dto: CreateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS)
+  @ValidateIf(
+    (dto: CreateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS,
+  )
   @IsString()
   @MinLength(3)
   declare otherCategoryDetail?: string;

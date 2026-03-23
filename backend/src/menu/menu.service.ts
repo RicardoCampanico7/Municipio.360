@@ -19,7 +19,8 @@ export class MenuService {
    * @return SupportedLanguage Idioma suportado pela API.
    */
   private normalizeLanguage(language?: string): SupportedLanguage {
-    const normalized = typeof language === 'string' ? language.trim().toLowerCase() : '';
+    const normalized =
+      typeof language === 'string' ? language.trim().toLowerCase() : '';
 
     if (normalized === 'en' || normalized === 'es' || normalized === 'fr') {
       return normalized;
