@@ -93,10 +93,10 @@ describe('OccurrencesController', () => {
   });
 
   /**
-   * Garante que o upload de imagens aceita qualquer perfil autenticado autorizado.
+   * Garante que o upload de imagens exige autenticacao CIVIL.
    * @return void
    */
-  it('should protect the image upload route with JWT and authenticated occurrence roles', () => {
+  it('should protect the image upload route with JWT and citizen role', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       controller.uploadImages,
@@ -107,18 +107,14 @@ describe('OccurrencesController', () => {
     ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
-    expect(roles).toEqual([
-      Role.CIVIL,
-      Role.OPERADOR,
-      Role.ADMINISTRADOR,
-    ]);
+    expect(roles).toEqual([Role.CIVIL]);
   });
 
   /**
-   * Garante que a criacao de ocorrencias aceita qualquer perfil autenticado autorizado.
+   * Garante que a criacao de ocorrencias exige autenticacao CIVIL.
    * @return void
    */
-  it('should protect creation with JWT and authenticated occurrence roles', () => {
+  it('should protect creation with JWT and citizen role', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       controller.create,
@@ -126,18 +122,14 @@ describe('OccurrencesController', () => {
     const roles = Reflect.getMetadata(ROLES_KEY, controller.create) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
-    expect(roles).toEqual([
-      Role.CIVIL,
-      Role.OPERADOR,
-      Role.ADMINISTRADOR,
-    ]);
+    expect(roles).toEqual([Role.CIVIL]);
   });
 
   /**
-   * Garante que a listagem propria aceita qualquer perfil autenticado autorizado.
+   * Garante que a listagem propria exige autenticacao CIVIL.
    * @return void
    */
-  it('should protect own occurrences listing with JWT and authenticated occurrence roles', () => {
+  it('should protect own occurrences listing with JWT and citizen role', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       controller.findMine,
@@ -145,11 +137,7 @@ describe('OccurrencesController', () => {
     const roles = Reflect.getMetadata(ROLES_KEY, controller.findMine) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
-    expect(roles).toEqual([
-      Role.CIVIL,
-      Role.OPERADOR,
-      Role.ADMINISTRADOR,
-    ]);
+    expect(roles).toEqual([Role.CIVIL]);
   });
 
   /**

@@ -9,11 +9,19 @@ import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import {
+  assignOccurrenceImagesToOccurrence,
+  getOccurrenceImageMetadataByUrl,
+  occurrenceImageExistsByUrl,
   occurrenceUploadConfig,
+  isOccurrenceUploadPublicUrl,
   removeOccurrenceImagesByUrls,
   saveOccurrenceImages,
+  unassignOccurrenceImagesFromOccurrence,
   type UploadedOccurrenceImage,
 } from './occurrence-upload';
+
+const INLINE_IMAGE_DATA_URL_PREFIX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
+
 const OCCURRENCE_CATEGORY_LABELS: Record<OccurrenceCategory, string> = {
   [OccurrenceCategory.BURACOS_PAVIMENTO]: 'Buracos no pavimento',
   [OccurrenceCategory.ILUMINACAO_PUBLICA]: 'Iluminacao publica',
@@ -55,7 +63,7 @@ type PresentedOccurrence<T extends PresentableOccurrence> = Omit<
 /**
  * Centraliza a logica de criacao, consulta e gestao de ocorrencias.
  * @author Alan Martynyuk e Guilherme Gaspar
- * @version 19/03/2026
+ * @version 23/03/2026
  * @inv As consultas publicas nao devem expor dados sensiveis do autor das ocorrencias.
  */
 @Injectable()
@@ -134,17 +142,23 @@ export class OccurrencesService {
   }
 
   /**
-   * Garante que fotografias sao enviadas apenas como ficheiros multipart/form-data.
-   * @param imageUrls Referencias recebidas indevidamente no body.
-   * @return void
+   * Valida URLs publicas de imagens previamente carregadas antes da associacao final.
+   * @param imageUrls URLs recebidas no body.
+   * @param userId Identificador do utilizador autenticado dono da ocorrencia.
+   * @return Promise<string[]> Lista normalizada das URLs aceites para associacao.
+   * Pre-condicao: As imagens devem ter sido carregadas previamente pelo endpoint dedicado.
+   * Pos-condicao: Sao rejeitadas URLs repetidas, de outros utilizadores ou ja associadas.
    */
-  private ensureImagesAreProvidedAsFiles(imageUrls: string[] | undefined) {
+  private async normalizeRequestedImageUrls(
+    imageUrls: string[] | undefined,
+    userId: number,
+  ) {
     const normalizedImageUrls = (imageUrls ?? [])
       .map((imageUrl) => imageUrl.trim())
       .filter(Boolean);
 
     if (!normalizedImageUrls.length) {
-      return;
+      return [];
     }
 
     if (normalizedImageUrls.length > occurrenceUploadConfig.maxFiles) {
@@ -153,9 +167,48 @@ export class OccurrencesService {
       );
     }
 
-    throw new BadRequestException(
-      'As fotografias devem ser enviadas como ficheiros em multipart/form-data',
-    );
+    if (new Set(normalizedImageUrls).size !== normalizedImageUrls.length) {
+      throw new BadRequestException(
+        'Nao pode repetir a mesma fotografia na ocorrencia',
+      );
+    }
+
+    for (const [index, imageUrl] of normalizedImageUrls.entries()) {
+      if (INLINE_IMAGE_DATA_URL_PREFIX.test(imageUrl)) {
+        throw new BadRequestException(
+          'As fotografias devem ser enviadas como ficheiros em multipart/form-data',
+        );
+      }
+
+      if (!isOccurrenceUploadPublicUrl(imageUrl)) {
+        throw new BadRequestException(
+          `A imagem ${index + 1} nao tem um formato valido`,
+        );
+      }
+
+      const imageMetadata = await getOccurrenceImageMetadataByUrl(imageUrl);
+      const imageExists = await occurrenceImageExistsByUrl(imageUrl);
+
+      if (!imageExists || !imageMetadata) {
+        throw new BadRequestException(
+          `A imagem ${index + 1} nao existe ou ja nao esta disponivel`,
+        );
+      }
+
+      if (imageMetadata.ownerUserId !== userId) {
+        throw new ForbiddenException(
+          `A imagem ${index + 1} nao pertence ao utilizador autenticado`,
+        );
+      }
+
+      if (imageMetadata.occurrenceId !== null) {
+        throw new BadRequestException(
+          `A imagem ${index + 1} ja esta associada a uma ocorrencia`,
+        );
+      }
+    }
+
+    return normalizedImageUrls;
   }
 
   /**
@@ -242,10 +295,12 @@ export class OccurrencesService {
   }
 
   /**
-   * Cria uma ocorrencia para um utilizador autenticado.
+   * Cria uma ocorrencia para um utilizador autenticado e fecha a associacao final das imagens.
    * @param userId Identificador do utilizador autor.
    * @param dto Dados da ocorrencia.
    * @return Ocorrencia criada.
+   * Pre-condicao: As imagens referenciadas no body devem pertencer ao utilizador autenticado.
+   * Pos-condicao: As novas imagens ficam marcadas como associadas apenas se a ocorrencia for criada com sucesso.
    */
   async create(
     userId: number,
@@ -261,9 +316,20 @@ export class OccurrencesService {
       dto.category === OccurrenceCategory.OUTROS
         ? dto.otherCategoryDetail?.trim()
         : null;
-    this.ensureImagesAreProvidedAsFiles(dto.imageUrls);
-    const uploadedImageUrls = await saveOccurrenceImages(files);
-    const imageUrls = uploadedImageUrls;
+    const requestedImageUrls = await this.normalizeRequestedImageUrls(
+      dto.imageUrls,
+      userId,
+    );
+
+    if (requestedImageUrls.length + files.length > occurrenceUploadConfig.maxFiles) {
+      throw new BadRequestException(
+        `Pode enviar no maximo ${occurrenceUploadConfig.maxFiles} fotografias`,
+      );
+    }
+
+    const uploadedImageUrls = await saveOccurrenceImages(files, userId);
+    const imageUrls = [...requestedImageUrls, ...uploadedImageUrls];
+    let createdOccurrenceId: number | null = null;
 
     try {
       const occurrence = await this.prisma.occurrence.create({
@@ -278,9 +344,19 @@ export class OccurrencesService {
         },
         select: this.getOwnerSelect(),
       });
+      createdOccurrenceId = occurrence.id;
+      await assignOccurrenceImagesToOccurrence(imageUrls, occurrence.id);
 
       return this.presentOccurrence(occurrence);
     } catch (error) {
+      if (createdOccurrenceId !== null) {
+        await unassignOccurrenceImagesFromOccurrence(imageUrls, createdOccurrenceId);
+        await this.prisma.occurrence
+          .delete({
+            where: { id: createdOccurrenceId },
+          })
+          .catch(() => undefined);
+      }
       await removeOccurrenceImagesByUrls(uploadedImageUrls);
       throw error;
     }
@@ -291,6 +367,7 @@ export class OccurrencesService {
    * @param userId Identificador do utilizador autenticado.
    * @param files Ficheiros recebidos no pedido multipart.
    * @return URLs publicas das imagens guardadas.
+   * Pos-condicao: Cada imagem fica registada com metadata privada do respetivo owner.
    */
   async uploadImages(userId: number, files: UploadedOccurrenceImage[] = []) {
     const user = await this.ensureExistingUser(userId);
@@ -302,7 +379,7 @@ export class OccurrencesService {
       throw new BadRequestException('Envie pelo menos uma fotografia');
     }
 
-    const imageUrls = await saveOccurrenceImages(files);
+    const imageUrls = await saveOccurrenceImages(files, userId);
 
     return {
       imageUrls,

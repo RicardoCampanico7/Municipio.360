@@ -57,4 +57,21 @@ describe('CreateOccurrenceDto', () => {
 
     expect(errors).toHaveLength(0);
   });
+
+  /**
+   * Garante que uma unica URL publica enviada no body e normalizada para array.
+   * @return void
+   */
+  it('should normalize a single image URL string into an array', async () => {
+    const dto = plainToInstance(CreateOccurrenceDto, {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      location: 'Rua A',
+      imageUrls: '/uploads/occurrences/existing.png',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.imageUrls).toEqual(['/uploads/occurrences/existing.png']);
+  });
 });

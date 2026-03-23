@@ -3,7 +3,6 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CertificationStatus, Role } from '@prisma/client';
 import { rm } from 'fs/promises';
-import { join } from 'path';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -16,6 +15,9 @@ const SMALL_IMAGE_DATA_URL =
   'data:image/png;base64,' + SMALL_IMAGE_BUFFER.toString('base64');
 const LARGE_IMAGE_BUFFER = Buffer.alloc(3 * 1024 * 1024 + 1, 1);
 
+/**
+ * Valida autenticacao, upload e associacao final de imagens no modulo de ocorrencias.
+ */
 describe('Occurrences permissions (e2e)', () => {
   let app: INestApplication<App>;
   let httpApp: Parameters<typeof request>[0];
@@ -315,7 +317,7 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
-  it('returns 400 when a certified CIVIL user tries to create an occurrence using uploaded image URLs in JSON', async () => {
+  it('returns 201 when a certified CIVIL user associates a previously uploaded image URL to an occurrence', async () => {
     const token = signToken({
       sub: 27,
       role: Role.CIVIL,
@@ -326,6 +328,31 @@ describe('Occurrences permissions (e2e)', () => {
       id: 27,
       certStatus: CertificationStatus.CERTIFIED,
     });
+    prisma.occurrence.create.mockImplementation(async ({ data }) => ({
+      id: 27,
+      title: 'Iluminacao publica',
+      category: 'Iluminacao publica',
+      categoryKey: 'ILUMINACAO_PUBLICA',
+      otherCategoryDetail: data.otherCategoryDetail,
+      description: data.description,
+      location: data.location,
+      imageUrls: data.imageUrls,
+      status: 'open',
+      statusKey: 'SUBMETIDA',
+      createdAt: new Date('2026-03-19T20:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T20:00:00.000Z'),
+      userId: data.userId,
+    }));
+
+    const uploadResponse = await request(httpApp)
+      .post('/occurrences/images')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
+        filename: 'existing.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
@@ -333,19 +360,120 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua D',
         description: 'Candeeiro partido',
-        imageUrls: ['/uploads/occurrences/existing.png'],
+        imageUrls: uploadResponse.body.imageUrls,
       })
-      .expect(400)
+      .expect(201)
       .expect(({ body }) => {
-        expect(body.message).toContain(
-          'As fotografias devem ser enviadas como ficheiros',
-        );
+        expect(body.imageUrls).toEqual(uploadResponse.body.imageUrls);
+      });
+  });
+
+  it('returns 403 when a CIVIL user tries to associate an image uploaded by another user', async () => {
+    const ownerToken = signToken({
+      sub: 29,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    const attackerToken = signToken({
+      sub: 30,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockImplementation(async ({ where }) => ({
+      id: where.id,
+      certStatus: CertificationStatus.CERTIFIED,
+    }));
+
+    const uploadResponse = await request(httpApp)
+      .post('/occurrences/images')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
+        filename: 'private.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${attackerToken}`)
+      .send({
+        category: 'ILUMINACAO_PUBLICA',
+        location: 'Rua F',
+        description: 'Tentativa invalida',
+        imageUrls: uploadResponse.body.imageUrls,
+      })
+      .expect(403)
+      .expect(({ body }) => {
+        expect(body.message).toContain('nao pertence ao utilizador autenticado');
       });
 
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
-  it('returns 400 when a certified CIVIL user tries to create an occurrence with any image URL in the body', async () => {
+  it('returns 400 when a certified CIVIL user tries to reuse an image URL already linked to another occurrence', async () => {
+    const token = signToken({
+      sub: 31,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 31,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.occurrence.create.mockImplementation(async ({ data }) => ({
+      id: Math.floor(Math.random() * 1000) + 1,
+      title: 'Iluminacao publica',
+      category: 'Iluminacao publica',
+      categoryKey: 'ILUMINACAO_PUBLICA',
+      otherCategoryDetail: data.otherCategoryDetail,
+      description: data.description,
+      location: data.location,
+      imageUrls: data.imageUrls,
+      status: 'open',
+      statusKey: 'SUBMETIDA',
+      createdAt: new Date('2026-03-19T20:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T20:00:00.000Z'),
+      userId: data.userId,
+    }));
+
+    const uploadResponse = await request(httpApp)
+      .post('/occurrences/images')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
+        filename: 'single-use.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'ILUMINACAO_PUBLICA',
+        location: 'Rua G',
+        description: 'Primeira associacao',
+        imageUrls: uploadResponse.body.imageUrls,
+      })
+      .expect(201);
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'ILUMINACAO_PUBLICA',
+        location: 'Rua H',
+        description: 'Segunda associacao',
+        imageUrls: uploadResponse.body.imageUrls,
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain('ja esta associada a uma ocorrencia');
+      });
+  });
+
+  it('returns 400 when a certified CIVIL user tries to create an occurrence with a missing uploaded image URL', async () => {
     const token = signToken({
       sub: 28,
       role: Role.CIVIL,
@@ -368,9 +496,7 @@ describe('Occurrences permissions (e2e)', () => {
       })
       .expect(400)
       .expect(({ body }) => {
-        expect(body.message).toContain(
-          'As fotografias devem ser enviadas como ficheiros',
-        );
+        expect(body.message).toContain('nao existe ou ja nao esta disponivel');
       });
 
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
