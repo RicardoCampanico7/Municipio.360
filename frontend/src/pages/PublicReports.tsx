@@ -39,7 +39,7 @@ function getFormattedDate(value: string | undefined, locale: string, fallback: s
 export default function PublicReports() {
   const navigate = useNavigate();
   const { i18n, t } = useTranslation();
-  const heroImage = "/banner.ocorrencias.png";
+  const heroImage = "/ocuurence-public.jpg";
   const [occurrences, setOccurrences] = useState<ApiOccurrence[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
