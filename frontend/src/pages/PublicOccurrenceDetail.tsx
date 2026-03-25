@@ -220,7 +220,7 @@ export default function PublicOccurrenceDetail() {
 
     return ["CONCLUIDA"];
   }, [currentStatusKey]);
-  const heroImage = occurrence?.imageUrls?.[0] || "/banner.ocorrencias.png";
+  const heroImage = occurrence?.imageUrls?.[0] || "/ocurrence-all-photo.jpg";
   const occurrenceReference = formatOccurrenceReference(
     occurrence?.id ?? occurrenceId,
     occurrence?.createdAt || occurrence?.updatedAt,

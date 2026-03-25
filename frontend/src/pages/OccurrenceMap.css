@@ -81,7 +81,7 @@
   color: #ffffff;
   background:
     linear-gradient(115deg, rgba(18, 16, 13, 0.82) 0%, rgba(18, 16, 13, 0.46) 44%, rgba(18, 16, 13, 0.18) 100%),
-    url("/dashboard-banner.png") center / cover no-repeat;
+    url("/ocurrence-mapa.jpg") center 49% / cover no-repeat;
 }
 
 .occurrence-map-eyebrow {
