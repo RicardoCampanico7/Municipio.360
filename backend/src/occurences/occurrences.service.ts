@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
+import { OccurrenceCategory, OccurrenceStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import {
@@ -63,8 +63,9 @@ type PresentedOccurrence<T extends PresentableOccurrence> = Omit<
 /**
  * Centraliza a logica de criacao, consulta e gestao de ocorrencias.
  * @author Alan Martynyuk e Guilherme Gaspar
- * @version 23/03/2026
+ * @version 04/04/2026
  * @inv As consultas publicas nao devem expor dados sensiveis do autor das ocorrencias.
+ * @inv Cada mudanca valida de estado deve ficar refletida no historico persistido da ocorrencia.
  */
 @Injectable()
 export class OccurrencesService {
@@ -77,7 +78,7 @@ export class OccurrencesService {
   /**
    * Garante que o utilizador autenticado ainda existe antes de criar registos dependentes.
    * @param userId Identificador do utilizador autenticado.
-   * @return Promise<void> Promessa resolvida quando o utilizador existe.
+   * @return Promise<{ id: number } | null> Utilizador reduzido ou null quando nao existe.
    */
   private async ensureExistingUser(userId: number) {
     return this.prisma.user.findUnique({
@@ -90,7 +91,9 @@ export class OccurrencesService {
    * Garante que a transicao de estado respeita o fluxo definido para ocorrencias.
    * @param currentStatus Estado atual persistido.
    * @param nextStatus Estado pretendido.
-   * @return Promise<void> Promessa resolvida quando a transicao e permitida.
+   * @return void Termina silenciosamente quando a transicao e permitida.
+   * Pre-condicao: Ambos os estados devem pertencer ao enum de ocorrencias.
+   * Pos-condicao: E lancada excecao quando a transicao nao respeita o fluxo definido.
    */
   private ensureAllowedStatusTransition(
     currentStatus: OccurrenceStatus,
@@ -246,6 +249,26 @@ export class OccurrencesService {
   }
 
   /**
+   * Persiste uma entrada de historico com o estado atualmente assumido pela ocorrencia.
+   * @param prisma Cliente transacional usado na operacao atomica.
+   * @param occurrenceId Identificador da ocorrencia alterada.
+   * @param status Estado que passou a vigorar.
+   * @return Promise<void> Promessa resolvida apos inserir a linha de historico.
+   * Pre-condicao: A ocorrencia ja deve existir e a transacao deve permanecer ativa.
+   * Pos-condicao: Fica registada uma linha cronologica para o estado indicado.
+   */
+  private async createStatusHistoryEntry(
+    prisma: Prisma.TransactionClient,
+    occurrenceId: number,
+    status: OccurrenceStatus,
+  ) {
+    await prisma.$executeRaw`
+      INSERT INTO "OccurrenceStatusHistory" ("occurrenceId", "status")
+      VALUES (${occurrenceId}, CAST(${status} AS "OccurrenceStatus"))
+    `;
+  }
+
+  /**
    * Define os campos publicos devolvidos nas respostas de ocorrencias.
    * @return Selecao Prisma com os campos publicos.
    */
@@ -298,8 +321,10 @@ export class OccurrencesService {
    * Cria uma ocorrencia para um utilizador autenticado e fecha a associacao final das imagens.
    * @param userId Identificador do utilizador autor.
    * @param dto Dados da ocorrencia.
+   * @param files Ficheiros enviados no pedido multipart.
    * @return Ocorrencia criada.
    * Pre-condicao: As imagens referenciadas no body devem pertencer ao utilizador autenticado.
+   * Pos-condicao: A ocorrencia nasce com estado SUBMETIDA e com a respetiva entrada inicial no historico.
    * Pos-condicao: As novas imagens ficam marcadas como associadas apenas se a ocorrencia for criada com sucesso.
    */
   async create(
@@ -321,7 +346,10 @@ export class OccurrencesService {
       userId,
     );
 
-    if (requestedImageUrls.length + files.length > occurrenceUploadConfig.maxFiles) {
+    if (
+      requestedImageUrls.length + files.length >
+      occurrenceUploadConfig.maxFiles
+    ) {
       throw new BadRequestException(
         `Pode enviar no maximo ${occurrenceUploadConfig.maxFiles} fotografias`,
       );
@@ -329,20 +357,31 @@ export class OccurrencesService {
 
     const uploadedImageUrls = await saveOccurrenceImages(files, userId);
     const imageUrls = [...requestedImageUrls, ...uploadedImageUrls];
+    const initialStatus = OccurrenceStatus.SUBMETIDA;
     let createdOccurrenceId: number | null = null;
 
     try {
-      const occurrence = await this.prisma.occurrence.create({
-        data: {
-          category: dto.category,
-          otherCategoryDetail,
-          description: dto.description?.trim() ?? '',
-          location: dto.location,
-          imageUrls,
-          status: OccurrenceStatus.SUBMETIDA,
-          userId,
-        },
-        select: this.getOwnerSelect(),
+      const occurrence = await this.prisma.$transaction(async (tx) => {
+        const createdOccurrence = await tx.occurrence.create({
+          data: {
+            category: dto.category,
+            otherCategoryDetail,
+            description: dto.description?.trim() ?? '',
+            location: dto.location,
+            imageUrls,
+            status: initialStatus,
+            userId,
+          },
+          select: this.getOwnerSelect(),
+        });
+
+        await this.createStatusHistoryEntry(
+          tx,
+          createdOccurrence.id,
+          initialStatus,
+        );
+
+        return createdOccurrence;
       });
       createdOccurrenceId = occurrence.id;
       await assignOccurrenceImagesToOccurrence(imageUrls, occurrence.id);
@@ -350,7 +389,10 @@ export class OccurrencesService {
       return this.presentOccurrence(occurrence);
     } catch (error) {
       if (createdOccurrenceId !== null) {
-        await unassignOccurrenceImagesFromOccurrence(imageUrls, createdOccurrenceId);
+        await unassignOccurrenceImagesFromOccurrence(
+          imageUrls,
+          createdOccurrenceId,
+        );
         await this.prisma.occurrence
           .delete({
             where: { id: createdOccurrenceId },
@@ -366,7 +408,7 @@ export class OccurrencesService {
    * Guarda fotografias avulsas para posterior anexo a uma ocorrencia.
    * @param userId Identificador do utilizador autenticado.
    * @param files Ficheiros recebidos no pedido multipart.
-   * @return URLs publicas das imagens guardadas.
+   * @return {{ imageUrls: string[] }} URLs publicas das imagens guardadas.
    * Pos-condicao: Cada imagem fica registada com metadata privada do respetivo owner.
    */
   async uploadImages(userId: number, files: UploadedOccurrenceImage[] = []) {
@@ -508,16 +550,30 @@ export class OccurrencesService {
    * Atualiza o estado de uma ocorrencia existente.
    * @param id Identificador da ocorrencia.
    * @param status Novo estado da ocorrencia.
-   * @return Ocorrencia atualizada.
+   * @return Ocorrencia atualizada, ou a ocorrencia atual quando nao ha mudanca real.
+   * Pre-condicao: A ocorrencia deve existir e a transicao pedida deve ser permitida.
+   * Pos-condicao: Quando o estado muda, a ocorrencia e o historico sao persistidos atomicamente.
+   * Pos-condicao: Quando o estado pedido coincide com o atual, nao e criada entrada duplicada de historico.
    */
   async updateStatus(id: number, status: OccurrenceStatus) {
-    const occurrence = await this.findOne(id);
+    const occurrence = await this.findOneForOperator(id);
+
+    if (occurrence.status === status) {
+      return occurrence;
+    }
+
     this.ensureAllowedStatusTransition(occurrence.status, status);
 
-    return this.prisma.occurrence.update({
-      where: { id },
-      data: { status },
-      select: this.getOperatorSelect(),
+    return this.prisma.$transaction(async (tx) => {
+      const updatedOccurrence = await tx.occurrence.update({
+        where: { id },
+        data: { status },
+        select: this.getOperatorSelect(),
+      });
+
+      await this.createStatusHistoryEntry(tx, id, status);
+
+      return updatedOccurrence;
     });
   }
 

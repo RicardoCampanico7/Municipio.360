@@ -29,16 +29,29 @@ model Occurrence {
   location            String
   status              OccurrenceStatus   @default(SUBMETIDA)
 
-  imageUrls           String[]           @default([])
+  imageUrls     String[]                  @default([])
+  statusHistory OccurrenceStatusHistory[]
 
-  userId              Int
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
+}
+
+model OccurrenceStatusHistory {
+  id     Int              @id @default(autoincrement())
+  status OccurrenceStatus
+
+  occurrenceId Int
+  occurrence   Occurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([occurrenceId, createdAt])
 }
 
 enum CertificationStatus {

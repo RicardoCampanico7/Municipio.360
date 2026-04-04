@@ -52,6 +52,8 @@ jest.mock('./occurrence-upload', () => ({
 describe('OccurrencesService', () => {
   let service: OccurrencesService;
   let prisma: {
+    $executeRaw: jest.Mock;
+    $transaction: jest.Mock;
     user: {
       findUnique: jest.Mock;
     };
@@ -63,6 +65,27 @@ describe('OccurrencesService', () => {
       delete: jest.Mock;
     };
   };
+
+  /**
+   * Confirma que a operacao testada registou a ultima entrada esperada no historico de estados.
+   * @param occurrenceId Identificador da ocorrencia usada no teste.
+   * @param status Estado esperado na ultima insercao.
+   * @return void
+   */
+  function expectLatestStatusHistoryInsert(
+    occurrenceId: number,
+    status: OccurrenceStatus,
+  ) {
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+
+    const latestCall =
+      prisma.$executeRaw.mock.calls[prisma.$executeRaw.mock.calls.length - 1];
+    const [queryParts, recordedOccurrenceId, recordedStatus] = latestCall;
+
+    expect(queryParts.join('')).toContain('"OccurrenceStatusHistory"');
+    expect(recordedOccurrenceId).toBe(occurrenceId);
+    expect(recordedStatus).toBe(status);
+  }
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -91,6 +114,8 @@ describe('OccurrencesService', () => {
     );
 
     prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $transaction: jest.fn(),
       user: {
         findUnique: jest.fn(),
       },
@@ -102,6 +127,9 @@ describe('OccurrencesService', () => {
         delete: jest.fn(),
       },
     };
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback(prisma),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -440,10 +468,7 @@ describe('OccurrencesService', () => {
       select: expect.any(Object),
     });
     expect(assignOccurrenceImagesToOccurrence).toHaveBeenCalledWith(
-      [
-        '/uploads/occurrences/existing.png',
-        '/uploads/occurrences/new.png',
-      ],
+      ['/uploads/occurrences/existing.png', '/uploads/occurrences/new.png'],
       78,
     );
   });
@@ -766,6 +791,130 @@ describe('OccurrencesService', () => {
         userId: true,
       },
     });
+    expectLatestStatusHistoryInsert(1, OccurrenceStatus.SUBMETIDA);
+  });
+
+  /**
+   * Garante que uma mudanca valida de estado grava uma nova entrada de historico.
+   * @return void
+   */
+  it('should persist a history entry when the occurrence status changes', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 1,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
+      userId: 10,
+      user: {
+        id: 10,
+        name: 'Operador',
+        email: 'operador@teste.pt',
+        postalCode: '8000-000',
+        role: 'OPERADOR',
+        certStatus: 'CERTIFIED',
+      },
+    });
+    prisma.occurrence.update.mockResolvedValue({
+      id: 1,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-20T09:00:00.000Z'),
+      userId: 10,
+      user: {
+        id: 10,
+        name: 'Operador',
+        email: 'operador@teste.pt',
+        postalCode: '8000-000',
+        role: 'OPERADOR',
+        certStatus: 'CERTIFIED',
+      },
+    });
+
+    const result = await service.updateStatus(
+      1,
+      OccurrenceStatus.EM_TRATAMENTO,
+    );
+
+    expect(prisma.occurrence.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: OccurrenceStatus.EM_TRATAMENTO },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            postalCode: true,
+            role: true,
+            certStatus: true,
+          },
+        },
+      },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: OccurrenceStatus.EM_TRATAMENTO,
+      }),
+    );
+    expectLatestStatusHistoryInsert(1, OccurrenceStatus.EM_TRATAMENTO);
+  });
+
+  /**
+   * Garante que pedidos sem mudanca real de estado nao criam historico duplicado.
+   * @return void
+   */
+  it('should skip updates when the occurrence status is unchanged', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 1,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
+      userId: 10,
+      user: {
+        id: 10,
+        name: 'Operador',
+        email: 'operador@teste.pt',
+        postalCode: '8000-000',
+        role: 'OPERADOR',
+        certStatus: 'CERTIFIED',
+      },
+    });
+
+    const result = await service.updateStatus(1, OccurrenceStatus.SUBMETIDA);
+
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: OccurrenceStatus.SUBMETIDA,
+      }),
+    );
   });
 
   /**
@@ -783,6 +932,7 @@ describe('OccurrencesService', () => {
       service.updateStatus(1, OccurrenceStatus.SUBMETIDA),
     ).rejects.toBeInstanceOf(BadRequestException);
 
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
     expect(prisma.occurrence.update).not.toHaveBeenCalled();
   });
 });
