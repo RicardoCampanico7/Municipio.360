@@ -9,6 +9,23 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConflictResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { ValidationErrorResponseDto, ApiErrorResponseDto } from '../docs/dto/api-error-response.dto';
+import {
+  AuthLoginResponseDto,
+  AuthMeResponseDto,
+  AuthRegisterResponseDto,
+} from '../docs/dto/auth-response.dto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
@@ -20,6 +37,7 @@ import { RegisterDto } from './dto/register.dto';
  * @version 16/03/2026
  * @inv As operacoes de autenticacao nao devem expor hashes nem dados sensiveis desnecessarios.
  */
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   /**
@@ -37,6 +55,20 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Autenticar utilizador e obter JWT' })
+  @ApiBody({ type: LoginDto })
+  @ApiOkResponse({
+    description: 'Login efetuado com sucesso',
+    type: AuthLoginResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Credenciais invalidas',
+    type: ApiErrorResponseDto,
+  })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
@@ -49,6 +81,21 @@ export class AuthController {
    * Pos-condicao: O utilizador fica persistido com password em hash.
    */
   @Post('register')
+  @ApiOperation({ summary: 'Registar novo utilizador' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Utilizador registado com sucesso',
+    type: AuthRegisterResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Dados invalidos',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'Email ja registado',
+    type: ApiErrorResponseDto,
+  })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -60,6 +107,16 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('me')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Obter perfil do utilizador autenticado' })
+  @ApiOkResponse({
+    description: 'Perfil devolvido com sucesso',
+    type: AuthMeResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao ou token invalido',
+    type: ApiErrorResponseDto,
+  })
   me(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
     return this.authService.me(Number(authUser?.sub));

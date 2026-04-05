@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { PublicMenuResponseDto } from '../docs/dto/menu-response.dto';
 import { MenuService } from './menu.service';
 
 /**
@@ -25,9 +26,9 @@ export class MenuController {
   @Get()
   @ApiOperation({ summary: 'Obter dados publicos do menu' })
   @ApiQuery({ name: 'lang', required: false, example: 'pt' })
-  @ApiResponse({
-    status: 200,
+  @ApiOkResponse({
     description: 'Menu publico devolvido com sucesso',
+    type: PublicMenuResponseDto,
   })
   findPublic(@Query('lang') lang?: string) {
     return this.menuService.getPublicMenu(lang);
@@ -41,9 +42,9 @@ export class MenuController {
   @Get('public')
   @ApiOperation({ summary: 'Alias publico para obter os dados do menu' })
   @ApiQuery({ name: 'lang', required: false, example: 'pt' })
-  @ApiResponse({
-    status: 200,
+  @ApiOkResponse({
     description: 'Menu publico devolvido com sucesso',
+    type: PublicMenuResponseDto,
   })
   findPublicAlias(@Query('lang') lang?: string) {
     return this.menuService.getPublicMenu(lang);

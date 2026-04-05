@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { OccurrenceStatus } from '@prisma/client';
 import { IsEnum } from 'class-validator';
 
@@ -8,6 +9,11 @@ import { IsEnum } from 'class-validator';
  * @inv O estado deve corresponder a um valor valido do enum OccurrenceStatus.
  */
 export class UpdateOccurrenceStatusDto {
+  @ApiProperty({
+    enum: OccurrenceStatus,
+    example: OccurrenceStatus.EM_TRATAMENTO,
+    description: 'Novo estado da ocorrencia',
+  })
   @IsEnum(OccurrenceStatus)
   status: OccurrenceStatus;
 }
