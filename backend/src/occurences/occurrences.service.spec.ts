@@ -1,9 +1,15 @@
 import {
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { OccurrenceCategory, OccurrenceStatus } from '@prisma/client';
+import {
+  CertificationStatus,
+  OccurrenceCategory,
+  OccurrenceStatus,
+  Role,
+} from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -240,6 +246,126 @@ describe('OccurrencesService', () => {
     );
     expect(result).not.toHaveProperty('userId');
     expect(result).not.toHaveProperty('user');
+  });
+
+  /**
+   * Garante que o detalhe de gestao inclui comentarios internos e respetivo autor.
+   * @return void
+   */
+  it('should include internal comments and their authors on operator detail', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [
+        {
+          id: 3,
+          content: 'Verificado no terreno.',
+          occurrenceId: 42,
+          userId: 99,
+          createdAt: new Date('2026-04-05T09:30:00.000Z'),
+          updatedAt: new Date('2026-04-05T09:30:00.000Z'),
+          user: {
+            id: 99,
+            name: 'Operador',
+            email: 'operador@example.com',
+            role: Role.OPERADOR,
+          },
+        },
+      ],
+    });
+
+    const result = await service.findOneForOperator(42);
+
+    expect(prisma.occurrence.findUnique).toHaveBeenCalledWith({
+      where: { id: 42 },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            postalCode: true,
+            role: true,
+            certStatus: true,
+          },
+        },
+        internalComments: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          select: {
+            id: true,
+            content: true,
+            occurrenceId: true,
+            userId: true,
+            createdAt: true,
+            updatedAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 42,
+        internalComments: [
+          expect.objectContaining({
+            id: 3,
+            content: 'Verificado no terreno.',
+            user: expect.objectContaining({
+              id: 99,
+              name: 'Operador',
+              role: Role.OPERADOR,
+            }),
+          }),
+        ],
+      }),
+    );
+  });
+
+  /**
+   * Garante que o detalhe de gestao falha quando a ocorrencia nao existe.
+   * @return void
+   */
+  it('should throw not found on operator detail when occurrence is missing', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    await expect(service.findOneForOperator(999)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   /**
@@ -867,6 +993,27 @@ describe('OccurrencesService', () => {
             postalCode: true,
             role: true,
             certStatus: true,
+          },
+        },
+        internalComments: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          select: {
+            id: true,
+            content: true,
+            occurrenceId: true,
+            userId: true,
+            createdAt: true,
+            updatedAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
           },
         },
       },

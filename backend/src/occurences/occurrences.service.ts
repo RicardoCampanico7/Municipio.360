@@ -299,26 +299,6 @@ export class OccurrencesService {
   }
 
   /**
-   * Define os campos devolvidos em contexto de operacao interna.
-   * @return Selecao Prisma com dados da ocorrencia e do autor.
-   */
-  private getOperatorSelect() {
-    return {
-      ...this.getOwnerSelect(),
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          postalCode: true,
-          role: true,
-          certStatus: true,
-        },
-      },
-    } as const;
-  }
-
-  /**
    * Define os campos devolvidos nos comentarios internos de ocorrencias.
    * @return Selecao Prisma com dados do comentario e autor.
    */
@@ -337,6 +317,32 @@ export class OccurrencesService {
           email: true,
           role: true,
         },
+      },
+    } as const;
+  }
+
+  /**
+   * Define os campos devolvidos em contexto de operacao interna.
+   * @return Selecao Prisma com dados da ocorrencia e do autor.
+   */
+  private getOperatorSelect() {
+    return {
+      ...this.getOwnerSelect(),
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          postalCode: true,
+          role: true,
+          certStatus: true,
+        },
+      },
+      internalComments: {
+        orderBy: {
+          createdAt: 'asc',
+        },
+        select: this.getInternalCommentSelect(),
       },
     } as const;
   }
