@@ -1,4 +1,5 @@
 import { Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MinLength } from 'class-validator';
 
 /**
@@ -8,6 +9,11 @@ import { IsString, MinLength } from 'class-validator';
  * @inv O comentario interno deve conter texto com conteudo minimo.
  */
 export class CreateOccurrenceInternalCommentDto {
+  @ApiProperty({
+    example: 'Equipa de manutencao notificada para verificacao no local.',
+    description: 'Conteudo do comentario interno',
+    minLength: 1,
+  })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)

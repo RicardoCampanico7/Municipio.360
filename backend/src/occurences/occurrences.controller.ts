@@ -17,18 +17,36 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiCreatedResponse,
   ApiConsumes,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OccurrenceCategory, Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import {
+  ApiErrorResponseDto,
+  ValidationErrorResponseDto,
+} from '../docs/dto/api-error-response.dto';
+import { ModuleHealthResponseDto } from '../docs/dto/app-response.dto';
+import {
+  OccurrenceImageUploadResponseDto,
+  OccurrenceInternalCommentResponseDto,
+  OperatorOccurrenceResponseDto,
+  OwnerOccurrenceResponseDto,
+  PublicOccurrenceResponseDto,
+} from '../docs/dto/occurrence-response.dto';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import { OccurrenceUploadExceptionFilter } from './occurrence-upload-exception.filter';
 import {
@@ -82,7 +100,11 @@ export class OccurrencesController {
    */
   @Get()
   @ApiOperation({ summary: 'Listar ocorrencias publicas' })
-  @ApiResponse({ status: 200, description: 'Lista publica de ocorrencias' })
+  @ApiOkResponse({
+    description: 'Lista publica de ocorrencias',
+    type: PublicOccurrenceResponseDto,
+    isArray: true,
+  })
   findAll() {
     return this.occurrencesService.findAll();
   }
@@ -93,7 +115,10 @@ export class OccurrencesController {
    */
   @Get('health')
   @ApiOperation({ summary: 'Health check do modulo de ocorrencias' })
-  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiOkResponse({
+    description: 'Modulo operacional',
+    type: ModuleHealthResponseDto,
+  })
   health() {
     return { status: 'ok' };
   }
@@ -106,15 +131,22 @@ export class OccurrencesController {
   @Get('mine')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Listar ocorrencias do utilizador autenticado (CIVIL)',
   })
-  @ApiResponse({ status: 200, description: 'Lista devolvida' })
-  @ApiResponse({ status: 401, description: 'Sem autenticacao' })
-  @ApiResponse({
-    status: 403,
+  @ApiOkResponse({
+    description: 'Lista devolvida',
+    type: OwnerOccurrenceResponseDto,
+    isArray: true,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
+    type: ApiErrorResponseDto,
   })
   findMine(@Req() req: Request) {
     const userId = this.getUserId(req);
@@ -129,9 +161,22 @@ export class OccurrencesController {
   @Get('mine/list')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Alias legado para listar ocorrencias do utilizador autenticado',
+  })
+  @ApiOkResponse({
+    description: 'Lista devolvida',
+    type: OwnerOccurrenceResponseDto,
+    isArray: true,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes (nao e CIVIL)',
+    type: ApiErrorResponseDto,
   })
   findMineLegacy(@Req() req: Request) {
     const userId = this.getUserId(req);
@@ -147,15 +192,26 @@ export class OccurrencesController {
   @Get('mine/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CIVIL)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Detalhe de uma ocorrencia do utilizador autenticado (CIVIL)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
-  @ApiResponse({ status: 200, description: 'Ocorrencia encontrada' })
-  @ApiResponse({
-    status: 403,
+  @ApiOkResponse({
+    description: 'Ocorrencia encontrada',
+    type: OwnerOccurrenceResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
     description: 'A ocorrencia nao pertence ao utilizador autenticado',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
   })
   findMineById(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
     const userId = this.getUserId(req);
@@ -169,9 +225,22 @@ export class OccurrencesController {
   @Get('management')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Listar ocorrencias com dados do autor para operadores',
+  })
+  @ApiOkResponse({
+    description: 'Lista de ocorrencias para gestao interna',
+    type: OperatorOccurrenceResponseDto,
+    isArray: true,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para consultar a area de gestao',
+    type: ApiErrorResponseDto,
   })
   findAllForOperator() {
     return this.occurrencesService.findAllForOperator();
@@ -185,9 +254,25 @@ export class OccurrencesController {
   @Get('management/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({ summary: 'Obter detalhe de uma ocorrencia para operadores' })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiOkResponse({
+    description: 'Ocorrencia encontrada',
+    type: OperatorOccurrenceResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para consultar a area de gestao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
   findOneForOperator(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOneForOperator(id);
   }
@@ -200,11 +285,28 @@ export class OccurrencesController {
   @Get('management/:id/internal-comments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Listar comentarios internos de uma ocorrencia para operadores',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiOkResponse({
+    description: 'Comentarios internos devolvidos',
+    type: OccurrenceInternalCommentResponseDto,
+    isArray: true,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para consultar comentarios internos',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
   listInternalComments(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.listInternalComments(id);
   }
@@ -219,11 +321,32 @@ export class OccurrencesController {
   @Post('management/:id/internal-comments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Criar comentario interno numa ocorrencia para operadores',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiBody({ type: CreateOccurrenceInternalCommentDto })
+  @ApiCreatedResponse({
+    description: 'Comentario interno criado',
+    type: OccurrenceInternalCommentResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para comentar internamente',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
   createInternalComment(
     @Req() req: Request,
     @Param('id', ParseIntPipe) id: number,
@@ -241,8 +364,14 @@ export class OccurrencesController {
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe publico de uma ocorrencia' })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
-  @ApiResponse({ status: 200, description: 'Ocorrencia encontrada' })
-  @ApiResponse({ status: 404, description: 'Ocorrencia nao existe' })
+  @ApiOkResponse({
+    description: 'Ocorrencia encontrada',
+    type: PublicOccurrenceResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
   findOnePublic(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOnePublic(id);
   }
@@ -264,7 +393,7 @@ export class OccurrencesController {
       getOccurrenceMulterOptions(),
     ),
   )
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Fazer upload de imagens para anexar a uma ocorrencia',
   })
@@ -285,15 +414,21 @@ export class OccurrencesController {
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Imagens carregadas com sucesso' })
-  @ApiResponse({
-    status: 400,
-    description: 'Pedido invalido ou upload rejeitado',
+  @ApiCreatedResponse({
+    description: 'Imagens carregadas com sucesso',
+    type: OccurrenceImageUploadResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Sem autenticacao' })
-  @ApiResponse({
-    status: 403,
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido ou upload rejeitado',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
+    type: ApiErrorResponseDto,
   })
   uploadImages(
     @Req() req: Request,
@@ -320,7 +455,7 @@ export class OccurrencesController {
       getOccurrenceMulterOptions(),
     ),
   )
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({ summary: 'Criar ocorrencia (apenas CIVIL autenticado)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -357,15 +492,21 @@ export class OccurrencesController {
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Ocorrencia criada' })
-  @ApiResponse({
-    status: 400,
-    description: 'Pedido invalido ou upload rejeitado',
+  @ApiCreatedResponse({
+    description: 'Ocorrencia criada',
+    type: OwnerOccurrenceResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Sem autenticacao' })
-  @ApiResponse({
-    status: 403,
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido ou upload rejeitado',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
+    type: ApiErrorResponseDto,
   })
   create(
     @Req() req: Request,
@@ -385,11 +526,32 @@ export class OccurrencesController {
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Atualizar estado de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiBody({ type: UpdateOccurrenceStatusDto })
+  @ApiOkResponse({
+    description: 'Ocorrencia atualizada',
+    type: OperatorOccurrenceResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Transicao de estado invalida ou body invalido',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para atualizar a ocorrencia',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOccurrenceStatusDto,
@@ -405,9 +567,25 @@ export class OccurrencesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({ summary: 'Remover ocorrencia (OPERADOR ou ADMINISTRADOR)' })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiOkResponse({
+    description: 'Ocorrencia removida',
+    type: OperatorOccurrenceResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para remover a ocorrencia',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.remove(id);
   }
