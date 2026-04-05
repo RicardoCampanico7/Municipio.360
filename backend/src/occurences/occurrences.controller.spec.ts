@@ -25,6 +25,8 @@ describe('OccurrencesController', () => {
             findMineById: jest.fn(),
             findAllForOperator: jest.fn(),
             findOneForOperator: jest.fn(),
+            listInternalComments: jest.fn(),
+            createInternalComment: jest.fn(),
             findOnePublic: jest.fn(),
             uploadImages: jest.fn(),
             create: jest.fn(),
@@ -68,6 +70,42 @@ describe('OccurrencesController', () => {
     const roles = Reflect.getMetadata(
       ROLES_KEY,
       controller.findOneForOperator,
+    ) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
+  });
+
+  /**
+   * Garante que a listagem de comentarios internos exige JWT e roles internas.
+   * @return void
+   */
+  it('should protect the internal comments list route with JWT and backoffice roles', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.listInternalComments,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.listInternalComments,
+    ) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
+  });
+
+  /**
+   * Garante que a criacao de comentarios internos exige JWT e roles internas.
+   * @return void
+   */
+  it('should protect the internal comments create route with JWT and backoffice roles', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.createInternalComment,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.createInternalComment,
     ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);

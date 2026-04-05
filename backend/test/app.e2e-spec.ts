@@ -1,7 +1,12 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CertificationStatus, Role } from '@prisma/client';
+import {
+  CertificationStatus,
+  OccurrenceCategory,
+  OccurrenceStatus,
+  Role,
+} from '@prisma/client';
 import { rm } from 'fs/promises';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -686,6 +691,11 @@ describe('Occurrences permissions (e2e)', () => {
       .get('/occurrences/management')
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
+
+    await request(httpApp)
+      .get('/occurrences/management/22')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
   });
 
   it('returns 200 when an OPERADOR accesses the management list', async () => {
@@ -702,5 +712,78 @@ describe('Occurrences permissions (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200)
       .expect([]);
+  });
+
+  it('returns 200 with internal comments and authors when an OPERADOR accesses the management detail', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 22,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: 'Sinal tombado',
+      location: 'Avenida do Municipio',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T11:30:00.000Z'),
+      userId: 8,
+      user: {
+        id: 8,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [
+        {
+          id: 5,
+          content: 'Equipa notificada.',
+          occurrenceId: 22,
+          userId: 15,
+          createdAt: new Date('2026-04-05T10:00:00.000Z'),
+          updatedAt: new Date('2026-04-05T10:05:00.000Z'),
+          user: {
+            id: 15,
+            name: 'Operador Municipal',
+            email: 'operador@example.com',
+            role: Role.OPERADOR,
+          },
+        },
+      ],
+    });
+
+    const token = signToken({
+      sub: 15,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .get('/occurrences/management/22')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            id: 22,
+            user: expect.objectContaining({
+              id: 8,
+              name: 'Cidadao',
+              role: Role.CIVIL,
+            }),
+            internalComments: [
+              expect.objectContaining({
+                id: 5,
+                content: 'Equipa notificada.',
+                user: expect.objectContaining({
+                  id: 15,
+                  name: 'Operador Municipal',
+                  role: Role.OPERADOR,
+                }),
+              }),
+            ],
+          }),
+        );
+      });
   });
 });
