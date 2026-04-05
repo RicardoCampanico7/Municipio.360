@@ -8,6 +8,7 @@ import {
 import { OccurrenceCategory, OccurrenceStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
+import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
 import {
   assignOccurrenceImagesToOccurrence,
   getOccurrenceImageMetadataByUrl,
@@ -318,6 +319,29 @@ export class OccurrencesService {
   }
 
   /**
+   * Define os campos devolvidos nos comentarios internos de ocorrencias.
+   * @return Selecao Prisma com dados do comentario e autor.
+   */
+  private getInternalCommentSelect() {
+    return {
+      id: true,
+      content: true,
+      occurrenceId: true,
+      userId: true,
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
+    } as const;
+  }
+
+  /**
    * Cria uma ocorrencia para um utilizador autenticado e fecha a associacao final das imagens.
    * @param userId Identificador do utilizador autor.
    * @param dto Dados da ocorrencia.
@@ -544,6 +568,76 @@ export class OccurrencesService {
     }
 
     return occurrence;
+  }
+
+  /**
+   * Lista os comentarios internos de uma ocorrencia existente.
+   * @param occurrenceId Identificador da ocorrencia.
+   * @return Lista cronologica de comentarios internos.
+   */
+  async listInternalComments(occurrenceId: number) {
+    const occurrence = await this.prisma.occurrence.findUnique({
+      where: { id: occurrenceId },
+      select: {
+        id: true,
+        internalComments: {
+          orderBy: { createdAt: 'asc' },
+          select: this.getInternalCommentSelect(),
+        },
+      },
+    });
+
+    if (!occurrence) {
+      throw new NotFoundException('Occurrence not found');
+    }
+
+    return occurrence.internalComments;
+  }
+
+  /**
+   * Cria um comentario interno associado a uma ocorrencia existente.
+   * @param occurrenceId Identificador da ocorrencia.
+   * @param userId Identificador do utilizador autenticado que comenta.
+   * @param dto Conteudo do comentario.
+   * @return Comentario interno criado com dados reduzidos do autor.
+   */
+  async createInternalComment(
+    occurrenceId: number,
+    userId: number,
+    dto: CreateOccurrenceInternalCommentDto,
+  ) {
+    await this.findOneForOperator(occurrenceId);
+
+    const user = await this.ensureExistingUser(userId);
+    if (!user) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
+    const occurrence = await this.prisma.occurrence.update({
+      where: { id: occurrenceId },
+      data: {
+        internalComments: {
+          create: {
+            userId,
+            content: dto.content.trim(),
+          },
+        },
+      },
+      select: {
+        internalComments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: this.getInternalCommentSelect(),
+        },
+      },
+    });
+
+    const [createdComment] = occurrence.internalComments;
+    if (!createdComment) {
+      throw new BadRequestException('Nao foi possivel criar o comentario interno');
+    }
+
+    return createdComment;
   }
 
   /**

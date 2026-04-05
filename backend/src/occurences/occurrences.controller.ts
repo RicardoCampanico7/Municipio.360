@@ -37,6 +37,7 @@ import {
   type UploadedOccurrenceImage,
 } from './occurrence-upload';
 import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
+import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
 import { OccurrencesService } from './occurrences.service';
 
 /**
@@ -189,6 +190,47 @@ export class OccurrencesController {
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
   findOneForOperator(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOneForOperator(id);
+  }
+
+  /**
+   * Lista os comentarios internos de uma ocorrencia para utilizacao operacional.
+   * @param id Identificador da ocorrencia.
+   * @return Lista cronologica de comentarios internos.
+   */
+  @Get('management/:id/internal-comments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Listar comentarios internos de uma ocorrencia para operadores',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  listInternalComments(@Param('id', ParseIntPipe) id: number) {
+    return this.occurrencesService.listInternalComments(id);
+  }
+
+  /**
+   * Cria um comentario interno associado a uma ocorrencia.
+   * @param req Pedido HTTP autenticado.
+   * @param id Identificador da ocorrencia.
+   * @param dto Conteudo do comentario interno.
+   * @return Comentario interno criado.
+   */
+  @Post('management/:id/internal-comments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Criar comentario interno numa ocorrencia para operadores',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  createInternalComment(
+    @Req() req: Request,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateOccurrenceInternalCommentDto,
+  ) {
+    const userId = this.getUserId(req);
+    return this.occurrencesService.createInternalComment(id, userId, dto);
   }
 
   /**
