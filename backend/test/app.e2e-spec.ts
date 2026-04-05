@@ -23,6 +23,8 @@ describe('Occurrences permissions (e2e)', () => {
   let httpApp: Parameters<typeof request>[0];
   let jwtService: JwtService;
   let prisma: {
+    $executeRaw: jest.Mock;
+    $transaction: jest.Mock;
     user: {
       findUnique: jest.Mock;
       findMany: jest.Mock;
@@ -42,6 +44,8 @@ describe('Occurrences permissions (e2e)', () => {
 
   beforeEach(async () => {
     prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $transaction: jest.fn(),
       user: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
@@ -54,6 +58,9 @@ describe('Occurrences permissions (e2e)', () => {
         delete: jest.fn(),
       },
     };
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback(prisma),
+    );
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -84,6 +91,11 @@ describe('Occurrences permissions (e2e)', () => {
     });
   });
 
+  /**
+   * Gera um JWT valido para simular perfis autenticados nos testes e2e.
+   * @param param0 Dados minimos do utilizador autenticado.
+   * @return string Token assinado pronto para enviar no header Authorization.
+   */
   function signToken({
     sub,
     role,
@@ -405,7 +417,9 @@ describe('Occurrences permissions (e2e)', () => {
       })
       .expect(403)
       .expect(({ body }) => {
-        expect(body.message).toContain('nao pertence ao utilizador autenticado');
+        expect(body.message).toContain(
+          'nao pertence ao utilizador autenticado',
+        );
       });
 
     expect(prisma.occurrence.create).not.toHaveBeenCalled();

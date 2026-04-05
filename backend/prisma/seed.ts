@@ -4,6 +4,7 @@ import {
   Role,
   OccurrenceCategory,
   OccurrenceStatus,
+  Prisma,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -11,10 +12,10 @@ const prisma = new PrismaClient();
 
 /**
  * Cria ou atualiza utilizadores base e ocorrencias de demonstracao para testes manuais.
- * @param none Script de seed sem parametros externos.
  * @return Promise<void> Promessa resolvida apos a populacao da base de dados.
  * Pre-condicao: A ligacao a base de dados deve estar configurada.
  * Pos-condicao: Existem utilizadores base com roles civil, operador e administrador, bem como ocorrencias de exemplo.
+ * Pos-condicao: Cada ocorrencia de demonstracao fica acompanhada pela respetiva entrada inicial no historico.
  */
 async function main() {
   const password = 'Password123!';
@@ -74,34 +75,45 @@ async function main() {
     where: { userId: civil.id },
   });
 
-  await prisma.occurrence.createMany({
-    data: [
-      {
-        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-        description: 'Candeeiro apagado junto ao jardim municipal',
-        location: 'Rua das Flores, Faro',
-        status: OccurrenceStatus.SUBMETIDA,
-        imageUrls: [],
-        userId: civil.id,
-      },
-      {
-        category: OccurrenceCategory.BURACOS_PAVIMENTO,
-        description: 'Buraco grande junto a passadeira',
-        location: 'Avenida Central, Faro',
-        status: OccurrenceStatus.EM_TRATAMENTO,
-        imageUrls: [],
-        userId: civil.id,
-      },
-      {
-        category: OccurrenceCategory.SINALIZACAO,
-        description: 'Sinal de transito danificado',
-        location: 'Rua do Mercado, Faro',
-        status: OccurrenceStatus.CONCLUIDA,
-        imageUrls: [],
-        userId: civil.id,
-      },
-    ],
-  });
+  const demoOccurrences = [
+    {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      description: 'Candeeiro apagado junto ao jardim municipal',
+      location: 'Rua das Flores, Faro',
+      status: OccurrenceStatus.SUBMETIDA,
+      imageUrls: [],
+      userId: civil.id,
+    },
+    {
+      category: OccurrenceCategory.BURACOS_PAVIMENTO,
+      description: 'Buraco grande junto a passadeira',
+      location: 'Avenida Central, Faro',
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      imageUrls: [],
+      userId: civil.id,
+    },
+    {
+      category: OccurrenceCategory.SINALIZACAO,
+      description: 'Sinal de transito danificado',
+      location: 'Rua do Mercado, Faro',
+      status: OccurrenceStatus.CONCLUIDA,
+      imageUrls: [],
+      userId: civil.id,
+    },
+  ];
+
+  for (const occurrence of demoOccurrences) {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const createdOccurrence = await tx.occurrence.create({
+        data: occurrence,
+      });
+
+      await tx.$executeRaw`
+        INSERT INTO "OccurrenceStatusHistory" ("occurrenceId", "status")
+        VALUES (${createdOccurrence.id}, CAST(${occurrence.status} AS "OccurrenceStatus"))
+      `;
+    });
+  }
 
   console.log(
     'Seed concluido:',
