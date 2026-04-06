@@ -179,6 +179,24 @@ describe('OccurrencesController', () => {
   });
 
   /**
+   * Garante que o detalhe proprio exige autenticacao CIVIL.
+   * @return void
+   */
+  it('should protect own occurrence detail with JWT and citizen role', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.findMineById,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.findMineById,
+    ) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([Role.CIVIL]);
+  });
+
+  /**
    * Garante que a remocao de ocorrencias esta reservada ao backoffice.
    * @return void
    */

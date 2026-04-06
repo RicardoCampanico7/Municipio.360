@@ -61,12 +61,24 @@ type PresentedOccurrence<T extends PresentableOccurrence> = Omit<
   statusKey: OccurrenceStatus;
 };
 
+type PresentableStatusHistoryEntry = {
+  status: OccurrenceStatus;
+  createdAt: Date;
+};
+
+type PresentedStatusHistoryEntry<T extends PresentableStatusHistoryEntry> =
+  Omit<T, 'status'> & {
+    status: string;
+    statusKey: OccurrenceStatus;
+  };
+
 /**
  * Centraliza a logica de criacao, consulta e gestao de ocorrencias.
  * @author Alan Martynyuk e Guilherme Gaspar
- * @version 04/04/2026
+ * @version 05/04/2026
  * @inv As consultas publicas nao devem expor dados sensiveis do autor das ocorrencias.
  * @inv Cada mudanca valida de estado deve ficar refletida no historico persistido da ocorrencia.
+ * @inv O detalhe do proprietario deve devolver o historico cronologico de estados da ocorrencia.
  */
 @Injectable()
 export class OccurrencesService {
@@ -250,6 +262,48 @@ export class OccurrencesService {
   }
 
   /**
+   * Ajusta uma entrada de historico de estado para o formato apresentado ao cliente.
+   * @param statusHistoryEntry Entrada persistida no historico.
+   * @return Entrada pronta para consumo pelo cliente.
+   */
+  private presentStatusHistoryEntry<T extends PresentableStatusHistoryEntry>(
+    statusHistoryEntry: T,
+  ): PresentedStatusHistoryEntry<T> {
+    return {
+      ...statusHistoryEntry,
+      statusKey: statusHistoryEntry.status,
+      status: this.getPresentationStatus(statusHistoryEntry.status),
+    };
+  }
+
+  /**
+   * Ajusta o historico de estados para o formato apresentado ao cliente.
+   * @param statusHistory Lista persistida.
+   * @return Lista pronta para consumo pelo cliente.
+   */
+  private presentStatusHistory<T extends PresentableStatusHistoryEntry>(
+    statusHistory: T[],
+  ) {
+    return statusHistory.map((entry) => this.presentStatusHistoryEntry(entry));
+  }
+
+  /**
+   * Ajusta o detalhe do proprietario incluindo o historico cronologico de estados.
+   * @param occurrence Ocorrencia persistida com historico de estados.
+   * @return Detalhe pronto para consumo pelo cliente autenticado.
+   */
+  private presentOwnerOccurrenceDetail<
+    T extends PresentableOccurrence & {
+      statusHistory: PresentableStatusHistoryEntry[];
+    },
+  >(occurrence: T) {
+    return {
+      ...this.presentOccurrence(occurrence),
+      statusHistory: this.presentStatusHistory(occurrence.statusHistory),
+    };
+  }
+
+  /**
    * Persiste uma entrada de historico com o estado atualmente assumido pela ocorrencia.
    * @param prisma Cliente transacional usado na operacao atomica.
    * @param occurrenceId Identificador da ocorrencia alterada.
@@ -295,6 +349,34 @@ export class OccurrencesService {
     return {
       ...this.getPublicSelect(),
       userId: true,
+    } as const;
+  }
+
+  /**
+   * Define os campos devolvidos no historico de estados de uma ocorrencia.
+   * @return Selecao Prisma com os campos do historico.
+   */
+  private getStatusHistorySelect() {
+    return {
+      id: true,
+      status: true,
+      createdAt: true,
+    } as const;
+  }
+
+  /**
+   * Define os campos devolvidos no detalhe do proprietario com historico de estados.
+   * @return Selecao Prisma com os campos do detalhe e respetivo historico.
+   */
+  private getOwnerDetailSelect() {
+    return {
+      ...this.getOwnerSelect(),
+      statusHistory: {
+        orderBy: {
+          createdAt: 'asc',
+        },
+        select: this.getStatusHistorySelect(),
+      },
     } as const;
   }
 
@@ -530,21 +612,23 @@ export class OccurrencesService {
    * Devolve o detalhe de uma ocorrencia do utilizador autenticado.
    * @param id Identificador da ocorrencia.
    * @param userId Identificador do utilizador autenticado.
-   * @return Ocorrencia pertencente ao utilizador.
+   * @return Ocorrencia pertencente ao utilizador com historico de estados.
+   * Pre-condicao: A ocorrencia deve existir e pertencer ao utilizador autenticado.
+   * Pos-condicao: A resposta inclui o historico cronologico de estados sem expor dados internos de gestao.
    */
   async findMineById(id: number, userId: number) {
     await this.findOneOwned(id, userId);
 
     const occurrence = await this.prisma.occurrence.findUnique({
       where: { id },
-      select: this.getOwnerSelect(),
+      select: this.getOwnerDetailSelect(),
     });
 
     if (!occurrence) {
       throw new NotFoundException('Occurrence not found');
     }
 
-    return this.presentOccurrence(occurrence);
+    return this.presentOwnerOccurrenceDetail(occurrence);
   }
 
   /**
@@ -640,7 +724,9 @@ export class OccurrencesService {
 
     const [createdComment] = occurrence.internalComments;
     if (!createdComment) {
-      throw new BadRequestException('Nao foi possivel criar o comentario interno');
+      throw new BadRequestException(
+        'Nao foi possivel criar o comentario interno',
+      );
     }
 
     return createdComment;

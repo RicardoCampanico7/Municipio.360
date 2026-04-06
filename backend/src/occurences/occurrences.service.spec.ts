@@ -249,6 +249,114 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que o detalhe do proprietario inclui historico cronologico de estados.
+   * @return void
+   */
+  it('should include status history on owned occurrence detail', async () => {
+    prisma.occurrence.findUnique
+      .mockResolvedValueOnce({
+        id: 42,
+        userId: 7,
+      })
+      .mockResolvedValueOnce({
+        id: 42,
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        otherCategoryDetail: null,
+        description: 'Candeeiro apagado',
+        location: 'Rua A',
+        imageUrls: [],
+        status: OccurrenceStatus.EM_TRATAMENTO,
+        createdAt: new Date('2026-04-05T09:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+        userId: 7,
+        statusHistory: [
+          {
+            id: 1,
+            status: OccurrenceStatus.SUBMETIDA,
+            createdAt: new Date('2026-04-05T09:00:00.000Z'),
+          },
+          {
+            id: 2,
+            status: OccurrenceStatus.EM_TRATAMENTO,
+            createdAt: new Date('2026-04-05T09:30:00.000Z'),
+          },
+        ],
+      });
+
+    const result = await service.findMineById(42, 7);
+
+    expect(prisma.occurrence.findUnique).toHaveBeenNthCalledWith(1, {
+      where: { id: 42 },
+    });
+    expect(prisma.occurrence.findUnique).toHaveBeenNthCalledWith(2, {
+      where: { id: 42 },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        statusHistory: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 42,
+        title: 'Iluminacao publica',
+        category: 'Iluminacao publica',
+        categoryKey: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        status: 'progress',
+        statusKey: OccurrenceStatus.EM_TRATAMENTO,
+        statusHistory: [
+          {
+            id: 1,
+            status: 'open',
+            statusKey: OccurrenceStatus.SUBMETIDA,
+            createdAt: new Date('2026-04-05T09:00:00.000Z'),
+          },
+          {
+            id: 2,
+            status: 'progress',
+            statusKey: OccurrenceStatus.EM_TRATAMENTO,
+            createdAt: new Date('2026-04-05T09:30:00.000Z'),
+          },
+        ],
+      }),
+    );
+  });
+
+  /**
+   * Garante que o detalhe do proprietario e rejeitado quando a ocorrencia pertence a outro utilizador.
+   * @return void
+   */
+  it('should reject owned occurrence detail when the occurrence belongs to another user', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 50,
+      userId: 999,
+    });
+
+    await expect(service.findMineById(50, 7)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(prisma.occurrence.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  /**
    * Garante que o detalhe de gestao inclui comentarios internos e respetivo autor.
    * @return void
    */
