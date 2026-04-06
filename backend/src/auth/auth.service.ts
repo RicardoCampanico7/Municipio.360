@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -16,11 +17,15 @@ type SafeUser = {
   biNumber: string;
   postalCode: string;
   email: string;
+  avatarUrl?: string | null;
   role: Role;
   certStatus: CertificationStatus;
   createdAt?: Date;
   updatedAt?: Date;
 };
+
+const AVATAR_DATA_URL_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
+const MAX_AVATAR_SIZE_BYTES = 3 * 1024 * 1024;
 
 /**
  * Implementa a logica de registo, login e consulta do utilizador autenticado.
@@ -41,6 +46,43 @@ export class AuthService {
   ) {}
 
   /**
+   * Valida e normaliza a fotografia de perfil opcional recebida no registo.
+   * @param avatarUrl Data URL recebida do cliente.
+   * @return URL normalizada ou null quando a foto nao foi enviada.
+   */
+  private normalizeAvatarUrl(avatarUrl: string | undefined) {
+    const normalizedAvatarUrl = avatarUrl?.trim();
+    if (!normalizedAvatarUrl) {
+      return null;
+    }
+
+    if (!AVATAR_DATA_URL_PREFIX.test(normalizedAvatarUrl)) {
+      throw new BadRequestException('Fotografia de perfil invalida');
+    }
+
+    const base64Payload = normalizedAvatarUrl.split(',', 2)[1]?.replace(/\s+/g, '');
+    if (!base64Payload || !/^[A-Za-z0-9+/=]+$/.test(base64Payload)) {
+      throw new BadRequestException('Fotografia de perfil invalida');
+    }
+
+    const paddingLength = base64Payload.endsWith('==')
+      ? 2
+      : base64Payload.endsWith('=')
+        ? 1
+        : 0;
+    const estimatedSizeInBytes =
+      Math.floor((base64Payload.length * 3) / 4) - paddingLength;
+
+    if (estimatedSizeInBytes > MAX_AVATAR_SIZE_BYTES) {
+      throw new BadRequestException(
+        'A fotografia de perfil nao pode exceder 3 MB',
+      );
+    }
+
+    return normalizedAvatarUrl;
+  }
+
+  /**
    * Construi um objeto de utilizador seguro para resposta da API.
    * @param user Utilizador obtido da base de dados.
    * @return Dados do utilizador sem informacao sensivel.
@@ -52,6 +94,7 @@ export class AuthService {
       biNumber: user.biNumber,
       postalCode: user.postalCode,
       email: user.email,
+      avatarUrl: user.avatarUrl ?? undefined,
       role: user.role,
       certStatus: user.certStatus,
       createdAt: user.createdAt,
@@ -71,6 +114,7 @@ export class AuthService {
     const normalizedBiNumber = dto.biNumber.trim().toUpperCase();
     const normalizedPostalCode = dto.postalCode.trim();
     const normalizedName = dto.name.trim();
+    const normalizedAvatarUrl = this.normalizeAvatarUrl(dto.avatarUrl);
     const normalizedRole = dto.role ?? Role.CIVIL;
 
     const exists = await this.prisma.user.findUnique({
@@ -90,6 +134,7 @@ export class AuthService {
         biNumber: normalizedBiNumber,
         postalCode: normalizedPostalCode,
         email: normalizedEmail,
+        avatarUrl: normalizedAvatarUrl,
         passwordHash,
         role: normalizedRole,
         certStatus: CertificationStatus.CERTIFIED,
@@ -100,6 +145,7 @@ export class AuthService {
         biNumber: true,
         postalCode: true,
         email: true,
+        avatarUrl: true,
         role: true,
         certStatus: true,
         createdAt: true,
@@ -129,6 +175,7 @@ export class AuthService {
         id: true,
         name: true,
         email: true,
+        avatarUrl: true,
         role: true,
         certStatus: true,
         biNumber: true,
@@ -179,6 +226,7 @@ export class AuthService {
         biNumber: true,
         postalCode: true,
         email: true,
+        avatarUrl: true,
         role: true,
         certStatus: true,
         createdAt: true,

@@ -4,6 +4,7 @@ export type ApiProfileUser = {
   biNumber?: string;
   postalCode?: string;
   email?: string;
+  avatarUrl?: string;
   role?: string;
   certStatus?: string;
   createdAt?: string;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
@@ -14,6 +14,22 @@ type ApiErrorResponse = {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("AVATAR_READ_FAILED"));
+    };
+    reader.onerror = () => reject(new Error("AVATAR_READ_FAILED"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function toReadableMessage(value: string) {
@@ -84,16 +100,44 @@ export default function Register() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const showcaseImage = "/login-photo.jpg";
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const MAX_AVATAR_SIZE_BYTES = 3 * 1024 * 1024;
 
   const [name, setName] = useState("");
   const [citizenCard, setCitizenCard] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<RegisterRole>("CIVIL");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const handleAvatarSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError(t("auth.registerAvatarTypeError"));
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      setError(t("auth.registerAvatarSizeError"));
+      return;
+    }
+
+    try {
+      const nextAvatarUrl = await readFileAsDataUrl(file);
+      setAvatarUrl(nextAvatarUrl);
+      if (error) setError("");
+    } catch {
+      setError(t("auth.registerAvatarReadError"));
+    }
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +186,7 @@ export default function Register() {
           biNumber: normalizedCitizenCard,
           postalCode: normalizedPostalCode,
           email: normalizedEmail,
+          avatarUrl: avatarUrl || undefined,
           password,
           role,
         }),
@@ -266,6 +311,59 @@ export default function Register() {
               }}
               required
             />
+
+            <div className="auth-avatar-field">
+              <div className="auth-avatar-head">
+                <span className="auth-avatar-label">{t("auth.registerAvatarLabel")}</span>
+                <button
+                  className="auth-avatar-action"
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={loading}
+                >
+                  {avatarUrl ? t("auth.registerAvatarChange") : t("auth.registerAvatarButton")}
+                </button>
+              </div>
+
+              <input
+                ref={avatarInputRef}
+                className="auth-avatar-input"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarSelection}
+                disabled={loading}
+              />
+
+              <div className="auth-avatar-card">
+                <div className="auth-avatar-preview">
+                  {avatarUrl ? (
+                    <img
+                      className="auth-avatar-preview-image"
+                      src={avatarUrl}
+                      alt={t("auth.registerAvatarPreviewAlt")}
+                    />
+                  ) : (
+                    <span>{name.trim().charAt(0).toUpperCase() || "U"}</span>
+                  )}
+                </div>
+
+                <div className="auth-avatar-copy">
+                  <strong>{t("auth.registerAvatarTitle")}</strong>
+                  <span>{t("auth.registerAvatarHint")}</span>
+                </div>
+
+                {avatarUrl && (
+                  <button
+                    className="auth-avatar-remove"
+                    type="button"
+                    onClick={() => setAvatarUrl("")}
+                    disabled={loading}
+                  >
+                    {t("auth.registerAvatarRemove")}
+                  </button>
+                )}
+              </div>
+            </div>
 
             <label className="sr-only" htmlFor="register-role">
               {t("profile.metrics.role")}
