@@ -477,6 +477,209 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que a edicao de uma ocorrencia atualiza os campos permitidos e devolve o formato de operador.
+   * @return void
+   */
+  it('should update an occurrence successfully', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Descricao antiga',
+      location: 'Local antigo',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T09:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+    prisma.occurrence.update.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.OUTROS,
+      otherCategoryDetail: 'Passadeira apagada',
+      description: 'Sinal partido junto a escola',
+      location: 'Avenida Central, Faro',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-06T09:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+
+    const result = await service.updateOccurrence(42, {
+      category: OccurrenceCategory.OUTROS,
+      otherCategoryDetail: '  Passadeira apagada  ',
+      location: '  Avenida Central, Faro  ',
+      description: '  Sinal partido junto a escola  ',
+    });
+
+    expect(prisma.occurrence.update).toHaveBeenCalledWith({
+      where: { id: 42 },
+      data: {
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: 'Passadeira apagada',
+        location: 'Avenida Central, Faro',
+        description: 'Sinal partido junto a escola',
+      },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            postalCode: true,
+            role: true,
+            certStatus: true,
+          },
+        },
+        internalComments: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          select: {
+            id: true,
+            content: true,
+            occurrenceId: true,
+            userId: true,
+            createdAt: true,
+            updatedAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 42,
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: 'Passadeira apagada',
+        location: 'Avenida Central, Faro',
+        description: 'Sinal partido junto a escola',
+      }),
+    );
+  });
+
+  /**
+   * Garante que o detalhe alternativo e limpo quando a categoria deixa de ser OUTROS.
+   * @return void
+   */
+  it('should clear otherCategoryDetail when the category is no longer OUTROS', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.OUTROS,
+      otherCategoryDetail: 'Passadeira apagada',
+      description: 'Descricao antiga',
+      location: 'Local antigo',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T09:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+    prisma.occurrence.update.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: '',
+      location: 'Avenida Central, Faro',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-06T09:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+
+    await service.updateOccurrence(42, {
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: '  Deve ser limpo  ',
+      location: '  Avenida Central, Faro  ',
+    });
+
+    expect(prisma.occurrence.update).toHaveBeenCalledWith({
+      where: { id: 42 },
+      data: {
+        category: OccurrenceCategory.SINALIZACAO,
+        otherCategoryDetail: null,
+        location: 'Avenida Central, Faro',
+        description: '',
+      },
+      select: expect.any(Object),
+    });
+  });
+
+  /**
+   * Garante que a edicao falha quando a ocorrencia nao existe.
+   * @return void
+   */
+  it('should fail to update when the occurrence does not exist', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.updateOccurrence(999, {
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: 'Passadeira apagada',
+        location: 'Avenida Central, Faro',
+        description: 'Sinal partido junto a escola',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
+  /**
    * Garante que a criacao nao devolve erro interno quando o utilizador autenticado nao existe.
    * @return void
    */

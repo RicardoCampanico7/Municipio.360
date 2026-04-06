@@ -57,6 +57,7 @@ import {
 } from './occurrence-upload';
 import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
+import { UpdateOccurrenceDto } from './dto/update-occurrence.dto';
 import { OccurrencesService } from './occurrences.service';
 
 /**
@@ -519,6 +520,49 @@ export class OccurrencesController {
   ) {
     const userId = this.getUserId(req);
     return this.occurrencesService.create(userId, dto, files);
+  }
+
+  /**
+   * Atualiza os campos editaveis de uma ocorrencia em contexto de operacao interna.
+   * @param id Identificador da ocorrencia.
+   * @param dto Dados editaveis da ocorrencia.
+   * @return Ocorrencia atualizada.
+   */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary:
+      'Atualizar dados de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
+  @ApiBody({ type: UpdateOccurrenceDto })
+  @ApiOkResponse({
+    description: 'Ocorrencia atualizada',
+    type: OperatorOccurrenceResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao',
+    type: ApiErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Sem permissoes para atualizar a ocorrencia',
+    type: ApiErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Ocorrencia nao existe',
+    type: ApiErrorResponseDto,
+  })
+  updateOccurrence(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateOccurrenceDto,
+  ) {
+    return this.occurrencesService.updateOccurrence(id, dto);
   }
 
   /**
