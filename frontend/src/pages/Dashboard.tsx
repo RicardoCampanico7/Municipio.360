@@ -48,7 +48,7 @@ export default function Dashboard() {
   const authenticated = isAuthenticated();
   const sessionUser = getAuthenticatedUser();
   const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : "visitante";
-  const userAvatar = "/user-avatar.jpg";
+  const userAvatar = authenticated ? sessionUser?.avatarUrl || "/user-avatar.jpg" : "/user-avatar.jpg";
   const bannerImage = "/dashboard-banner.png";
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [occurrences, setOccurrences] = useState<ApiOccurrence[]>([]);
@@ -249,7 +249,7 @@ export default function Dashboard() {
             <img
               className="dashboard-avatar"
               src={userAvatar}
-              alt="Fotografia do utilizador"
+              alt={authenticated ? `Fotografia de ${userName}` : "Fotografia do utilizador"}
             />
             <div>
               <h1 className="dashboard-greeting">{t("dashboard.greeting", { name: userName })}</h1>

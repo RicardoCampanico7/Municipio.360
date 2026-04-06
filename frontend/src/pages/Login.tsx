@@ -32,6 +32,7 @@ function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
     name?: unknown;
     fullName?: unknown;
     email?: unknown;
+    avatarUrl?: unknown;
     role?: unknown;
   };
 
@@ -40,10 +41,11 @@ function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
   const email = normalizeString(candidate.email).toLowerCase();
   const providedName = normalizeString(candidate.name ?? candidate.fullName);
   const name = providedName || (email ? buildDisplayName(email) : "");
+  const avatarUrl = normalizeString(candidate.avatarUrl);
   const role = normalizeString(candidate.role).toUpperCase();
 
   if (!id || !name || !email) return null;
-  return { id, name, email, ...(role ? { role } : {}) };
+  return { id, name, email, ...(avatarUrl ? { avatarUrl } : {}), ...(role ? { role } : {}) };
 }
 
 export default function Login() {

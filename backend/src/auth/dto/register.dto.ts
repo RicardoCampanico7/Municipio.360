@@ -48,6 +48,16 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
+  @ApiPropertyOptional({
+    example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+    description:
+      'Fotografia de perfil opcional em formato data URL (PNG, JPEG, WEBP ou GIF)',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i)
+  avatarUrl?: string;
+
   @ApiProperty({
     example: 'SenhaSegura123',
     description: 'Password com pelo menos 8 caracteres',

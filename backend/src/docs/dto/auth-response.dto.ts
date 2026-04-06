@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CertificationStatus, Role } from '@prisma/client';
 
 export class SafeUserResponseDto {
@@ -16,6 +16,12 @@ export class SafeUserResponseDto {
 
   @ApiProperty({ example: 'cidadao@municipio360.pt' })
   email: string;
+
+  @ApiPropertyOptional({
+    example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+    nullable: true,
+  })
+  avatarUrl?: string | null;
 
   @ApiProperty({ enum: Role, example: Role.CIVIL })
   role: Role;

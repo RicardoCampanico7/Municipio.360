@@ -13,6 +13,7 @@ model User {
   biNumber                   String
   postalCode                 String
   email                      String                      @unique
+  avatarUrl                  String?
   passwordHash               String
   role                       Role                        @default(CIVIL)
   certStatus                 CertificationStatus         @default(NONE)

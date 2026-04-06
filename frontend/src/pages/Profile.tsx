@@ -64,11 +64,12 @@ function normalizeCacheUser(profile: ApiProfileUser) {
   const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
   const name = typeof profile.name === "string" ? profile.name.trim() : "";
   const email = typeof profile.email === "string" ? profile.email.trim().toLowerCase() : "";
+  const avatarUrl = typeof profile.avatarUrl === "string" ? profile.avatarUrl.trim() : "";
   const role = typeof profile.role === "string" ? profile.role.trim().toUpperCase() : "";
 
   if (!id || !name || !email) return null;
 
-  return { id, name, email, ...(role ? { role } : {}) };
+  return { id, name, email, ...(avatarUrl ? { avatarUrl } : {}), ...(role ? { role } : {}) };
 }
 
 type NavTarget = "home" | "map" | "create" | "reports" | "profile";
@@ -146,6 +147,7 @@ export default function Profile() {
 
   const displayName = profile?.name || sessionUser?.name || t("dashboard.defaultUserName");
   const displayEmail = profile?.email || sessionUser?.email || t("profile.unknownValue");
+  const avatarUrl = profile?.avatarUrl || sessionUser?.avatarUrl || "";
   const roleKey = typeof profile?.role === "string" ? profile.role.toLowerCase() : "";
   const certKey = typeof profile?.certStatus === "string" ? profile.certStatus.toLowerCase() : "";
   const effectiveCertKey = sessionUser ? "certified" : certKey;
@@ -223,8 +225,16 @@ export default function Profile() {
         </header>
 
         <section className="profile-hero">
-          <div className="profile-avatar" aria-hidden="true">
-            {initials}
+          <div className="profile-avatar">
+            {avatarUrl ? (
+              <img
+                className="profile-avatar-image"
+                src={avatarUrl}
+                alt={`Fotografia de ${displayName}`}
+              />
+            ) : (
+              initials
+            )}
           </div>
 
           <div className="profile-hero-copy">
