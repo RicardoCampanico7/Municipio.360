@@ -30,6 +30,7 @@ describe('OccurrencesController', () => {
             findOnePublic: jest.fn(),
             uploadImages: jest.fn(),
             create: jest.fn(),
+            updateOccurrence: jest.fn(),
             updateStatus: jest.fn(),
             remove: jest.fn(),
           },
@@ -124,6 +125,24 @@ describe('OccurrencesController', () => {
     const roles = Reflect.getMetadata(
       ROLES_KEY,
       controller.updateStatus,
+    ) as Role[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
+  });
+
+  /**
+   * Garante que a edicao de ocorrencias esta reservada ao backoffice.
+   * @return void
+   */
+  it('should protect occurrence edits with JWT and backoffice roles', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      controller.updateOccurrence,
+    ) as unknown[];
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      controller.updateOccurrence,
     ) as Role[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);

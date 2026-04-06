@@ -9,6 +9,7 @@ import { OccurrenceCategory, OccurrenceStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
+import { UpdateOccurrenceDto } from './dto/update-occurrence.dto';
 import {
   assignOccurrenceImagesToOccurrence,
   getOccurrenceImageMetadataByUrl,
@@ -730,6 +731,44 @@ export class OccurrencesService {
     }
 
     return createdComment;
+  }
+
+  /**
+   * Atualiza os campos editaveis de uma ocorrencia existente sem alterar o estado.
+   * @param id Identificador da ocorrencia.
+   * @param dto Dados editaveis recebidos no pedido.
+   * @return Ocorrencia atualizada no formato de operador.
+   */
+  async updateOccurrence(id: number, dto: UpdateOccurrenceDto) {
+    await this.findOneForOperator(id);
+
+    const location = dto.location.trim();
+    const description = dto.description?.trim() ?? '';
+    const otherCategoryDetail =
+      dto.category === OccurrenceCategory.OUTROS
+        ? dto.otherCategoryDetail?.trim() ?? ''
+        : null;
+
+    if (!location) {
+      throw new BadRequestException('A localizacao da ocorrencia e obrigatoria');
+    }
+
+    if (dto.category === OccurrenceCategory.OUTROS && !otherCategoryDetail) {
+      throw new BadRequestException(
+        'O detalhe da categoria e obrigatorio quando a categoria e OUTROS',
+      );
+    }
+
+    return this.prisma.occurrence.update({
+      where: { id },
+      data: {
+        category: dto.category,
+        otherCategoryDetail,
+        location,
+        description,
+      },
+      select: this.getOperatorSelect(),
+    });
   }
 
   /**
