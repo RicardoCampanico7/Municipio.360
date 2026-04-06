@@ -2,6 +2,8 @@ export type ApiOccurrence = {
   id?: string | number;
   title?: string;
   category?: string;
+  categoryKey?: OccurrenceCategoryKey;
+  otherCategoryDetail?: string;
   description?: string;
   location?: string;
   status?: string;
@@ -11,11 +13,22 @@ export type ApiOccurrence = {
   imageUrls?: string[];
 };
 
+export type OccurrenceCategoryKey =
+  | "BURACOS_PAVIMENTO"
+  | "ILUMINACAO_PUBLICA"
+  | "LIMPEZA_URBANA"
+  | "RUIDO"
+  | "ESPACOS_PUBLICOS"
+  | "SINALIZACAO"
+  | "OUTROS";
+
 export type OccurrenceStatusKey = "SUBMETIDA" | "EM_TRATAMENTO" | "CONCLUIDA";
 
 export type PublicOccurrence = {
   id?: string | number;
   category?: string;
+  categoryKey?: OccurrenceCategoryKey;
+  otherCategoryDetail?: string;
   description?: string;
   location?: string;
   status?: string;
@@ -23,6 +36,13 @@ export type PublicOccurrence = {
   createdAt?: string;
   updatedAt?: string;
   imageUrls?: string[];
+};
+
+export type UpdateOccurrencePayload = {
+  category: OccurrenceCategoryKey;
+  otherCategoryDetail?: string;
+  description?: string;
+  location: string;
 };
 
 export class OccurrencesRequestError extends Error {
@@ -47,6 +67,22 @@ function normalizeStatusKey(value: unknown): OccurrenceStatusKey | undefined {
   if (value === "open") return "SUBMETIDA";
   if (value === "progress") return "EM_TRATAMENTO";
   if (value === "resolved") return "CONCLUIDA";
+
+  return undefined;
+}
+
+function normalizeCategoryKey(value: unknown): OccurrenceCategoryKey | undefined {
+  if (
+    value === "BURACOS_PAVIMENTO" ||
+    value === "ILUMINACAO_PUBLICA" ||
+    value === "LIMPEZA_URBANA" ||
+    value === "RUIDO" ||
+    value === "ESPACOS_PUBLICOS" ||
+    value === "SINALIZACAO" ||
+    value === "OUTROS"
+  ) {
+    return value;
+  }
 
   return undefined;
 }
@@ -82,6 +118,8 @@ function sanitizeOccurrence(value: unknown): ApiOccurrence | null {
     id: normalizeId(source.id),
     title: normalizeString(source.title),
     category: normalizeString(source.category),
+    categoryKey: normalizeCategoryKey(source.categoryKey ?? source.category),
+    otherCategoryDetail: normalizeString(source.otherCategoryDetail),
     description: normalizeString(source.description),
     location: normalizeString(source.location),
     status: normalizePresentationStatus(source.status),
@@ -96,6 +134,8 @@ function toPublicOccurrence(value: ApiOccurrence): PublicOccurrence {
   return {
     id: value.id,
     category: value.category,
+    categoryKey: value.categoryKey,
+    otherCategoryDetail: value.otherCategoryDetail,
     description: value.description,
     location: value.location,
     status: value.status,
@@ -217,6 +257,31 @@ export async function updateOccurrenceStatus(
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ status }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
+    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+  }
+
+  return data;
+}
+
+export async function updateOccurrence(
+  id: string,
+  payload: UpdateOccurrencePayload,
+  token: string,
+  fallbackMessage: string,
+) {
+  const response = await fetch(`/api/occurrences/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json().catch(() => null);

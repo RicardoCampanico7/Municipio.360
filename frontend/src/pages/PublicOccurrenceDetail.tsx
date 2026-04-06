@@ -6,18 +6,34 @@ import AppLogo from "../components/AppLogo";
 import {
   OccurrencesRequestError,
   fetchPublicOccurrenceById,
+  updateOccurrence,
   updateOccurrenceStatus,
-  type OccurrenceStatusKey,
   type ApiOccurrence,
+  type OccurrenceCategoryKey,
+  type OccurrenceStatusKey,
 } from "../services/occurrences";
-import {
-  getAccessToken,
-  getAuthenticatedUser,
-  isBackofficeRole,
-} from "../services/token";
+import { getAccessToken, getAuthenticatedUser, isBackofficeRole } from "../services/token";
 import "./PublicOccurrenceDetail.css";
 
 type ReportTone = "progress" | "open" | "done";
+
+type OccurrenceEditForm = {
+  category: OccurrenceCategoryKey;
+  otherCategoryDetail: string;
+  location: string;
+  description: string;
+};
+
+const DEFAULT_OCCURRENCE_CATEGORY: OccurrenceCategoryKey = "ILUMINACAO_PUBLICA";
+const EDITABLE_OCCURRENCE_CATEGORIES: OccurrenceCategoryKey[] = [
+  "BURACOS_PAVIMENTO",
+  "ILUMINACAO_PUBLICA",
+  "LIMPEZA_URBANA",
+  "RUIDO",
+  "ESPACOS_PUBLICOS",
+  "SINALIZACAO",
+  "OUTROS",
+];
 
 function getTone(status: string | undefined): ReportTone {
   const normalizedStatus = (status || "").toLowerCase();
@@ -73,6 +89,15 @@ function getStatusKey(
   return "SUBMETIDA";
 }
 
+function buildEditForm(occurrence: ApiOccurrence | null): OccurrenceEditForm {
+  return {
+    category: occurrence?.categoryKey ?? DEFAULT_OCCURRENCE_CATEGORY,
+    otherCategoryDetail: occurrence?.otherCategoryDetail ?? "",
+    location: occurrence?.location ?? "",
+    description: occurrence?.description ?? "",
+  };
+}
+
 export default function PublicOccurrenceDetail() {
   const navigate = useNavigate();
   const { occurrenceId = "" } = useParams();
@@ -86,11 +111,15 @@ export default function PublicOccurrenceDetail() {
   const [manageError, setManageError] = useState("");
   const [manageSuccess, setManageSuccess] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [isEditingOccurrence, setIsEditingOccurrence] = useState(false);
+  const [editForm, setEditForm] = useState<OccurrenceEditForm>(() => buildEditForm(null));
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
+  const [occurrenceUpdating, setOccurrenceUpdating] = useState(false);
 
   const pageText = i18n.language.startsWith("pt")
     ? {
         back: "Voltar a ocorrencias",
-        kicker: "Detalhe",
         eyebrow: "Registo publico",
         loading: "A carregar detalhe da ocorrencia...",
         loadError: "Nao foi possivel carregar esta ocorrencia.",
@@ -107,25 +136,47 @@ export default function PublicOccurrenceDetail() {
         summaryTitle: "Resumo",
         occurrenceImageAlt: "Imagem da ocorrencia",
         management: {
-          title: "Gestão da ocorrência",
-          copy: "Disponível apenas para operador e administrador.",
-          field: "Estado da ocorrência",
+          title: "Gestao da ocorrencia",
+          copy: "Disponivel apenas para operador e administrador.",
+          field: "Estado da ocorrencia",
           updateButton: "Atualizar estado",
           updateLoading: "A atualizar...",
           updateSuccess: "Estado atualizado com sucesso.",
-          updateError: "Não foi possível atualizar o estado da ocorrência.",
-          editButton: "Editar ocorrência",
-          editNote: "A edição completa será adicionada numa próxima página de gestão.",
+          updateError: "Nao foi possivel atualizar o estado da ocorrencia.",
+          editButton: "Editar ocorrencia",
+          cancelEditButton: "Cancelar edicao",
+          saveEditButton: "Guardar alteracoes",
+          saveEditLoading: "A guardar...",
+          editSuccess: "Ocorrencia atualizada com sucesso.",
+          editError: "Nao foi possivel guardar as alteracoes da ocorrencia.",
+          categoryField: "Categoria",
+          categoryDetailField: "Detalhe da categoria",
+          categoryDetailPlaceholder: "Descreve a categoria personalizada",
+          locationField: "Localizacao",
+          locationPlaceholder: "Ex.: Avenida Central, Faro",
+          descriptionField: "Descricao",
+          descriptionPlaceholder: "Atualiza os detalhes desta ocorrencia.",
+          validationLocation: "Indica uma localizacao valida antes de guardar.",
+          validationOtherCategory:
+            "Quando escolhes \"Outros\", tens de indicar o detalhe da categoria.",
           statuses: {
             SUBMETIDA: "Submetida",
             EM_TRATAMENTO: "Em tratamento",
-            CONCLUIDA: "Concluída",
+            CONCLUIDA: "Concluida",
+          },
+          categories: {
+            BURACOS_PAVIMENTO: "Buracos no pavimento",
+            ILUMINACAO_PUBLICA: "Iluminacao publica",
+            LIMPEZA_URBANA: "Limpeza urbana",
+            RUIDO: "Ruido",
+            ESPACOS_PUBLICOS: "Espacos publicos",
+            SINALIZACAO: "Sinalizacao",
+            OUTROS: "Outros",
           },
         },
       }
     : {
         back: "Back to reports",
-        kicker: "Detail",
         eyebrow: "Public record",
         loading: "Loading occurrence details...",
         loadError: "Could not load this occurrence.",
@@ -150,11 +201,34 @@ export default function PublicOccurrenceDetail() {
           updateSuccess: "Status updated successfully.",
           updateError: "Could not update the occurrence status.",
           editButton: "Edit occurrence",
-          editNote: "Full editing will be added in a future management page.",
+          cancelEditButton: "Cancel editing",
+          saveEditButton: "Save changes",
+          saveEditLoading: "Saving...",
+          editSuccess: "Occurrence updated successfully.",
+          editError: "Could not save the occurrence changes.",
+          categoryField: "Category",
+          categoryDetailField: "Category detail",
+          categoryDetailPlaceholder: "Describe the custom category",
+          locationField: "Location",
+          locationPlaceholder: "Ex.: Central Avenue, Faro",
+          descriptionField: "Description",
+          descriptionPlaceholder: "Update the details of this occurrence.",
+          validationLocation: "Provide a valid location before saving.",
+          validationOtherCategory:
+            'When selecting "Other", you must provide the category detail.',
           statuses: {
             SUBMETIDA: "Submitted",
             EM_TRATAMENTO: "In progress",
             CONCLUIDA: "Completed",
+          },
+          categories: {
+            BURACOS_PAVIMENTO: "Road surface holes",
+            ILUMINACAO_PUBLICA: "Public lighting",
+            LIMPEZA_URBANA: "Urban cleaning",
+            RUIDO: "Noise",
+            ESPACOS_PUBLICOS: "Public spaces",
+            SINALIZACAO: "Signage",
+            OUTROS: "Other",
           },
         },
       };
@@ -198,6 +272,7 @@ export default function PublicOccurrenceDetail() {
 
   useEffect(() => {
     setSelectedStatus(getStatusKey(occurrence));
+    setEditForm(buildEditForm(occurrence));
   }, [occurrence]);
 
   const tone = getTone(occurrence?.status);
@@ -207,11 +282,7 @@ export default function PublicOccurrenceDetail() {
   );
   const currentStatusKey = getStatusKey(occurrence);
   const allowedStatusOptions = useMemo(() => {
-    const allOptions: OccurrenceStatusKey[] = [
-      "SUBMETIDA",
-      "EM_TRATAMENTO",
-      "CONCLUIDA",
-    ];
+    const allOptions: OccurrenceStatusKey[] = ["SUBMETIDA", "EM_TRATAMENTO", "CONCLUIDA"];
 
     if (currentStatusKey === "SUBMETIDA") return allOptions;
     if (currentStatusKey === "EM_TRATAMENTO") {
@@ -230,15 +301,19 @@ export default function PublicOccurrenceDetail() {
     ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`
     : "";
 
+  const redirectToLogin = () => {
+    navigate("/login", {
+      replace: true,
+      state: { from: `/occurrences/public/${occurrenceId}` },
+    });
+  };
+
   const handleUpdateStatus = async () => {
     if (!occurrenceId) return;
 
     const token = getAccessToken();
     if (!token) {
-      navigate("/login", {
-        replace: true,
-        state: { from: `/occurrences/public/${occurrenceId}` },
-      });
+      redirectToLogin();
       return;
     }
 
@@ -263,10 +338,7 @@ export default function PublicOccurrenceDetail() {
       setManageSuccess(pageText.management.updateSuccess);
     } catch (updateError) {
       if (updateError instanceof OccurrencesRequestError && updateError.status === 401) {
-        navigate("/login", {
-          replace: true,
-          state: { from: `/occurrences/public/${occurrenceId}` },
-        });
+        redirectToLogin();
         return;
       }
 
@@ -277,6 +349,86 @@ export default function PublicOccurrenceDetail() {
       );
     } finally {
       setStatusUpdating(false);
+    }
+  };
+
+  const handleToggleEdit = () => {
+    if (isEditingOccurrence) {
+      setEditForm(buildEditForm(occurrence));
+      setIsEditingOccurrence(false);
+      setEditError("");
+      return;
+    }
+
+    setEditSuccess("");
+    setEditError("");
+    setIsEditingOccurrence(true);
+  };
+
+  const handleSaveOccurrence = async () => {
+    if (!occurrenceId) return;
+
+    const token = getAccessToken();
+    if (!token) {
+      redirectToLogin();
+      return;
+    }
+
+    const trimmedLocation = editForm.location.trim();
+    const trimmedDescription = editForm.description.trim();
+    const trimmedOtherCategoryDetail = editForm.otherCategoryDetail.trim();
+
+    if (trimmedLocation.length < 2) {
+      setEditError(pageText.management.validationLocation);
+      setEditSuccess("");
+      return;
+    }
+
+    if (editForm.category === "OUTROS" && trimmedOtherCategoryDetail.length < 3) {
+      setEditError(pageText.management.validationOtherCategory);
+      setEditSuccess("");
+      return;
+    }
+
+    setOccurrenceUpdating(true);
+    setEditError("");
+    setEditSuccess("");
+
+    try {
+      await updateOccurrence(
+        occurrenceId,
+        {
+          category: editForm.category,
+          otherCategoryDetail:
+            editForm.category === "OUTROS" ? trimmedOtherCategoryDetail : undefined,
+          description: trimmedDescription || undefined,
+          location: trimmedLocation,
+        },
+        token,
+        pageText.management.editError,
+      );
+
+      const refreshedOccurrence = await fetchPublicOccurrenceById(
+        occurrenceId,
+        pageText.loadError,
+      );
+
+      setOccurrence(refreshedOccurrence);
+      setIsEditingOccurrence(false);
+      setEditSuccess(pageText.management.editSuccess);
+    } catch (updateError) {
+      if (updateError instanceof OccurrencesRequestError && updateError.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      setEditError(
+        updateError instanceof Error && updateError.message
+          ? updateError.message
+          : pageText.management.editError,
+      );
+    } finally {
+      setOccurrenceUpdating(false);
     }
   };
 
@@ -295,7 +447,6 @@ export default function PublicOccurrenceDetail() {
               <span>{t("appName")}</span>
             </div>
           </div>
-
         </header>
 
         {loading && <p className="public-occurrence-feedback">{pageText.loading}</p>}
@@ -376,7 +527,11 @@ export default function PublicOccurrenceDetail() {
                     >
                       {allowedStatusOptions.map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
-                          {pageText.management.statuses[statusOption as OccurrenceStatusKey]}
+                          {
+                            pageText.management.statuses[
+                              statusOption as keyof typeof pageText.management.statuses
+                            ]
+                          }
                         </option>
                       ))}
                     </select>
@@ -395,10 +550,12 @@ export default function PublicOccurrenceDetail() {
                       <button
                         className="public-occurrence-management-button is-secondary"
                         type="button"
-                        disabled
-                        title={pageText.management.editNote}
+                        onClick={handleToggleEdit}
+                        disabled={occurrenceUpdating}
                       >
-                        {pageText.management.editButton}
+                        {isEditingOccurrence
+                          ? pageText.management.cancelEditButton
+                          : pageText.management.editButton}
                       </button>
                     </div>
 
@@ -413,9 +570,133 @@ export default function PublicOccurrenceDetail() {
                       </p>
                     )}
 
-                    <p className="public-occurrence-management-note">
-                      {pageText.management.editNote}
-                    </p>
+                    {isEditingOccurrence && (
+                      <div className="public-occurrence-management-form">
+                        <label
+                          className="public-occurrence-management-label"
+                          htmlFor="occurrence-category"
+                        >
+                          {pageText.management.categoryField}
+                        </label>
+                        <select
+                          id="occurrence-category"
+                          className="public-occurrence-management-select"
+                          value={editForm.category}
+                          onChange={(event) => {
+                            const nextCategory = event.target.value as OccurrenceCategoryKey;
+                            setEditForm((current) => ({
+                              ...current,
+                              category: nextCategory,
+                              otherCategoryDetail:
+                                nextCategory === "OUTROS" ? current.otherCategoryDetail : "",
+                            }));
+                            if (editError) setEditError("");
+                            if (editSuccess) setEditSuccess("");
+                          }}
+                          disabled={occurrenceUpdating}
+                        >
+                          {EDITABLE_OCCURRENCE_CATEGORIES.map((categoryOption) => (
+                            <option key={categoryOption} value={categoryOption}>
+                              {pageText.management.categories[categoryOption]}
+                            </option>
+                          ))}
+                        </select>
+
+                        {editForm.category === "OUTROS" && (
+                          <>
+                            <label
+                              className="public-occurrence-management-label"
+                              htmlFor="occurrence-category-detail"
+                            >
+                              {pageText.management.categoryDetailField}
+                            </label>
+                            <input
+                              id="occurrence-category-detail"
+                              className="public-occurrence-management-input"
+                              type="text"
+                              value={editForm.otherCategoryDetail}
+                              placeholder={pageText.management.categoryDetailPlaceholder}
+                              onChange={(event) => {
+                                setEditForm((current) => ({
+                                  ...current,
+                                  otherCategoryDetail: event.target.value,
+                                }));
+                                if (editError) setEditError("");
+                                if (editSuccess) setEditSuccess("");
+                              }}
+                              disabled={occurrenceUpdating}
+                            />
+                          </>
+                        )}
+
+                        <label
+                          className="public-occurrence-management-label"
+                          htmlFor="occurrence-location"
+                        >
+                          {pageText.management.locationField}
+                        </label>
+                        <input
+                          id="occurrence-location"
+                          className="public-occurrence-management-input"
+                          type="text"
+                          value={editForm.location}
+                          placeholder={pageText.management.locationPlaceholder}
+                          onChange={(event) => {
+                            setEditForm((current) => ({
+                              ...current,
+                              location: event.target.value,
+                            }));
+                            if (editError) setEditError("");
+                            if (editSuccess) setEditSuccess("");
+                          }}
+                          disabled={occurrenceUpdating}
+                        />
+
+                        <label
+                          className="public-occurrence-management-label"
+                          htmlFor="occurrence-description"
+                        >
+                          {pageText.management.descriptionField}
+                        </label>
+                        <textarea
+                          id="occurrence-description"
+                          className="public-occurrence-management-textarea"
+                          value={editForm.description}
+                          placeholder={pageText.management.descriptionPlaceholder}
+                          onChange={(event) => {
+                            setEditForm((current) => ({
+                              ...current,
+                              description: event.target.value,
+                            }));
+                            if (editError) setEditError("");
+                            if (editSuccess) setEditSuccess("");
+                          }}
+                          disabled={occurrenceUpdating}
+                        />
+
+                        <button
+                          className="public-occurrence-management-button is-primary is-full"
+                          type="button"
+                          onClick={handleSaveOccurrence}
+                          disabled={occurrenceUpdating}
+                        >
+                          {occurrenceUpdating
+                            ? pageText.management.saveEditLoading
+                            : pageText.management.saveEditButton}
+                        </button>
+                      </div>
+                    )}
+
+                    {editSuccess && (
+                      <p className="public-occurrence-management-feedback is-success">
+                        {editSuccess}
+                      </p>
+                    )}
+                    {editError && (
+                      <p className="public-occurrence-management-feedback is-error">
+                        {editError}
+                      </p>
+                    )}
                   </div>
                 )}
               </aside>
