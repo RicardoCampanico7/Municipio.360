@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CertificationStatus, OccurrenceCategory, OccurrenceStatus, Role } from '@prisma/client';
+import {
+  CertificationStatus,
+  OccurrenceCategory,
+  OccurrenceStatus,
+  Role,
+} from '@prisma/client';
 
+/**
+ * Representa o resumo do autor devolvido nas respostas internas de ocorrencias.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve expor apenas os campos necessarios para identificar o autor em contexto interno.
+ */
 export class OccurrenceOwnerSummaryResponseDto {
   @ApiProperty({ example: 7 })
   id: number;
@@ -24,6 +35,12 @@ export class OccurrenceOwnerSummaryResponseDto {
   certStatus: CertificationStatus;
 }
 
+/**
+ * Representa o autor reduzido de um comentario interno de ocorrencia.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve conter apenas os dados minimos do autor do comentario interno.
+ */
 export class OccurrenceInternalCommentAuthorResponseDto {
   @ApiProperty({ example: 3 })
   id: number;
@@ -38,6 +55,12 @@ export class OccurrenceInternalCommentAuthorResponseDto {
   role: Role;
 }
 
+/**
+ * Representa um comentario interno associado a uma ocorrencia.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve manter a ligacao entre comentario, autor e ocorrencia de forma consistente.
+ */
 export class OccurrenceInternalCommentResponseDto {
   @ApiProperty({ example: 10 })
   id: number;
@@ -67,6 +90,12 @@ export class OccurrenceInternalCommentResponseDto {
   user: OccurrenceInternalCommentAuthorResponseDto;
 }
 
+/**
+ * Representa o detalhe publico devolvido para uma ocorrencia municipal.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO nao deve expor dados sensiveis do autor da ocorrencia.
+ */
 export class PublicOccurrenceResponseDto {
   @ApiProperty({ example: 21 })
   id: number;
@@ -136,11 +165,63 @@ export class PublicOccurrenceResponseDto {
   updatedAt: Date;
 }
 
+/**
+ * Representa a ocorrencia devolvida ao respetivo proprietario autenticado.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve identificar o proprietario sem expor dados internos de gestao.
+ */
 export class OwnerOccurrenceResponseDto extends PublicOccurrenceResponseDto {
   @ApiProperty({ example: 7 })
   userId: number;
 }
 
+/**
+ * Representa uma entrada cronologica do historico de estados de uma ocorrencia.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve preservar a correspondencia entre estado persistido e estado apresentado.
+ */
+export class OccurrenceStatusHistoryEntryResponseDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({
+    example: 'open',
+    description: 'Estado apresentado ao frontend',
+  })
+  status: string;
+
+  @ApiProperty({
+    enum: OccurrenceStatus,
+    example: OccurrenceStatus.SUBMETIDA,
+    description: 'Estado persistido em base de dados',
+  })
+  statusKey: OccurrenceStatus;
+
+  @ApiProperty({
+    example: '2026-04-05T10:15:30.000Z',
+  })
+  createdAt: Date;
+}
+
+/**
+ * Representa o detalhe completo da ocorrencia do proprietario com historico de estados.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve incluir o historico cronologico sem expor comentarios internos de operacao.
+ */
+export class OwnerOccurrenceDetailResponseDto extends OwnerOccurrenceResponseDto {
+  @ApiProperty({ type: [OccurrenceStatusHistoryEntryResponseDto] })
+  statusHistory: OccurrenceStatusHistoryEntryResponseDto[];
+}
+
+/**
+ * Representa o detalhe de ocorrencia devolvido em contexto de operacao interna.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve agregar dados do autor e comentarios internos apenas para utilizadores autorizados.
+ */
 export class OperatorOccurrenceResponseDto {
   @ApiProperty({ example: 21 })
   id: number;
@@ -199,6 +280,12 @@ export class OperatorOccurrenceResponseDto {
   internalComments: OccurrenceInternalCommentResponseDto[];
 }
 
+/**
+ * Representa a resposta devolvida apos o upload de imagens de ocorrencias.
+ * @author Equipa Municipio.360
+ * @version 05/04/2026
+ * @inv O DTO deve expor apenas as URLs publicas canonicas das imagens carregadas.
+ */
 export class OccurrenceImageUploadResponseDto {
   @ApiProperty({
     type: [String],

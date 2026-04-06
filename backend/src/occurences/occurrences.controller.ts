@@ -43,6 +43,7 @@ import { ModuleHealthResponseDto } from '../docs/dto/app-response.dto';
 import {
   OccurrenceImageUploadResponseDto,
   OccurrenceInternalCommentResponseDto,
+  OwnerOccurrenceDetailResponseDto,
   OperatorOccurrenceResponseDto,
   OwnerOccurrenceResponseDto,
   PublicOccurrenceResponseDto,
@@ -61,8 +62,9 @@ import { OccurrencesService } from './occurrences.service';
 /**
  * Expos endpoints publicos, privados e de gestao para ocorrencias municipais.
  * @author Alan Martynyuk e Guilherme Gaspar
- * @version 16/03/2026
+ * @version 05/04/2026
  * @inv O controlador deve separar claramente respostas publicas de respostas autenticadas.
+ * @inv O detalhe privado do cidadao deve permanecer acessivel apenas ao respetivo proprietario.
  */
 @ApiTags('occurrences')
 @Controller('occurrences')
@@ -187,7 +189,9 @@ export class OccurrencesController {
    * Devolve o detalhe de uma ocorrencia pertencente ao utilizador autenticado.
    * @param req Pedido HTTP autenticado.
    * @param id Identificador da ocorrencia.
-   * @return Detalhe da ocorrencia do utilizador.
+   * @return Detalhe da ocorrencia do utilizador com historico de estados.
+   * Pre-condicao: O pedido deve estar autenticado com a role CIVIL.
+   * Pos-condicao: Apenas o proprietario recebe o detalhe com o historico cronologico da ocorrencia.
    */
   @Get('mine/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -199,7 +203,7 @@ export class OccurrencesController {
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
   @ApiOkResponse({
     description: 'Ocorrencia encontrada',
-    type: OwnerOccurrenceResponseDto,
+    type: OwnerOccurrenceDetailResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',

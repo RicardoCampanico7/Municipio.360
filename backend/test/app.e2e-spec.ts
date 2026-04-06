@@ -590,6 +590,78 @@ describe('Occurrences permissions (e2e)', () => {
     });
   });
 
+  it('returns own occurrence detail with status history for a CIVIL user', async () => {
+    prisma.occurrence.findUnique
+      .mockResolvedValueOnce({
+        id: 51,
+        userId: 32,
+      })
+      .mockResolvedValueOnce({
+        id: 51,
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        otherCategoryDetail: null,
+        description: 'Candeeiro apagado',
+        location: 'Rua Central',
+        imageUrls: [],
+        status: OccurrenceStatus.EM_TRATAMENTO,
+        createdAt: new Date('2026-04-05T09:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T11:30:00.000Z'),
+        userId: 32,
+        statusHistory: [
+          {
+            id: 1,
+            status: OccurrenceStatus.SUBMETIDA,
+            createdAt: new Date('2026-04-05T09:00:00.000Z'),
+          },
+          {
+            id: 2,
+            status: OccurrenceStatus.EM_TRATAMENTO,
+            createdAt: new Date('2026-04-05T10:15:00.000Z'),
+          },
+        ],
+      });
+
+    const token = signToken({
+      sub: 32,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .get('/occurrences/mine/51')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect({
+        id: 51,
+        title: 'Iluminacao publica',
+        category: 'Iluminacao publica',
+        categoryKey: 'ILUMINACAO_PUBLICA',
+        otherCategoryDetail: null,
+        description: 'Candeeiro apagado',
+        location: 'Rua Central',
+        imageUrls: [],
+        status: 'progress',
+        statusKey: 'EM_TRATAMENTO',
+        createdAt: '2026-04-05T09:00:00.000Z',
+        updatedAt: '2026-04-05T11:30:00.000Z',
+        userId: 32,
+        statusHistory: [
+          {
+            id: 1,
+            status: 'open',
+            statusKey: 'SUBMETIDA',
+            createdAt: '2026-04-05T09:00:00.000Z',
+          },
+          {
+            id: 2,
+            status: 'progress',
+            statusKey: 'EM_TRATAMENTO',
+            createdAt: '2026-04-05T10:15:00.000Z',
+          },
+        ],
+      });
+  });
+
   it('returns 403 when a CIVIL user tries to access another user occurrence detail', async () => {
     prisma.occurrence.findUnique.mockResolvedValue({
       id: 50,
