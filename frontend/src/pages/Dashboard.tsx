@@ -1,4 +1,4 @@
-import { FileText, Home, Map, Plus, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Home, Map, Plus, User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +25,14 @@ const languageOptions = [
   { code: "fr", flag: "🇫🇷" },
 ] as const;
 
+const dashboardBannerSlides = [
+  { src: "/dashboard-banner.png", alt: "Vista urbana do municipio" },
+  { src: "/login-photo.jpg", alt: "Paisagem da cidade" },
+  { src: "/ocurrence-all-photo.jpg", alt: "Vista geral do municipio" },
+  { src: "/ocurrence-mapa.jpg", alt: "Mapa do municipio" },
+  { src: "/ocuurence-public.jpg", alt: "Ocorrencias publicas do municipio" },
+] as const;
+
 type ReportTone = "progress" | "open" | "done";
 
 type DashboardReport = {
@@ -49,11 +57,22 @@ export default function Dashboard() {
   const sessionUser = getAuthenticatedUser();
   const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : "visitante";
   const userAvatar = authenticated ? sessionUser?.avatarUrl || "/user-avatar.jpg" : "/user-avatar.jpg";
-  const bannerImage = "/dashboard-banner.png";
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [occurrences, setOccurrences] = useState<ApiOccurrence[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [reportsError, setReportsError] = useState("");
+  const carouselCopy = i18n.language.startsWith("pt")
+    ? {
+        previous: "Imagem anterior",
+        next: "Imagem seguinte",
+        current: (index: number) => `Ir para imagem ${index}`,
+      }
+    : {
+        previous: "Previous image",
+        next: "Next image",
+        current: (index: number) => `Go to image ${index}`,
+      };
 
   const publicContent = i18n.language.startsWith("pt")
     ? {
@@ -111,6 +130,16 @@ export default function Dashboard() {
       mounted = false;
     };
   }, [navigate, publicContent.reportsLoadError, t]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveBannerIndex((current) => (current + 1) % dashboardBannerSlides.length);
+    }, 4800);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const reports = useMemo<DashboardReport[]>(() => {
     const sorted = [...occurrences].sort((a, b) => {
@@ -241,6 +270,16 @@ export default function Dashboard() {
     }
   };
 
+  const handlePreviousBanner = () => {
+    setActiveBannerIndex((current) =>
+      current === 0 ? dashboardBannerSlides.length - 1 : current - 1,
+    );
+  };
+
+  const handleNextBanner = () => {
+    setActiveBannerIndex((current) => (current + 1) % dashboardBannerSlides.length);
+  };
+
   return (
     <main className="dashboard-screen">
       <section className="dashboard-phone" aria-label="Dashboard">
@@ -304,16 +343,64 @@ export default function Dashboard() {
         </header>
 
         <section className="dashboard-banner">
-          <img
-            className="dashboard-banner-image"
-            src={bannerImage}
-            alt="Vista urbana do municipio"
-          />
+          <div className="dashboard-banner-track" aria-live="polite">
+            {dashboardBannerSlides.map((slide, index) => (
+              <div
+                key={slide.src}
+                className={[
+                  "dashboard-banner-slide",
+                  index === activeBannerIndex ? "is-active" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                aria-hidden={index !== activeBannerIndex}
+              >
+                <img className="dashboard-banner-image" src={slide.src} alt={slide.alt} />
+              </div>
+            ))}
+          </div>
           <div className="dashboard-banner-copy">
             <h2>{t("dashboard.bannerTitle")}</h2>
             <p>{t("dashboard.bannerCopy")}</p>
             <button className="dashboard-cta" type="button" onClick={handleCreateOccurrence}>
               {t("dashboard.bannerButton")}
+            </button>
+          </div>
+          <div className="dashboard-banner-controls" aria-label="Controles do carrossel">
+            <button
+              className="dashboard-banner-control"
+              type="button"
+              aria-label={carouselCopy.previous}
+              onClick={handlePreviousBanner}
+            >
+              <ChevronLeft size={18} strokeWidth={2.4} />
+            </button>
+
+            <div className="dashboard-banner-dots" aria-label="Selecao de imagem">
+              {dashboardBannerSlides.map((slide, index) => (
+                <button
+                  key={`${slide.src}-dot`}
+                  className={[
+                    "dashboard-banner-dot",
+                    index === activeBannerIndex ? "is-active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  type="button"
+                  aria-label={carouselCopy.current(index + 1)}
+                  aria-pressed={index === activeBannerIndex}
+                  onClick={() => setActiveBannerIndex(index)}
+                />
+              ))}
+            </div>
+
+            <button
+              className="dashboard-banner-control"
+              type="button"
+              aria-label={carouselCopy.next}
+              onClick={handleNextBanner}
+            >
+              <ChevronRight size={18} strokeWidth={2.4} />
             </button>
           </div>
         </section>
