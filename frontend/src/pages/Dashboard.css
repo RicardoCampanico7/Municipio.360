@@ -167,6 +167,23 @@
   isolation: isolate;
 }
 
+.dashboard-banner-track {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.dashboard-banner-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+
+.dashboard-banner-slide.is-active {
+  opacity: 1;
+}
+
 .dashboard-banner::after {
   content: "";
   position: absolute;
@@ -192,13 +209,12 @@
 }
 
 .dashboard-banner-image {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
+  display: block;
   object-fit: cover;
   object-position: center;
-  transform: scale(1.02);
+  transform: scale(1.05);
 }
 
 .dashboard-banner-copy {
@@ -210,6 +226,55 @@
   justify-content: flex-end;
   margin-top: auto;
   padding-top: 28px;
+}
+
+.dashboard-banner-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 30px rgba(10, 10, 10, 0.16);
+  backdrop-filter: blur(14px);
+}
+
+.dashboard-banner-control {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  cursor: pointer;
+}
+
+.dashboard-banner-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-banner-dot {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+}
+
+.dashboard-banner-dot.is-active {
+  width: 28px;
+  background: #fff;
 }
 
 .dashboard-layout {
@@ -639,6 +704,28 @@
     padding: 16px;
     border-radius: 22px;
     min-height: 210px;
+  }
+
+  .dashboard-banner-controls {
+    top: 14px;
+    right: 14px;
+    bottom: auto;
+    gap: 8px;
+    padding: 6px 8px;
+  }
+
+  .dashboard-banner-control {
+    width: 34px;
+    height: 34px;
+  }
+
+  .dashboard-banner-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dashboard-banner-dot.is-active {
+    width: 22px;
   }
 
   .dashboard-banner-copy h2 {
