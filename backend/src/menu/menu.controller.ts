@@ -1,5 +1,14 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
+import { menuSwaggerExamples } from '../docs/examples/menu-swagger.examples';
 import { PublicMenuResponseDto } from './dto/responses/menu-response.dto';
 import { MenuService } from './menu.service';
 
@@ -10,6 +19,7 @@ import { MenuService } from './menu.service';
  * @inv O controlador deve devolver apenas dados de navegacao publicos e sem estado sensivel.
  */
 @ApiTags('menu')
+@ApiExtraModels(PublicMenuResponseDto)
 @Controller('menu')
 export class MenuController {
   /**
@@ -24,11 +34,26 @@ export class MenuController {
    * @return Estrutura publica do menu.
    */
   @Get()
-  @ApiOperation({ summary: 'Obter dados publicos do menu' })
-  @ApiQuery({ name: 'lang', required: false, example: 'pt' })
+  @ApiOperation({
+    summary: 'Obter dados publicos do menu',
+    description:
+      'Devolve o menu publico usado pelo frontend. O idioma pode ser enviado na query string.',
+  })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    example: 'pt',
+    description:
+      'Idioma opcional do menu. Valores suportados: pt, en, es e fr. Outros valores fazem fallback para pt.',
+  })
   @ApiOkResponse({
     description: 'Menu publico devolvido com sucesso',
-    type: PublicMenuResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(PublicMenuResponseDto) },
+        examples: menuSwaggerExamples.publicMenuSuccess,
+      },
+    },
   })
   findPublic(@Query('lang') lang?: string) {
     return this.menuService.getPublicMenu(lang);
@@ -40,11 +65,26 @@ export class MenuController {
    * @return Estrutura publica do menu.
    */
   @Get('public')
-  @ApiOperation({ summary: 'Alias publico para obter os dados do menu' })
-  @ApiQuery({ name: 'lang', required: false, example: 'pt' })
+  @ApiOperation({
+    summary: 'Alias publico para obter os dados do menu',
+    description:
+      'Alias de conveniencia que devolve exatamente a mesma estrutura do endpoint GET /menu.',
+  })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    example: 'pt',
+    description:
+      'Idioma opcional do menu. Valores suportados: pt, en, es e fr. Outros valores fazem fallback para pt.',
+  })
   @ApiOkResponse({
     description: 'Menu publico devolvido com sucesso',
-    type: PublicMenuResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(PublicMenuResponseDto) },
+        examples: menuSwaggerExamples.publicMenuSuccess,
+      },
+    },
   })
   findPublicAlias(@Query('lang') lang?: string) {
     return this.menuService.getPublicMenu(lang);

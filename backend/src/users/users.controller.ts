@@ -2,13 +2,16 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import {
   ApiForbiddenResponse,
   ApiBearerAuth,
+  ApiExtraModels,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
+import { usersSwaggerExamples } from '../docs/examples/users-swagger.examples';
 import { ApiErrorResponseDto } from '../shared/dto/api-error-response.dto';
 import { SafeUserResponseDto } from '../auth/dto/responses/auth-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,6 +27,7 @@ import { PrismaService } from '../prisma/prisma.service';
  */
 @ApiTags('users')
 @ApiBearerAuth('bearer')
+@ApiExtraModels(SafeUserResponseDto, ApiErrorResponseDto)
 @Controller('users')
 export class UsersController {
   /**
@@ -41,19 +45,45 @@ export class UsersController {
   @Get()
   @ApiOperation({
     summary: 'Listar utilizadores para perfis OPERADOR e ADMINISTRADOR',
+    description:
+      'Devolve a lista de utilizadores com campos seguros para consulta interna no backoffice.',
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description:
+      'JWT recebido em /auth/login no formato Bearer <token> para um OPERADOR ou ADMINISTRADOR.',
+    required: true,
+    example: usersSwaggerExamples.authorizationHeader,
   })
   @ApiOkResponse({
     description: 'Lista de utilizadores devolvida',
-    type: SafeUserResponseDto,
-    isArray: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: { $ref: getSchemaPath(SafeUserResponseDto) },
+        },
+        examples: usersSwaggerExamples.listSuccess,
+      },
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
-    type: ApiErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: usersSwaggerExamples.listUnauthorized,
+      },
+    },
   })
   @ApiForbiddenResponse({
     description: 'Sem permissao para consultar',
-    type: ApiErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: usersSwaggerExamples.listForbidden,
+      },
+    },
   })
   findAll() {
     return this.prisma.user.findMany({
