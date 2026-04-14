@@ -14,17 +14,25 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
-import { ValidationErrorResponseDto, ApiErrorResponseDto } from '../docs/dto/api-error-response.dto';
+import { authSwaggerExamples } from '../docs/examples/auth-swagger.examples';
+import {
+  ApiErrorResponseDto,
+  ValidationErrorResponseDto,
+} from '../docs/dto/api-error-response.dto';
 import {
   AuthLoginResponseDto,
   AuthMeResponseDto,
   AuthRegisterResponseDto,
+  SafeUserResponseDto,
 } from '../docs/dto/auth-response.dto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -38,6 +46,16 @@ import { RegisterDto } from './dto/register.dto';
  * @inv As operacoes de autenticacao nao devem expor hashes nem dados sensiveis desnecessarios.
  */
 @ApiTags('auth')
+@ApiExtraModels(
+  LoginDto,
+  RegisterDto,
+  AuthLoginResponseDto,
+  AuthRegisterResponseDto,
+  AuthMeResponseDto,
+  SafeUserResponseDto,
+  ApiErrorResponseDto,
+  ValidationErrorResponseDto,
+)
 @Controller('auth')
 export class AuthController {
   /**
@@ -55,19 +73,43 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Autenticar utilizador e obter JWT' })
-  @ApiBody({ type: LoginDto })
+  @ApiOperation({
+    summary: 'Autenticar utilizador e obter JWT',
+    description:
+      'Valida as credenciais submetidas e devolve um accessToken JWT para consumir endpoints protegidos.',
+  })
+  @ApiBody({
+    description: 'Credenciais do utilizador registado.',
+    required: true,
+    schema: { $ref: getSchemaPath(LoginDto) },
+    examples: authSwaggerExamples.loginRequest,
+  })
   @ApiOkResponse({
     description: 'Login efetuado com sucesso',
-    type: AuthLoginResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthLoginResponseDto) },
+        examples: authSwaggerExamples.loginSuccess,
+      },
+    },
   })
   @ApiBadRequestResponse({
     description: 'Pedido invalido',
-    type: ValidationErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ValidationErrorResponseDto) },
+        examples: authSwaggerExamples.loginBadRequest,
+      },
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Credenciais invalidas',
-    type: ApiErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.loginUnauthorized,
+      },
+    },
   })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -81,20 +123,48 @@ export class AuthController {
    * Pos-condicao: O utilizador fica persistido com password em hash.
    */
   @Post('register')
-  @ApiOperation({ summary: 'Registar novo utilizador' })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({
-    status: 201,
+  @ApiOperation({
+    summary: 'Registar novo utilizador',
+    description:
+      'Cria um novo utilizador. Quando o campo role nao e enviado, o registo fica associado a CIVIL.',
+  })
+  @ApiBody({
+    description: 'Dados do novo utilizador a registar.',
+    required: true,
+    schema: { $ref: getSchemaPath(RegisterDto) },
+    examples: authSwaggerExamples.registerRequest,
+  })
+  @ApiCreatedResponse({
     description: 'Utilizador registado com sucesso',
-    type: AuthRegisterResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthRegisterResponseDto) },
+        examples: authSwaggerExamples.registerSuccess,
+      },
+    },
   })
   @ApiBadRequestResponse({
-    description: 'Dados invalidos',
-    type: ValidationErrorResponseDto,
+    description: 'Dados invalidos ou fotografia de perfil rejeitada',
+    content: {
+      'application/json': {
+        schema: {
+          oneOf: [
+            { $ref: getSchemaPath(ValidationErrorResponseDto) },
+            { $ref: getSchemaPath(ApiErrorResponseDto) },
+          ],
+        },
+        examples: authSwaggerExamples.registerBadRequest,
+      },
+    },
   })
   @ApiConflictResponse({
     description: 'Email ja registado',
-    type: ApiErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.registerConflict,
+      },
+    },
   })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
@@ -108,14 +178,35 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiBearerAuth('bearer')
-  @ApiOperation({ summary: 'Obter perfil do utilizador autenticado' })
+  @ApiHeader({
+    name: 'Authorization',
+    description:
+      'JWT recebido em /auth/login no formato Bearer <token>.',
+    required: true,
+    example: authSwaggerExamples.authorizationHeader,
+  })
+  @ApiOperation({
+    summary: 'Obter perfil do utilizador autenticado',
+    description:
+      'Devolve o perfil atualizado do utilizador associado ao token Bearer enviado no header Authorization.',
+  })
   @ApiOkResponse({
     description: 'Perfil devolvido com sucesso',
-    type: AuthMeResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthMeResponseDto) },
+        examples: authSwaggerExamples.meSuccess,
+      },
+    },
   })
   @ApiUnauthorizedResponse({
-    description: 'Sem autenticacao ou token invalido',
-    type: ApiErrorResponseDto,
+    description: 'Sem autenticacao, token invalido ou utilizador inexistente',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.meUnauthorized,
+      },
+    },
   })
   me(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
