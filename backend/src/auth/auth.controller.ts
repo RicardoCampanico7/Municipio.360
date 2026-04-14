@@ -27,15 +27,15 @@ import { authSwaggerExamples } from '../docs/examples/auth-swagger.examples';
 import {
   ApiErrorResponseDto,
   ValidationErrorResponseDto,
-} from '../docs/dto/api-error-response.dto';
+} from '../shared/dto/api-error-response.dto';
 import {
   AuthLoginResponseDto,
   AuthMeResponseDto,
   AuthRegisterResponseDto,
   SafeUserResponseDto,
-} from '../docs/dto/auth-response.dto';
+} from './dto/responses/auth-response.dto';
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 

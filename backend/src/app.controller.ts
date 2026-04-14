@@ -1,8 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
+import { appSwaggerExamples } from './docs/examples/app-swagger.examples';
 import {
   AppHealthResponseDto,
-} from './docs/dto/app-response.dto';
+} from './app/dto/app-response.dto';
 import { AppService } from './app.service';
 
 /**
@@ -12,6 +19,7 @@ import { AppService } from './app.service';
  * @inv O controlador deve devolver respostas simples sem depender de estado mutavel local.
  */
 @ApiTags('app')
+@ApiExtraModels(AppHealthResponseDto)
 @Controller()
 export class AppController {
   /**
@@ -25,12 +33,18 @@ export class AppController {
    * @return string Mensagem simples usada para validar o endpoint raiz.
    */
   @Get()
-  @ApiOperation({ summary: 'Mensagem base da API' })
+  @ApiOperation({
+    summary: 'Mensagem base da API',
+    description:
+      'Endpoint simples para validar rapidamente se a API esta acessivel.',
+  })
   @ApiOkResponse({
     description: 'Mensagem devolvida com sucesso',
-    schema: {
-      type: 'string',
-      example: 'Hello World!',
+    content: {
+      'text/plain': {
+        schema: { type: 'string' },
+        examples: appSwaggerExamples.helloSuccess,
+      },
     },
   })
   getHello(): string {
@@ -42,10 +56,19 @@ export class AppController {
    * @return {{ ok: boolean }} Resultado simples de health check.
    */
   @Get('health')
-  @ApiOperation({ summary: 'Health check global da API' })
+  @ApiOperation({
+    summary: 'Health check global da API',
+    description:
+      'Confirma que a API esta operacional e pronta para receber pedidos.',
+  })
   @ApiOkResponse({
     description: 'API operacional',
-    type: AppHealthResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AppHealthResponseDto) },
+        examples: appSwaggerExamples.healthSuccess,
+      },
+    },
   })
   health() {
     return { ok: true };
