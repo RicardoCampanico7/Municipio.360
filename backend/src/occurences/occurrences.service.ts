@@ -7,9 +7,18 @@ import {
 } from '@nestjs/common';
 import { OccurrenceCategory, OccurrenceStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  ALLOWED_STATUS_TRANSITIONS,
+  INLINE_IMAGE_DATA_URL_PREFIX,
+} from './constants/occurrence.constants';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
 import { UpdateOccurrenceDto } from './dto/update-occurrence.dto';
+import {
+  presentOccurrence,
+  presentOccurrences,
+  presentOwnerOccurrenceDetail,
+} from './presentation/occurrence.presentation';
 import {
   assignOccurrenceImagesToOccurrence,
   getOccurrenceImageMetadataByUrl,
@@ -20,58 +29,7 @@ import {
   saveOccurrenceImages,
   unassignOccurrenceImagesFromOccurrence,
   type UploadedOccurrenceImage,
-} from './occurrence-upload';
-
-const INLINE_IMAGE_DATA_URL_PREFIX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
-
-const OCCURRENCE_CATEGORY_LABELS: Record<OccurrenceCategory, string> = {
-  [OccurrenceCategory.BURACOS_PAVIMENTO]: 'Buracos no pavimento',
-  [OccurrenceCategory.ILUMINACAO_PUBLICA]: 'Iluminacao publica',
-  [OccurrenceCategory.LIMPEZA_URBANA]: 'Limpeza urbana',
-  [OccurrenceCategory.RUIDO]: 'Ruido',
-  [OccurrenceCategory.ESPACOS_PUBLICOS]: 'Espacos publicos',
-  [OccurrenceCategory.SINALIZACAO]: 'Sinalizacao',
-  [OccurrenceCategory.OUTROS]: 'Outros',
-};
-const ALLOWED_STATUS_TRANSITIONS: Record<
-  OccurrenceStatus,
-  readonly OccurrenceStatus[]
-> = {
-  [OccurrenceStatus.SUBMETIDA]: [
-    OccurrenceStatus.EM_TRATAMENTO,
-    OccurrenceStatus.CONCLUIDA,
-  ],
-  [OccurrenceStatus.EM_TRATAMENTO]: [OccurrenceStatus.CONCLUIDA],
-  [OccurrenceStatus.CONCLUIDA]: [],
-};
-
-type PresentableOccurrence = {
-  category: OccurrenceCategory;
-  otherCategoryDetail: string | null;
-  status: OccurrenceStatus;
-};
-
-type PresentedOccurrence<T extends PresentableOccurrence> = Omit<
-  T,
-  'category' | 'status'
-> & {
-  title: string;
-  category: string;
-  categoryKey: OccurrenceCategory;
-  status: string;
-  statusKey: OccurrenceStatus;
-};
-
-type PresentableStatusHistoryEntry = {
-  status: OccurrenceStatus;
-  createdAt: Date;
-};
-
-type PresentedStatusHistoryEntry<T extends PresentableStatusHistoryEntry> =
-  Omit<T, 'status'> & {
-    status: string;
-    statusKey: OccurrenceStatus;
-  };
+} from './upload/occurrence-upload';
 
 /**
  * Centraliza a logica de criacao, consulta e gestao de ocorrencias.
@@ -121,41 +79,6 @@ export class OccurrencesService {
     throw new BadRequestException(
       `Transicao de estado invalida: ${currentStatus} -> ${nextStatus}`,
     );
-  }
-
-  /**
-   * Converte o estado persistido para um valor estavel compativel com o frontend atual.
-   * @param status Estado persistido no enum.
-   * @return Estado apresentado ao cliente.
-   */
-  private getPresentationStatus(status: OccurrenceStatus) {
-    switch (status) {
-      case OccurrenceStatus.CONCLUIDA:
-        return 'resolved';
-      case OccurrenceStatus.EM_TRATAMENTO:
-        return 'progress';
-      case OccurrenceStatus.SUBMETIDA:
-      default:
-        return 'open';
-    }
-  }
-
-  /**
-   * Produz o texto legivel apresentado como titulo/categoria para o utilizador final.
-   * @param category Categoria persistida.
-   * @param otherCategoryDetail Detalhe livre quando a categoria e OUTROS.
-   * @return Texto legivel da ocorrencia.
-   */
-  private getPresentationCategory(
-    category: OccurrenceCategory,
-    otherCategoryDetail: string | null,
-  ) {
-    if (category === OccurrenceCategory.OUTROS) {
-      const customLabel = otherCategoryDetail?.trim();
-      if (customLabel) return customLabel;
-    }
-
-    return OCCURRENCE_CATEGORY_LABELS[category];
   }
 
   /**
@@ -226,82 +149,6 @@ export class OccurrencesService {
     }
 
     return normalizedImageUrls;
-  }
-
-  /**
-   * Ajusta a resposta de uma ocorrencia para os campos legiveis esperados pelo frontend atual.
-   * @param occurrence Ocorrencia persistida.
-   * @return Ocorrencia pronta para consumo pelo cliente.
-   */
-  private presentOccurrence<T extends PresentableOccurrence>(
-    occurrence: T,
-  ): PresentedOccurrence<T> {
-    const title = this.getPresentationCategory(
-      occurrence.category,
-      occurrence.otherCategoryDetail,
-    );
-
-    return {
-      ...occurrence,
-      title,
-      categoryKey: occurrence.category,
-      statusKey: occurrence.status,
-      category: title,
-      status: this.getPresentationStatus(occurrence.status),
-    };
-  }
-
-  /**
-   * Ajusta uma lista de ocorrencias para o formato apresentado ao cliente.
-   * @param occurrences Lista persistida.
-   * @return Lista pronta para consumo pelo cliente.
-   */
-  private presentOccurrences<T extends PresentableOccurrence>(
-    occurrences: T[],
-  ) {
-    return occurrences.map((occurrence) => this.presentOccurrence(occurrence));
-  }
-
-  /**
-   * Ajusta uma entrada de historico de estado para o formato apresentado ao cliente.
-   * @param statusHistoryEntry Entrada persistida no historico.
-   * @return Entrada pronta para consumo pelo cliente.
-   */
-  private presentStatusHistoryEntry<T extends PresentableStatusHistoryEntry>(
-    statusHistoryEntry: T,
-  ): PresentedStatusHistoryEntry<T> {
-    return {
-      ...statusHistoryEntry,
-      statusKey: statusHistoryEntry.status,
-      status: this.getPresentationStatus(statusHistoryEntry.status),
-    };
-  }
-
-  /**
-   * Ajusta o historico de estados para o formato apresentado ao cliente.
-   * @param statusHistory Lista persistida.
-   * @return Lista pronta para consumo pelo cliente.
-   */
-  private presentStatusHistory<T extends PresentableStatusHistoryEntry>(
-    statusHistory: T[],
-  ) {
-    return statusHistory.map((entry) => this.presentStatusHistoryEntry(entry));
-  }
-
-  /**
-   * Ajusta o detalhe do proprietario incluindo o historico cronologico de estados.
-   * @param occurrence Ocorrencia persistida com historico de estados.
-   * @return Detalhe pronto para consumo pelo cliente autenticado.
-   */
-  private presentOwnerOccurrenceDetail<
-    T extends PresentableOccurrence & {
-      statusHistory: PresentableStatusHistoryEntry[];
-    },
-  >(occurrence: T) {
-    return {
-      ...this.presentOccurrence(occurrence),
-      statusHistory: this.presentStatusHistory(occurrence.statusHistory),
-    };
   }
 
   /**
@@ -499,7 +346,7 @@ export class OccurrencesService {
       createdOccurrenceId = occurrence.id;
       await assignOccurrenceImagesToOccurrence(imageUrls, occurrence.id);
 
-      return this.presentOccurrence(occurrence);
+      return presentOccurrence(occurrence);
     } catch (error) {
       if (createdOccurrenceId !== null) {
         await unassignOccurrenceImagesFromOccurrence(
@@ -551,7 +398,7 @@ export class OccurrencesService {
       select: this.getPublicSelect(),
     });
 
-    return this.presentOccurrences(occurrences);
+    return presentOccurrences(occurrences);
   }
 
   /**
