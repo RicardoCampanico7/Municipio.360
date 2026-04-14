@@ -7,7 +7,7 @@ import { AppModule } from './app.module';
 import {
   ensureOccurrenceUploadsDirectory,
   occurrenceUploadConfig,
-} from './occurences/occurrence-upload';
+} from './occurrences/upload/occurrence-upload';
 
 /**
  * Arranca a aplicacao Nest, configura CORS, validacao global e documentacao Swagger.

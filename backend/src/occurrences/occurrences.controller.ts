@@ -32,14 +32,14 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OccurrenceCategory, Role } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../shared/decorators/roles.decorator';
+import { RolesGuard } from '../shared/guards/roles.guard';
 import {
   ApiErrorResponseDto,
   ValidationErrorResponseDto,
-} from '../docs/dto/api-error-response.dto';
-import { ModuleHealthResponseDto } from '../docs/dto/app-response.dto';
+} from '../shared/dto/api-error-response.dto';
+import { ModuleHealthResponseDto } from '../app/dto/app-response.dto';
 import {
   OccurrenceImageUploadResponseDto,
   OccurrenceInternalCommentResponseDto,
@@ -47,14 +47,14 @@ import {
   OperatorOccurrenceResponseDto,
   OwnerOccurrenceResponseDto,
   PublicOccurrenceResponseDto,
-} from '../docs/dto/occurrence-response.dto';
+} from './dto/responses/occurrence-response.dto';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
-import { OccurrenceUploadExceptionFilter } from './occurrence-upload-exception.filter';
+import { OccurrenceUploadExceptionFilter } from './upload/occurrence-upload-exception.filter';
 import {
   getOccurrenceMulterOptions,
   occurrenceUploadConfig,
   type UploadedOccurrenceImage,
-} from './occurrence-upload';
+} from './upload/occurrence-upload';
 import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
 import { UpdateOccurrenceDto } from './dto/update-occurrence.dto';

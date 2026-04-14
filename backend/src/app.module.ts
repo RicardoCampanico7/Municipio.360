@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { MenuModule } from './menu/menu.module';
-import { OccurrencesModule } from './occurences/occurrences.module';
+import { OccurrencesModule } from './occurrences/occurrences.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
