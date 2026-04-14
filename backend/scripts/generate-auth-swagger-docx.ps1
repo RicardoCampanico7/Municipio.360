@@ -21,6 +21,21 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
   $OutputPath = Join-Path $scriptDirectory '..\docs\auth-swagger-documentation.docx'
 }
 
+function Get-DocumentTitle {
+  param(
+    [string[]]$Lines,
+    [string]$FallbackPath
+  )
+
+  foreach ($line in $Lines) {
+    if ($line.StartsWith('# ')) {
+      return (Remove-MarkdownInlineSyntax $line.Substring(2))
+    }
+  }
+
+  return [System.IO.Path]::GetFileNameWithoutExtension($FallbackPath)
+}
+
 function Escape-XmlText {
   param([string]$Text)
 
@@ -81,6 +96,7 @@ if (-not (Test-Path $outputDirectory)) {
 }
 
 $markdownLines = [System.IO.File]::ReadAllLines($resolvedInputPath)
+$documentTitle = Get-DocumentTitle -Lines $markdownLines -FallbackPath $resolvedInputPath
 $paragraphs = foreach ($line in $markdownLines) {
   Convert-MarkdownLineToParagraphXml -Line $line
 }
@@ -122,7 +138,7 @@ $nowUtc = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
 $coreXml = @"
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:title>Documentacao Swagger dos endpoints de auth</dc:title>
+  <dc:title>$(Escape-XmlText -Text $documentTitle)</dc:title>
   <dc:creator>Codex</dc:creator>
   <cp:lastModifiedBy>Codex</cp:lastModifiedBy>
   <dcterms:created xsi:type="dcterms:W3CDTF">$nowUtc</dcterms:created>
