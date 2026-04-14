@@ -1,9 +1,9 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Role } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ROLES_KEY } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ROLES_KEY } from '../shared/decorators/roles.decorator';
+import { RolesGuard } from '../shared/guards/roles.guard';
 import { OccurrencesController } from './occurrences.controller';
 import { OccurrencesService } from './occurrences.service';
 

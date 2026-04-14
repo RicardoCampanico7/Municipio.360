@@ -7,7 +7,10 @@ import {
   OccurrenceStatus,
   Role,
 } from '@prisma/client';
-import { rm } from 'fs/promises';
+import * as bcrypt from 'bcrypt';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -27,10 +30,13 @@ describe('Occurrences permissions (e2e)', () => {
   let app: INestApplication<App>;
   let httpApp: Parameters<typeof request>[0];
   let jwtService: JwtService;
+  let testUploadsRoot: string;
+  let testUploadsMetadataRoot: string;
   let prisma: {
     $executeRaw: jest.Mock;
     $transaction: jest.Mock;
     user: {
+      create: jest.Mock;
       findUnique: jest.Mock;
       findMany: jest.Mock;
     };
@@ -48,10 +54,23 @@ describe('Occurrences permissions (e2e)', () => {
   });
 
   beforeEach(async () => {
+    testUploadsRoot = await mkdtemp(join(tmpdir(), 'municipio360-occ-'));
+    testUploadsMetadataRoot = await mkdtemp(
+      join(tmpdir(), 'municipio360-occ-meta-'),
+    );
+
+    const uploadConfig = occurrenceUploadConfig as {
+      uploadsRoot: string;
+      uploadsMetadataRoot: string;
+    };
+    uploadConfig.uploadsRoot = testUploadsRoot;
+    uploadConfig.uploadsMetadataRoot = testUploadsMetadataRoot;
+
     prisma = {
       $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn(),
       user: {
+        create: jest.fn(),
         findUnique: jest.fn(),
         findMany: jest.fn(),
       },
@@ -90,7 +109,11 @@ describe('Occurrences permissions (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
-    await rm(occurrenceUploadConfig.uploadsRoot, {
+    await rm(testUploadsRoot, {
+      recursive: true,
+      force: true,
+    });
+    await rm(testUploadsMetadataRoot, {
       recursive: true,
       force: true,
     });
@@ -118,6 +141,189 @@ describe('Occurrences permissions (e2e)', () => {
       certStatus,
     });
   }
+
+  it('returns the root and health endpoints without authentication', async () => {
+    await request(httpApp).get('/').expect(200).expect('Hello World!');
+
+    await request(httpApp).get('/health').expect(200).expect({ ok: true });
+
+    await request(httpApp)
+      .get('/occurrences/health')
+      .expect(200)
+      .expect({ status: 'ok' });
+  });
+
+  it('returns public menu data for both the main route and alias', async () => {
+    await request(httpApp)
+      .get('/menu?lang=en')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            appName: expect.any(String),
+            locale: 'en',
+            items: expect.any(Array),
+            languages: expect.any(Array),
+          }),
+        );
+        expect(body.items.length).toBeGreaterThan(0);
+      });
+
+    await request(httpApp)
+      .get('/menu/public?lang=fr')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.locale).toBe('fr');
+        expect(body.items.length).toBeGreaterThan(0);
+      });
+  });
+
+  it('registers a new user through the auth module', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: 41,
+      name: 'Maria Fernandes',
+      biNumber: '12345678',
+      postalCode: '1000-123',
+      email: 'maria@municipio360.pt',
+      avatarUrl: null,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+      createdAt: new Date('2026-04-10T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-10T09:00:00.000Z'),
+    });
+
+    await request(httpApp)
+      .post('/auth/register')
+      .send({
+        name: 'Maria Fernandes',
+        biNumber: '12345678',
+        postalCode: '1000-123',
+        email: 'maria@municipio360.pt',
+        password: 'SenhaSegura123',
+      })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            message: 'Utilizador registado com sucesso',
+            user: expect.objectContaining({
+              id: 41,
+              email: 'maria@municipio360.pt',
+              role: Role.CIVIL,
+            }),
+          }),
+        );
+      });
+  });
+
+  it('logs in and returns the authenticated profile', async () => {
+    const email = 'operador@municipio360.pt';
+    const password = 'SenhaSegura123';
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    prisma.user.findUnique.mockImplementation(async ({ where }) => {
+      if ('email' in where) {
+        return {
+          id: 42,
+          name: 'Operador Municipal',
+          biNumber: '87654321',
+          postalCode: '1000-124',
+          email,
+          avatarUrl: null,
+          role: Role.OPERADOR,
+          certStatus: CertificationStatus.CERTIFIED,
+          passwordHash,
+        };
+      }
+
+      if ('id' in where) {
+        return {
+          id: 42,
+          name: 'Operador Municipal',
+          biNumber: '87654321',
+          postalCode: '1000-124',
+          email,
+          avatarUrl: null,
+          role: Role.OPERADOR,
+          certStatus: CertificationStatus.CERTIFIED,
+          createdAt: new Date('2026-04-10T09:30:00.000Z'),
+          updatedAt: new Date('2026-04-10T09:30:00.000Z'),
+        };
+      }
+
+      return null;
+    });
+
+    const loginResponse = await request(httpApp)
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    expect(loginResponse.body).toEqual(
+      expect.objectContaining({
+        accessToken: expect.any(String),
+        tokenType: 'Bearer',
+        user: expect.objectContaining({
+          id: 42,
+          email,
+          role: Role.OPERADOR,
+        }),
+      }),
+    );
+
+    await request(httpApp)
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${loginResponse.body.accessToken}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            user: expect.objectContaining({
+              id: 42,
+              email,
+              role: Role.OPERADOR,
+            }),
+          }),
+        );
+      });
+  });
+
+  it('returns the users list for an authenticated operator', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 51,
+        name: 'Cidadao Teste',
+        biNumber: '11223344',
+        postalCode: '1000-125',
+        email: 'cidadao@municipio360.pt',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+        createdAt: new Date('2026-04-10T10:00:00.000Z'),
+        updatedAt: new Date('2026-04-10T10:00:00.000Z'),
+      },
+    ]);
+
+    const token = signToken({
+      sub: 52,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .get('/users')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual([
+          expect.objectContaining({
+            id: 51,
+            email: 'cidadao@municipio360.pt',
+            role: Role.CIVIL,
+          }),
+        ]);
+      });
+  });
 
   it('returns 401 when creating an occurrence without authentication', async () => {
     await request(httpApp)

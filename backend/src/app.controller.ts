@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AppHealthResponseDto,
-} from './docs/dto/app-response.dto';
+} from './app/dto/app-response.dto';
 import { AppService } from './app.service';
 
 /**

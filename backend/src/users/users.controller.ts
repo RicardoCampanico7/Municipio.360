@@ -9,11 +9,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { ApiErrorResponseDto } from '../docs/dto/api-error-response.dto';
-import { SafeUserResponseDto } from '../docs/dto/auth-response.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { ApiErrorResponseDto } from '../shared/dto/api-error-response.dto';
+import { SafeUserResponseDto } from '../auth/dto/responses/auth-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../shared/decorators/roles.decorator';
+import { RolesGuard } from '../shared/guards/roles.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**

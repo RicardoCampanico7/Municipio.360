@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { PublicMenuResponseDto } from '../docs/dto/menu-response.dto';
+import { PublicMenuResponseDto } from './dto/responses/menu-response.dto';
 import { MenuService } from './menu.service';
 
 /**
