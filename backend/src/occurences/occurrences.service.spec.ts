@@ -20,10 +20,10 @@ import {
   removeOccurrenceImagesByUrls,
   saveOccurrenceImages,
   unassignOccurrenceImagesFromOccurrence,
-} from './occurrence-upload';
+} from './upload/occurrence-upload';
 import { OccurrencesService } from './occurrences.service';
 
-jest.mock('./occurrence-upload', () => ({
+jest.mock('./upload/occurrence-upload', () => ({
   occurrenceUploadConfig: {
     maxFiles: 3,
     maxFileSizeBytes: 3 * 1024 * 1024,
