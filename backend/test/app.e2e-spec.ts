@@ -11,7 +11,7 @@ import { rm } from 'fs/promises';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { occurrenceUploadConfig } from './../src/occurences/occurrence-upload';
+import { occurrenceUploadConfig } from './../src/occurrences/upload/occurrence-upload';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 const JWT_SECRET = 'municipio360-e2e-secret';

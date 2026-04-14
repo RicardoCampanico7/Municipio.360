@@ -413,7 +413,7 @@ export class OccurrencesService {
       select: this.getOwnerSelect(),
     });
 
-    return this.presentOccurrences(occurrences);
+    return presentOccurrences(occurrences);
   }
 
   /**
@@ -476,7 +476,7 @@ export class OccurrencesService {
       throw new NotFoundException('Occurrence not found');
     }
 
-    return this.presentOwnerOccurrenceDetail(occurrence);
+    return presentOwnerOccurrenceDetail(occurrence);
   }
 
   /**
@@ -678,6 +678,6 @@ export class OccurrencesService {
       throw new NotFoundException('Occurrence not found');
     }
 
-    return this.presentOccurrence(occurrence);
+    return presentOccurrence(occurrence);
   }
 }
