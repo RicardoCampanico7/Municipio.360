@@ -15,19 +15,17 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import FeedbackAlert from "../components/FeedbackAlert";
-import { clearAccessToken, getAccessToken, getRawAccessToken } from "../services/token";
+import {
+  createOccurrence,
+  OccurrencesRequestError,
+  type OccurrenceCategoryKey,
+} from "../services/occurrences";
+import { clearAccessToken, getAccessSession, getRawAccessToken } from "../services/token";
 import "./NewOccurrence.css";
-
-type OccurrenceCategoryValue =
-  | "BURACOS_PAVIMENTO"
-  | "ILUMINACAO_PUBLICA"
-  | "LIMPEZA_URBANA"
-  | "RUIDO"
-  | "ESPACOS_PUBLICOS"
-  | "SINALIZACAO";
 
 type SelectedImage = {
   id: string;
+  file: File;
   name: string;
   size: number;
   dataUrl: string;
@@ -128,7 +126,7 @@ export default function NewOccurrence() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [category, setCategory] = useState<OccurrenceCategoryValue>(categories[0].value);
+  const [category, setCategory] = useState<OccurrenceCategoryKey>(categories[0].value);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
@@ -159,8 +157,7 @@ export default function NewOccurrence() {
     setMapNote(DEFAULT_MAP_NOTE);
   };
 
-  const redirectToLoginForExpiredSession = () => {
-    const hadStoredSession = !!getRawAccessToken();
+  const redirectToLoginForExpiredSession = (hadStoredSession = !!getRawAccessToken()) => {
     clearAccessToken();
     navigate("/login", {
       replace: true,
@@ -275,6 +272,7 @@ export default function NewOccurrence() {
         const processedImages = await Promise.all(
           acceptedFiles.map(async (file) => ({
             id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+            file,
             name: file.name,
             size: file.size,
             dataUrl: await readFileAsDataUrl(file),
@@ -313,9 +311,9 @@ export default function NewOccurrence() {
     setFeedbackMessage("");
     setLoading(true);
 
-    const token = getAccessToken();
+    const { token, hadStoredSession } = getAccessSession();
     if (!token) {
-      redirectToLoginForExpiredSession();
+      redirectToLoginForExpiredSession(hadStoredSession);
       setLoading(false);
       return;
     }
@@ -330,35 +328,34 @@ export default function NewOccurrence() {
         return;
       }
 
-      const response = await fetch("/api/occurrences", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await createOccurrence(
+        {
           category,
           location: trimmedLocation,
           description: trimmedDescription,
-          imageUrls: selectedImages.length ? selectedImages.map((image) => image.dataUrl) : undefined,
-        }),
-      });
-
-      const data = (await response.json().catch(() => null)) as ApiErrorPayload | null;
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          redirectToLoginForExpiredSession();
-          return;
-        }
-
-        throw new Error(getSubmissionErrorMessage(response.status, data));
-      }
+          imageFiles: selectedImages.map((image) => image.file),
+        },
+        token,
+        "Nao foi possivel submeter a ocorrencia.",
+      );
 
       resetForm();
       setSubmitState("success");
       setFeedbackMessage("A ocorrencia foi submetida com sucesso e sera encaminhada para analise.");
     } catch (submitError) {
+      if (submitError instanceof OccurrencesRequestError) {
+        if (submitError.status === 401) {
+          redirectToLoginForExpiredSession(hadStoredSession);
+          return;
+        }
+
+        setSubmitState("error");
+        setFeedbackMessage(
+          getSubmissionErrorMessage(submitError.status, { message: submitError.message }),
+        );
+        return;
+      }
+
       setSubmitState("error");
       setFeedbackMessage(
         submitError instanceof Error

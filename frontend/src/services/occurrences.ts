@@ -45,6 +45,13 @@ export type UpdateOccurrencePayload = {
   location: string;
 };
 
+export type CreateOccurrencePayload = {
+  category: OccurrenceCategoryKey;
+  description: string;
+  location: string;
+  imageFiles?: File[];
+};
+
 export class OccurrencesRequestError extends Error {
   status: number;
 
@@ -242,6 +249,30 @@ export async function fetchPublicOccurrenceById(id: string, fallbackMessage: str
     const occurrence = sanitizeOccurrence(value);
     return occurrence ? toPublicOccurrence(occurrence) : null;
   });
+}
+
+export async function createOccurrence(
+  payload: CreateOccurrencePayload,
+  token: string,
+  fallbackMessage: string,
+) {
+  const formData = new FormData();
+  formData.append("category", payload.category);
+  formData.append("location", payload.location);
+  formData.append("description", payload.description);
+  payload.imageFiles?.forEach((file) => {
+    formData.append("imageUrls", file, file.name);
+  });
+
+  const response = await fetch("/api/occurrences", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  return parseOccurrenceResponse(response, fallbackMessage, sanitizeOccurrence);
 }
 
 export async function updateOccurrenceStatus(

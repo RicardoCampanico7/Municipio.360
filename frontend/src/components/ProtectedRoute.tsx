@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { clearAccessToken, getRawAccessToken, isAuthenticated } from "../services/token";
+import { clearAccessToken, getAccessSession } from "../services/token";
 
 type ProtectedRouteProps = {
   children?: ReactNode;
@@ -8,9 +8,9 @@ type ProtectedRouteProps = {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
+  const { token, hadStoredSession } = getAccessSession();
 
-  if (!isAuthenticated()) {
-    const hadStoredSession = !!getRawAccessToken();
+  if (!token) {
     clearAccessToken();
     return (
       <Navigate

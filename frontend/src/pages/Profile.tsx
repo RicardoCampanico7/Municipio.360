@@ -21,7 +21,7 @@ import {
 } from "../services/profile";
 import {
   clearAccessToken,
-  getAccessToken,
+  getAccessSession,
   getAuthenticatedUser,
   getRawAccessToken,
   setAuthenticatedUser,
@@ -96,10 +96,17 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    const token = getAccessToken();
+    const { token, hadStoredSession } = getAccessSession();
 
     if (!token) {
-      redirectToLoginForExpiredSession();
+      clearAccessToken();
+      navigate("/login", {
+        replace: true,
+        state: {
+          from: "/profile",
+          ...(hadStoredSession ? { sessionExpired: true } : {}),
+        },
+      });
       return;
     }
 
