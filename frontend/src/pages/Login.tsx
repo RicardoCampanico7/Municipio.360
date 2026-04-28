@@ -2,51 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
-import {
-  clearAccessToken,
-  getAuthenticatedUser,
-  setAccessToken,
-  setAuthenticatedUser,
-  type AuthUser,
-} from "../services/token";
+import { loginUser } from "../services/auth";
 import "./Login.css";
-
-function normalizeString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function buildDisplayName(email: string): string {
-  const [localPart] = email.split("@");
-  return localPart?.trim() || email;
-}
-
-function extractAuthUserFromLoginResponse(data: unknown): AuthUser | null {
-  if (!data || typeof data !== "object") return null;
-
-  const source = (data as { user?: unknown }).user;
-  if (!source || typeof source !== "object") return null;
-
-  const candidate = source as {
-    id?: unknown;
-    userId?: unknown;
-    name?: unknown;
-    fullName?: unknown;
-    email?: unknown;
-    avatarUrl?: unknown;
-    role?: unknown;
-  };
-
-  const rawId = candidate.id ?? candidate.userId;
-  const id = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
-  const email = normalizeString(candidate.email).toLowerCase();
-  const providedName = normalizeString(candidate.name ?? candidate.fullName);
-  const name = providedName || (email ? buildDisplayName(email) : "");
-  const avatarUrl = normalizeString(candidate.avatarUrl);
-  const role = normalizeString(candidate.role).toUpperCase();
-
-  if (!id || !name || !email) return null;
-  return { id, name, email, ...(avatarUrl ? { avatarUrl } : {}), ...(role ? { role } : {}) };
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -80,30 +37,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const msg =
-          Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-        throw new Error(msg || "LOGIN_FAILED");
-      }
-
-      if (typeof data?.accessToken !== "string" || data.accessToken.length === 0) {
-        clearAccessToken();
-        throw new Error("LOGIN_TOKEN_MISSING");
-      }
-
-      setAccessToken(data.accessToken);
-      const authUser = extractAuthUserFromLoginResponse(data) || getAuthenticatedUser();
-      if (authUser) {
-        setAuthenticatedUser(authUser);
-      }
+      await loginUser(email, password, t("auth.loginError"));
       navigate(redirectTo, { replace: true });
     } catch {
       setError(t("auth.loginError"));
@@ -174,12 +108,6 @@ export default function Login() {
               >
                 {showPass ? t("auth.hidePassword") : t("auth.showPassword")}
               </button>
-            </div>
-
-            <div className="auth-row">
-              <Link className="auth-link" to="/forgot-password">
-                {t("auth.forgotPassword")}
-              </Link>
             </div>
 
             {error && <div className="auth-error">{error}</div>}

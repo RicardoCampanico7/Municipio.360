@@ -75,6 +75,13 @@ export function getRawAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+export function getAccessSession() {
+  const hadStoredSession = !!getRawAccessToken();
+  const token = getAccessToken();
+
+  return { token, hadStoredSession };
+}
+
 function normalizeStringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }

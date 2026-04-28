@@ -11,9 +11,8 @@ import {
 } from "../services/occurrences";
 import {
   clearAccessToken,
-  getAccessToken,
+  getAccessSession,
   getAuthenticatedUser,
-  getRawAccessToken,
   isAuthenticated,
 } from "../services/token";
 import "./Dashboard.css";
@@ -94,7 +93,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const token = getAccessToken();
+    const { token, hadStoredSession } = getAccessSession();
 
     let mounted = true;
     const loadOccurrences = async () => {
@@ -110,7 +109,6 @@ export default function Dashboard() {
       } catch (error) {
         if (!mounted) return;
         if (error instanceof OccurrencesRequestError && error.status === 401) {
-          const hadStoredSession = !!getRawAccessToken();
           clearAccessToken();
           navigate("/login", {
             replace: true,

@@ -2,9 +2,8 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
+import { AuthRequestError, registerUser } from "../services/auth";
 import "./Login.css";
-
-type RegisterRole = "CIVIL" | "OPERADOR" | "ADMINISTRADOR";
 
 type ApiErrorResponse = {
   message?: string | string[];
@@ -109,7 +108,6 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<RegisterRole>("CIVIL");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -176,36 +174,36 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await registerUser(
+        {
           name: normalizedName,
           biNumber: normalizedCitizenCard,
           postalCode: normalizedPostalCode,
           email: normalizedEmail,
           avatarUrl: avatarUrl || undefined,
           password,
-          role,
-        }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const msg = extractRegisterApiErrorMessage(data, response.status, {
-          fallback: t("auth.registerError"),
-          emailExists: t("auth.registerErrorEmailExists"),
-          serverError: t("auth.registerErrorServer"),
-          invalidData: t("auth.registerErrorInvalidData"),
-        });
-        throw new Error(msg || "REGISTER_FAILED");
-      }
+        },
+        t("auth.registerError"),
+      );
 
       navigate("/login");
     } catch (registerError) {
+      if (registerError instanceof AuthRequestError) {
+        setError(
+          extractRegisterApiErrorMessage(
+            { message: registerError.message },
+            registerError.status,
+            {
+              fallback: t("auth.registerError"),
+              emailExists: t("auth.registerErrorEmailExists"),
+              serverError: t("auth.registerErrorServer"),
+              invalidData: t("auth.registerErrorInvalidData"),
+            },
+          ),
+        );
+        return;
+      }
+
       if (registerError instanceof Error) {
         if (registerError.message.toLowerCase().includes("failed to fetch")) {
           setError(t("auth.registerErrorNetwork"));
@@ -364,23 +362,6 @@ export default function Register() {
                 )}
               </div>
             </div>
-
-            <label className="sr-only" htmlFor="register-role">
-              {t("profile.metrics.role")}
-            </label>
-            <select
-              id="register-role"
-              className="auth-input"
-              value={role}
-              onChange={(e) => {
-                setRole(e.target.value as RegisterRole);
-                if (error) setError("");
-              }}
-            >
-              <option value="CIVIL">{t("profile.roles.civil")}</option>
-              <option value="OPERADOR">{t("profile.roles.operador")}</option>
-              <option value="ADMINISTRADOR">{t("profile.roles.administrador")}</option>
-            </select>
 
             <div className="password-wrap">
               <label className="sr-only" htmlFor="register-password">
