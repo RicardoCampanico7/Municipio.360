@@ -201,6 +201,17 @@ function normalizeOccurrencePayload<TOccurrence>(
   return null;
 }
 
+function extractApiMessage(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+  const message = (data as { message?: unknown }).message;
+
+  if (Array.isArray(message)) {
+    return message.filter((item): item is string => typeof item === "string").join(", ");
+  }
+
+  return typeof message === "string" ? message : "";
+}
+
 async function parseOccurrencesResponse<TOccurrence>(
   response: Response,
   fallbackMessage: string,
@@ -209,8 +220,7 @@ async function parseOccurrencesResponse<TOccurrence>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+    throw new OccurrencesRequestError(extractApiMessage(data) || fallbackMessage, response.status);
   }
 
   return normalizeOccurrencesPayload(data, sanitize);
@@ -224,8 +234,7 @@ async function parseOccurrenceResponse<TOccurrence>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+    throw new OccurrencesRequestError(extractApiMessage(data) || fallbackMessage, response.status);
   }
 
   const occurrence = normalizeOccurrencePayload(data, sanitize);
@@ -305,8 +314,7 @@ export async function updateOccurrenceStatus(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+    throw new OccurrencesRequestError(extractApiMessage(data) || fallbackMessage, response.status);
   }
 
   return data;
@@ -330,8 +338,7 @@ export async function updateOccurrence(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-    throw new OccurrencesRequestError(message || fallbackMessage, response.status);
+    throw new OccurrencesRequestError(extractApiMessage(data) || fallbackMessage, response.status);
   }
 
   return data;

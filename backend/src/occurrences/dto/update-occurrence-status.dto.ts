@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { OccurrenceStatus } from '@prisma/client';
 import { IsEnum } from 'class-validator';
+import { OCCURRENCE_ERROR_MESSAGES } from '../constants/occurrence.constants';
 
 /**
  * Representa o novo estado pretendido para uma ocorrencia.
@@ -14,6 +15,8 @@ export class UpdateOccurrenceStatusDto {
     example: OccurrenceStatus.EM_TRATAMENTO,
     description: 'Novo estado da ocorrencia',
   })
-  @IsEnum(OccurrenceStatus)
+  @IsEnum(OccurrenceStatus, {
+    message: OCCURRENCE_ERROR_MESSAGES.invalidStatus,
+  })
   status: OccurrenceStatus;
 }

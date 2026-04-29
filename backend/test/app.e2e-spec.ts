@@ -18,7 +18,14 @@ import { occurrenceUploadConfig } from './../src/occurrences/upload/occurrence-u
 import { PrismaService } from './../src/prisma/prisma.service';
 
 const JWT_SECRET = 'municipio360-e2e-secret';
-const SMALL_IMAGE_BUFFER = Buffer.from('small-image');
+const SMALL_IMAGE_BUFFER = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+  'base64',
+);
+const SMALL_GIF_BUFFER = Buffer.from(
+  'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+  'base64',
+);
 const SMALL_IMAGE_DATA_URL =
   'data:image/png;base64,' + SMALL_IMAGE_BUFFER.toString('base64');
 const LARGE_IMAGE_BUFFER = Buffer.alloc(3 * 1024 * 1024 + 1, 1);
@@ -445,9 +452,9 @@ describe('Occurrences permissions (e2e)', () => {
         filename: 'photo-1.png',
         contentType: 'image/png',
       })
-      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: 'photo-2.png',
-        contentType: 'image/png',
+      .attach('imageUrls', SMALL_GIF_BUFFER, {
+        filename: 'photo-2.gif',
+        contentType: 'image/gif',
       })
       .expect(201);
 
@@ -727,6 +734,70 @@ describe('Occurrences permissions (e2e)', () => {
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
+  it('returns 400 when a certified CIVIL user repeats the same uploaded image URL', async () => {
+    const token = signToken({
+      sub: 33,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 33,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'ILUMINACAO_PUBLICA',
+        location: 'Rua I',
+        uploadedImageUrls: [
+          '/uploads/occurrences/repeated.png',
+          '/uploads/occurrences/repeated.png',
+        ],
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain(
+          'Nao pode repetir a mesma fotografia na ocorrencia',
+        );
+        expect(body.error).toBe('Bad Request');
+      });
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when an uploaded file declares an image MIME type but has invalid bytes', async () => {
+    const token = signToken({
+      sub: 34,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 34,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .field('category', 'ILUMINACAO_PUBLICA')
+      .field('location', 'Rua J')
+      .attach('imageUrls', Buffer.from('not-a-real-image'), {
+        filename: 'fake.png',
+        contentType: 'image/png',
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain('nao e uma imagem valida');
+        expect(body.error).toBe('Bad Request');
+      });
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
   it('returns 400 when a non-image file is uploaded', async () => {
     const token = signToken({
       sub: 21,
@@ -958,6 +1029,18 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('returns 404 with a consistent message when a public occurrence does not exist', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    await request(httpApp)
+      .get('/occurrences/404')
+      .expect(404)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Ocorrencia nao encontrada');
+        expect(body.error).toBe('Not Found');
+      });
+  });
+
   it('returns 403 when a CIVIL user tries to access management routes', async () => {
     const token = signToken({
       sub: 14,
@@ -974,6 +1057,35 @@ describe('Occurrences permissions (e2e)', () => {
       .get('/occurrences/management/22')
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
+  });
+
+  it('returns 400 when an operator tries to skip an occurrence status transition', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 23,
+      status: OccurrenceStatus.SUBMETIDA,
+      internalComments: [],
+    });
+
+    const token = signToken({
+      sub: 15,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .patch('/occurrences/23/status')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        status: OccurrenceStatus.CONCLUIDA,
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain(
+          'Transicao de estado invalida: SUBMETIDA -> CONCLUIDA',
+        );
+      });
+
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
   });
 
   it('returns 200 when an OPERADOR accesses the management list', async () => {

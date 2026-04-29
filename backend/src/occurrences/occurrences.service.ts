@@ -5,11 +5,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { OccurrenceCategory, OccurrenceStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ALLOWED_STATUS_TRANSITIONS,
   INLINE_IMAGE_DATA_URL_PREFIX,
+  OCCURRENCE_ERROR_MESSAGES,
 } from './constants/occurrence.constants';
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
@@ -77,8 +79,28 @@ export class OccurrencesService {
     if (allowedTransitions.includes(nextStatus)) return;
 
     throw new BadRequestException(
-      `Transicao de estado invalida: ${currentStatus} -> ${nextStatus}`,
+      OCCURRENCE_ERROR_MESSAGES.invalidStatusTransition(
+        currentStatus,
+        nextStatus,
+      ),
     );
+  }
+
+  /**
+   * Rejeita ficheiros repetidos no mesmo pedido antes de os guardar em disco.
+   * @param files Ficheiros recebidos via multipart.
+   * @return void Termina silenciosamente quando nao ha duplicados.
+   */
+  private ensureNoDuplicateUploadedFiles(files: UploadedOccurrenceImage[]) {
+    if (files.length < 2) return;
+
+    const fingerprints = files.map((file) =>
+      createHash('sha256').update(file.buffer).digest('hex'),
+    );
+
+    if (new Set(fingerprints).size !== fingerprints.length) {
+      throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.duplicateImage);
+    }
   }
 
   /**
@@ -103,26 +125,24 @@ export class OccurrencesService {
 
     if (normalizedImageUrls.length > occurrenceUploadConfig.maxFiles) {
       throw new BadRequestException(
-        `Pode enviar no maximo ${occurrenceUploadConfig.maxFiles} fotografias`,
+        OCCURRENCE_ERROR_MESSAGES.maxImages(occurrenceUploadConfig.maxFiles),
       );
     }
 
     if (new Set(normalizedImageUrls).size !== normalizedImageUrls.length) {
-      throw new BadRequestException(
-        'Nao pode repetir a mesma fotografia na ocorrencia',
-      );
+      throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.duplicateImage);
     }
 
     for (const [index, imageUrl] of normalizedImageUrls.entries()) {
       if (INLINE_IMAGE_DATA_URL_PREFIX.test(imageUrl)) {
-        throw new BadRequestException(
-          'As fotografias devem ser enviadas como ficheiros em multipart/form-data',
-        );
+        throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.inlineImage);
       }
+
+      const imageNumber = index + 1;
 
       if (!isOccurrenceUploadPublicUrl(imageUrl)) {
         throw new BadRequestException(
-          `A imagem ${index + 1} nao tem um formato valido`,
+          OCCURRENCE_ERROR_MESSAGES.invalidImageFormat(imageNumber),
         );
       }
 
@@ -131,19 +151,19 @@ export class OccurrencesService {
 
       if (!imageExists || !imageMetadata) {
         throw new BadRequestException(
-          `A imagem ${index + 1} nao existe ou ja nao esta disponivel`,
+          OCCURRENCE_ERROR_MESSAGES.unavailableImage(imageNumber),
         );
       }
 
       if (imageMetadata.ownerUserId !== userId) {
         throw new ForbiddenException(
-          `A imagem ${index + 1} nao pertence ao utilizador autenticado`,
+          OCCURRENCE_ERROR_MESSAGES.imageNotOwned(imageNumber),
         );
       }
 
       if (imageMetadata.occurrenceId !== null) {
         throw new BadRequestException(
-          `A imagem ${index + 1} ja esta associada a uma ocorrencia`,
+          OCCURRENCE_ERROR_MESSAGES.imageAlreadyAssigned(imageNumber),
         );
       }
     }
@@ -303,7 +323,9 @@ export class OccurrencesService {
   ) {
     const user = await this.ensureExistingUser(userId);
     if (!user) {
-      throw new UnauthorizedException('Utilizador autenticado invalido');
+      throw new UnauthorizedException(
+        OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
+      );
     }
 
     const location = dto.location?.trim() ?? '';
@@ -313,14 +335,16 @@ export class OccurrencesService {
         ? dto.otherCategoryDetail?.trim() ?? ''
         : null;
     if (!location) {
-      throw new BadRequestException('A localizacao da ocorrencia e obrigatoria');
+      throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.locationRequired);
     }
 
     if (dto.category === OccurrenceCategory.OUTROS && !otherCategoryDetail) {
       throw new BadRequestException(
-        'O detalhe da categoria e obrigatorio quando a categoria e OUTROS',
+        OCCURRENCE_ERROR_MESSAGES.otherCategoryRequired,
       );
     }
+
+    this.ensureNoDuplicateUploadedFiles(files);
 
     const requestedImageUrls = await this.normalizeRequestedImageUrls(
       this.getRequestedImageUrls(dto),
@@ -332,7 +356,7 @@ export class OccurrencesService {
       occurrenceUploadConfig.maxFiles
     ) {
       throw new BadRequestException(
-        `Pode enviar no maximo ${occurrenceUploadConfig.maxFiles} fotografias`,
+        OCCURRENCE_ERROR_MESSAGES.maxImages(occurrenceUploadConfig.maxFiles),
       );
     }
 
@@ -403,12 +427,16 @@ export class OccurrencesService {
   async uploadImages(userId: number, files: UploadedOccurrenceImage[] = []) {
     const user = await this.ensureExistingUser(userId);
     if (!user) {
-      throw new UnauthorizedException('Utilizador autenticado invalido');
+      throw new UnauthorizedException(
+        OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
+      );
     }
 
     if (!files.length) {
-      throw new BadRequestException('Envie pelo menos uma fotografia');
+      throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.noUploadFiles);
     }
+
+    this.ensureNoDuplicateUploadedFiles(files);
 
     const imageUrls = await saveOccurrenceImages(files, userId);
 
@@ -457,7 +485,7 @@ export class OccurrencesService {
     });
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotFound);
     }
 
     return occurrence;
@@ -475,11 +503,11 @@ export class OccurrencesService {
     });
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotFound);
     }
 
     if (occurrence.userId !== userId) {
-      throw new ForbiddenException('Not your occurrence');
+      throw new ForbiddenException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotOwned);
     }
 
     return occurrence;
@@ -502,7 +530,7 @@ export class OccurrencesService {
     });
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotFound);
     }
 
     return presentOwnerOccurrenceDetail(occurrence);
@@ -531,7 +559,7 @@ export class OccurrencesService {
     });
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotFound);
     }
 
     return occurrence;
@@ -555,7 +583,7 @@ export class OccurrencesService {
     });
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotFound);
     }
 
     return occurrence.internalComments;
@@ -577,7 +605,9 @@ export class OccurrencesService {
 
     const user = await this.ensureExistingUser(userId);
     if (!user) {
-      throw new UnauthorizedException('Utilizador autenticado invalido');
+      throw new UnauthorizedException(
+        OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
+      );
     }
 
     const occurrence = await this.prisma.occurrence.update({
@@ -602,7 +632,7 @@ export class OccurrencesService {
     const [createdComment] = occurrence.internalComments;
     if (!createdComment) {
       throw new BadRequestException(
-        'Nao foi possivel criar o comentario interno',
+        OCCURRENCE_ERROR_MESSAGES.internalCommentFailed,
       );
     }
 
@@ -626,12 +656,12 @@ export class OccurrencesService {
         : null;
 
     if (!location) {
-      throw new BadRequestException('A localizacao da ocorrencia e obrigatoria');
+      throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.locationRequired);
     }
 
     if (dto.category === OccurrenceCategory.OUTROS && !otherCategoryDetail) {
       throw new BadRequestException(
-        'O detalhe da categoria e obrigatorio quando a categoria e OUTROS',
+        OCCURRENCE_ERROR_MESSAGES.otherCategoryRequired,
       );
     }
 
@@ -704,7 +734,7 @@ export class OccurrencesService {
     });
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotFound);
     }
 
     return presentOccurrence(occurrence);
