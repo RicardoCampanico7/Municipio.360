@@ -59,19 +59,41 @@ describe('CreateOccurrenceDto', () => {
   });
 
   /**
-   * Garante que uma unica URL publica enviada no body e normalizada para array.
+   * Garante que uma unica URL publica enviada no campo canonico e normalizada para array.
    * @return void
    */
-  it('should normalize a single image URL string into an array', async () => {
+  it('should normalize a single uploadedImageUrls string into an array', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
       category: OccurrenceCategory.ILUMINACAO_PUBLICA,
       location: 'Rua A',
-      imageUrls: '/uploads/occurrences/existing.png',
+      uploadedImageUrls: '/uploads/occurrences/existing.png',
     });
 
     const errors = await validate(dto);
 
     expect(errors).toHaveLength(0);
-    expect(dto.imageUrls).toEqual(['/uploads/occurrences/existing.png']);
+    expect(dto.uploadedImageUrls).toEqual([
+      '/uploads/occurrences/existing.png',
+    ]);
+  });
+
+  /**
+   * Garante que strings com espacos sao limpas antes da validacao final.
+   * @return void
+   */
+  it('should trim textual fields before validation', async () => {
+    const dto = plainToInstance(CreateOccurrenceDto, {
+      category: OccurrenceCategory.OUTROS,
+      otherCategoryDetail: '  Passadeira apagada  ',
+      description: '  Sinal quase ilegivel  ',
+      location: '  Rua A  ',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.otherCategoryDetail).toBe('Passadeira apagada');
+    expect(dto.description).toBe('Sinal quase ilegivel');
+    expect(dto.location).toBe('Rua A');
   });
 });

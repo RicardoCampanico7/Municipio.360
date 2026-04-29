@@ -790,8 +790,8 @@ describe('OccurrencesService', () => {
       location: 'Rua A',
     });
 
-    expect(saveOccurrenceImages).toHaveBeenCalledWith([], 7);
-    expect(assignOccurrenceImagesToOccurrence).toHaveBeenCalledWith([], 3);
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
+    expect(assignOccurrenceImagesToOccurrence).not.toHaveBeenCalled();
     expect(prisma.occurrence.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         imageUrls: [],
@@ -830,7 +830,7 @@ describe('OccurrencesService', () => {
     const result = await service.create(7, {
       category: OccurrenceCategory.ILUMINACAO_PUBLICA,
       location: 'Rua A',
-      imageUrls: ['/uploads/occurrences/existing.png'],
+      uploadedImageUrls: ['/uploads/occurrences/existing.png'],
     });
 
     expect(prisma.occurrence.create).toHaveBeenCalledWith({
@@ -849,6 +849,42 @@ describe('OccurrencesService', () => {
         status: 'open',
       }),
     );
+  });
+
+  /**
+   * Garante compatibilidade com o alias legado imageUrls no body final.
+   * @return void
+   */
+  it('should keep accepting the legacy imageUrls alias for previously uploaded URLs', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
+    prisma.occurrence.create.mockResolvedValue({
+      id: 177,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: '',
+      location: 'Rua A',
+      imageUrls: ['/uploads/occurrences/legacy.png'],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
+      userId: 7,
+    });
+
+    await service.create(7, {
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      location: 'Rua A',
+      imageUrls: ['/uploads/occurrences/legacy.png'],
+    });
+
+    expect(prisma.occurrence.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        imageUrls: ['/uploads/occurrences/legacy.png'],
+      }),
+      select: expect.any(Object),
+    });
   });
 
   /**
@@ -883,7 +919,7 @@ describe('OccurrencesService', () => {
       {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: ['/uploads/occurrences/existing.png'],
+        uploadedImageUrls: ['/uploads/occurrences/existing.png'],
       },
       [
         {
@@ -923,7 +959,7 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: ['data:image/png;base64,ZmFrZQ=='],
+        uploadedImageUrls: ['data:image/png;base64,ZmFrZQ=='],
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -944,7 +980,7 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: ['/uploads/occurrences/missing.png'],
+        uploadedImageUrls: ['/uploads/occurrences/missing.png'],
       }),
     ).rejects.toThrow('nao existe ou ja nao esta disponivel');
 
@@ -969,7 +1005,7 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: ['/uploads/occurrences/other-user.png'],
+        uploadedImageUrls: ['/uploads/occurrences/other-user.png'],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -994,7 +1030,7 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: ['/uploads/occurrences/already-used.png'],
+        uploadedImageUrls: ['/uploads/occurrences/already-used.png'],
       }),
     ).rejects.toThrow('ja esta associada a uma ocorrencia');
 
@@ -1014,7 +1050,7 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-        imageUrls: [
+        uploadedImageUrls: [
           '/uploads/occurrences/dup.png',
           '/uploads/occurrences/dup.png',
         ],
@@ -1091,7 +1127,14 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
-      }),
+      }, [
+        {
+          buffer: Buffer.from('img'),
+          mimetype: 'image/png',
+          originalname: 'fail.png',
+          size: 3,
+        },
+      ]),
     ).rejects.toThrow('db failure');
 
     expect(removeOccurrenceImagesByUrls).toHaveBeenCalledWith([
@@ -1180,7 +1223,7 @@ describe('OccurrencesService', () => {
       category: OccurrenceCategory.ILUMINACAO_PUBLICA,
       otherCategoryDetail: null,
       description: 'Candeeiro apagado',
-      location: ' Rua A ',
+      location: 'Rua A',
       imageUrls: ['/uploads/occurrences/one.png'],
       status: OccurrenceStatus.SUBMETIDA,
       createdAt: new Date('2026-03-19T09:00:00.000Z'),
@@ -1210,7 +1253,7 @@ describe('OccurrencesService', () => {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         otherCategoryDetail: null,
         description: 'Candeeiro apagado',
-        location: ' Rua A ',
+        location: 'Rua A',
         imageUrls: ['/uploads/occurrences/one.png'],
         status: OccurrenceStatus.SUBMETIDA,
         userId: 12,

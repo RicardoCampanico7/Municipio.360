@@ -583,7 +583,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua D',
         description: 'Candeeiro partido',
-        imageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: uploadResponse.body.imageUrls,
       })
       .expect(201)
       .expect(({ body }) => {
@@ -624,7 +624,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua F',
         description: 'Tentativa invalida',
-        imageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: uploadResponse.body.imageUrls,
       })
       .expect(403)
       .expect(({ body }) => {
@@ -679,7 +679,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua G',
         description: 'Primeira associacao',
-        imageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: uploadResponse.body.imageUrls,
       })
       .expect(201);
 
@@ -690,7 +690,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua H',
         description: 'Segunda associacao',
-        imageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: uploadResponse.body.imageUrls,
       })
       .expect(400)
       .expect(({ body }) => {
@@ -717,7 +717,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua E',
         description: 'Candeeiro sem suporte',
-        imageUrls: ['/uploads/occurrences/missing.png'],
+        uploadedImageUrls: ['/uploads/occurrences/missing.png'],
       })
       .expect(400)
       .expect(({ body }) => {
