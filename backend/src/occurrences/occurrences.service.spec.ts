@@ -203,6 +203,60 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que a listagem propria filtra pelo utilizador autenticado e nao inclui dados internos.
+   * @return void
+   */
+  it('should list only occurrences owned by the authenticated user', async () => {
+    prisma.occurrence.findMany.mockResolvedValue([
+      {
+        id: 12,
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: 'Arvore caida',
+        description: 'Ramo bloqueia passeio',
+        location: 'Rua do Parque',
+        imageUrls: [],
+        status: OccurrenceStatus.CONCLUIDA,
+        createdAt: new Date('2026-04-06T09:00:00.000Z'),
+        updatedAt: new Date('2026-04-06T12:00:00.000Z'),
+        userId: 7,
+      },
+    ]);
+
+    const result = await service.findMine(7);
+
+    expect(prisma.occurrence.findMany).toHaveBeenCalledWith({
+      where: { userId: 7 },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+      },
+    });
+    expect(
+      prisma.occurrence.findMany.mock.calls[0][0].select,
+    ).not.toHaveProperty('user');
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 12,
+        title: 'Arvore caida',
+        category: 'Arvore caida',
+        categoryKey: OccurrenceCategory.OUTROS,
+        status: 'resolved',
+        statusKey: OccurrenceStatus.CONCLUIDA,
+        userId: 7,
+      }),
+    ]);
+  });
+
+  /**
    * Garante que o detalhe publico nao tenta expor dados do autor.
    * @return void
    */
@@ -246,6 +300,33 @@ describe('OccurrencesService', () => {
     );
     expect(result).not.toHaveProperty('userId');
     expect(result).not.toHaveProperty('user');
+  });
+
+  /**
+   * Garante que o detalhe publico falha com 404 quando a ocorrencia nao existe.
+   * @return void
+   */
+  it('should throw not found on public occurrence detail when occurrence is missing', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    await expect(service.findOnePublic(999)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+
+    expect(prisma.occurrence.findUnique).toHaveBeenCalledWith({
+      where: { id: 999 },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   });
 
   /**
@@ -354,6 +435,71 @@ describe('OccurrencesService', () => {
     );
 
     expect(prisma.occurrence.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Garante que a listagem de gestao inclui os dados necessarios ao backoffice.
+   * @return void
+   */
+  it('should include author and internal comments on operator listing', async () => {
+    prisma.occurrence.findMany.mockResolvedValue([
+      {
+        id: 42,
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        otherCategoryDetail: null,
+        description: 'Candeeiro apagado',
+        location: 'Rua A',
+        imageUrls: [],
+        status: OccurrenceStatus.EM_TRATAMENTO,
+        createdAt: new Date('2026-04-05T09:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+        userId: 7,
+        user: {
+          id: 7,
+          name: 'Cidadao',
+          email: 'cidadao@example.com',
+          postalCode: '1000-001',
+          role: Role.CIVIL,
+          certStatus: CertificationStatus.CERTIFIED,
+        },
+        internalComments: [],
+      },
+    ]);
+
+    const result = await service.findAllForOperator();
+
+    expect(prisma.occurrence.findMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      select: expect.objectContaining({
+        id: true,
+        userId: true,
+        user: {
+          select: expect.objectContaining({
+            id: true,
+            name: true,
+            email: true,
+            postalCode: true,
+            role: true,
+            certStatus: true,
+          }),
+        },
+        internalComments: expect.objectContaining({
+          orderBy: {
+            createdAt: 'asc',
+          },
+        }),
+      }),
+    });
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 42,
+        user: expect.objectContaining({
+          id: 7,
+          email: 'cidadao@example.com',
+        }),
+        internalComments: [],
+      }),
+    ]);
   });
 
   /**
@@ -698,6 +844,49 @@ describe('OccurrencesService', () => {
       where: { id: 999 },
       select: { id: true },
     });
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que localizacoes vazias depois de trim sao rejeitadas antes de persistir.
+   * @return void
+   */
+  it('should reject creation when location is blank after trimming', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        description: 'Candeeiro apagado',
+        location: '   ',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que a categoria OUTROS exige detalhe textual antes de persistir.
+   * @return void
+   */
+  it('should reject creation with OUTROS when the detail is blank', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: '   ',
+        description: 'Sinal quase ilegivel',
+        location: 'Rua A',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
     expect(saveOccurrenceImages).not.toHaveBeenCalled();
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
@@ -1434,6 +1623,21 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que a atualizacao de estado falha com 404 quando a ocorrencia nao existe.
+   * @return void
+   */
+  it('should throw not found when updating status for a missing occurrence', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.updateStatus(404, OccurrenceStatus.EM_TRATAMENTO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
+  /**
    * Garante que pedidos sem mudanca real de estado nao criam historico duplicado.
    * @return void
    */
@@ -1509,5 +1713,103 @@ describe('OccurrencesService', () => {
 
     expect(prisma.$executeRaw).not.toHaveBeenCalled();
     expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que a remocao valida a existencia e usa a resposta de gestao.
+   * @return void
+   */
+  it('should delete an existing occurrence with the operator response shape', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 88,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: 'Sinal tombado',
+      location: 'Rua B',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-07T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-07T10:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+    });
+    prisma.occurrence.delete.mockResolvedValue({
+      id: 88,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: 'Sinal tombado',
+      location: 'Rua B',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-07T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-07T10:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+
+    const result = await service.remove(88);
+
+    expect(prisma.occurrence.findUnique).toHaveBeenCalledWith({
+      where: { id: 88 },
+      include: { user: true },
+    });
+    expect(prisma.occurrence.delete).toHaveBeenCalledWith({
+      where: { id: 88 },
+      select: expect.objectContaining({
+        id: true,
+        userId: true,
+        user: {
+          select: expect.objectContaining({
+            email: true,
+            postalCode: true,
+            certStatus: true,
+          }),
+        },
+        internalComments: expect.objectContaining({
+          orderBy: {
+            createdAt: 'asc',
+          },
+        }),
+      }),
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 88,
+        user: expect.objectContaining({
+          id: 7,
+          email: 'cidadao@example.com',
+        }),
+        internalComments: [],
+      }),
+    );
+  });
+
+  /**
+   * Garante que uma ocorrencia inexistente nao e removida.
+   * @return void
+   */
+  it('should not delete a missing occurrence', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    await expect(service.remove(404)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+
+    expect(prisma.occurrence.delete).not.toHaveBeenCalled();
   });
 });
