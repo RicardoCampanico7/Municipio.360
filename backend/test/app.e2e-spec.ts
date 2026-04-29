@@ -355,6 +355,25 @@ describe('Occurrences permissions (e2e)', () => {
       .expect(403);
   });
 
+  it('returns 400 when creating an occurrence without the required location', async () => {
+    const token = signToken({
+      sub: 12,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .post('/occurrences')
+      .set('Authorization', `Bearer ${token}`)
+      .field('category', OccurrenceCategory.ILUMINACAO_PUBLICA)
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain('localizacao da ocorrencia');
+      });
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
   it('returns 201 when a CIVIL user with pending certification creates an occurrence', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 11,
@@ -867,6 +886,64 @@ describe('Occurrences permissions (e2e)', () => {
     });
   });
 
+  it('returns the own occurrences list for a CIVIL user', async () => {
+    prisma.occurrence.findMany.mockResolvedValue([
+      {
+        id: 49,
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: 'Arvore caida',
+        description: 'Ramo bloqueia passeio',
+        location: 'Rua do Parque',
+        imageUrls: [],
+        status: OccurrenceStatus.CONCLUIDA,
+        createdAt: new Date('2026-04-05T08:30:00.000Z'),
+        updatedAt: new Date('2026-04-05T12:45:00.000Z'),
+        userId: 32,
+      },
+    ]);
+
+    const token = signToken({
+      sub: 32,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .get('/occurrences/mine')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect([
+        {
+          id: 49,
+          title: 'Arvore caida',
+          category: 'Arvore caida',
+          categoryKey: 'OUTROS',
+          otherCategoryDetail: 'Arvore caida',
+          description: 'Ramo bloqueia passeio',
+          location: 'Rua do Parque',
+          imageUrls: [],
+          status: 'resolved',
+          statusKey: 'CONCLUIDA',
+          createdAt: '2026-04-05T08:30:00.000Z',
+          updatedAt: '2026-04-05T12:45:00.000Z',
+          userId: 32,
+        },
+      ]);
+
+    expect(prisma.occurrence.findMany).toHaveBeenCalledWith({
+      where: { userId: 32 },
+      orderBy: { createdAt: 'desc' },
+      select: expect.objectContaining({
+        id: true,
+        userId: true,
+      }),
+    });
+  });
+
+  it('returns 401 when listing own occurrences without authentication', async () => {
+    await request(httpApp).get('/occurrences/mine').expect(401);
+  });
+
   it('returns own occurrence detail with status history for a CIVIL user', async () => {
     prisma.occurrence.findUnique
       .mockResolvedValueOnce({
@@ -1041,6 +1118,25 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('returns 400 when the public occurrence id is not numeric', async () => {
+    await request(httpApp).get('/occurrences/not-a-number').expect(400);
+
+    expect(prisma.occurrence.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when management routes are called without authentication', async () => {
+    await request(httpApp).get('/occurrences/management').expect(401);
+
+    await request(httpApp)
+      .patch('/occurrences/22/status')
+      .send({
+        status: OccurrenceStatus.EM_TRATAMENTO,
+      })
+      .expect(401);
+
+    await request(httpApp).delete('/occurrences/22').expect(401);
+  });
+
   it('returns 403 when a CIVIL user tries to access management routes', async () => {
     const token = signToken({
       sub: 14,
@@ -1086,6 +1182,108 @@ describe('Occurrences permissions (e2e)', () => {
       });
 
     expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when an operator sends an invalid occurrence status', async () => {
+    const token = signToken({
+      sub: 15,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .patch('/occurrences/23/status')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        status: 'INVALIDO',
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toEqual(
+          expect.arrayContaining(['O estado da ocorrencia e invalido']),
+        );
+      });
+
+    expect(prisma.occurrence.findUnique).not.toHaveBeenCalled();
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 when an operator updates the occurrence status with a valid transition', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 23,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T09:00:00.000Z'),
+      userId: 8,
+      user: {
+        id: 8,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+    prisma.occurrence.update.mockResolvedValue({
+      id: 23,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+      userId: 8,
+      user: {
+        id: 8,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+
+    const token = signToken({
+      sub: 15,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .patch('/occurrences/23/status')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        status: OccurrenceStatus.EM_TRATAMENTO,
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            id: 23,
+            status: OccurrenceStatus.EM_TRATAMENTO,
+            userId: 8,
+          }),
+        );
+      });
+
+    expect(prisma.occurrence.update).toHaveBeenCalledWith({
+      where: { id: 23 },
+      data: { status: OccurrenceStatus.EM_TRATAMENTO },
+      select: expect.objectContaining({
+        user: expect.any(Object),
+        internalComments: expect.any(Object),
+      }),
+    });
+    expect(prisma.$executeRaw).toHaveBeenCalled();
   });
 
   it('returns 200 when an OPERADOR accesses the management list', async () => {
@@ -1175,5 +1373,123 @@ describe('Occurrences permissions (e2e)', () => {
           }),
         );
       });
+  });
+
+  it('returns 404 when an operator accesses a missing management detail', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    const token = signToken({
+      sub: 15,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .get('/occurrences/management/404')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Ocorrencia nao encontrada');
+      });
+  });
+
+  it('returns 200 when an ADMINISTRADOR deletes an occurrence', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 70,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: 'Sinal tombado',
+      location: 'Avenida do Municipio',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T11:30:00.000Z'),
+      userId: 8,
+      user: {
+        id: 8,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+    });
+    prisma.occurrence.delete.mockResolvedValue({
+      id: 70,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: 'Sinal tombado',
+      location: 'Avenida do Municipio',
+      imageUrls: [],
+      status: OccurrenceStatus.EM_TRATAMENTO,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T11:30:00.000Z'),
+      userId: 8,
+      user: {
+        id: 8,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+
+    const token = signToken({
+      sub: 16,
+      role: Role.ADMINISTRADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .delete('/occurrences/70')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            id: 70,
+            status: OccurrenceStatus.EM_TRATAMENTO,
+            user: expect.objectContaining({
+              id: 8,
+              email: 'cidadao@example.com',
+            }),
+            internalComments: [],
+          }),
+        );
+      });
+
+    expect(prisma.occurrence.findUnique).toHaveBeenCalledWith({
+      where: { id: 70 },
+      include: { user: true },
+    });
+    expect(prisma.occurrence.delete).toHaveBeenCalledWith({
+      where: { id: 70 },
+      select: expect.objectContaining({
+        user: expect.any(Object),
+        internalComments: expect.any(Object),
+      }),
+    });
+  });
+
+  it('returns 404 and does not delete when the occurrence is missing', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue(null);
+
+    const token = signToken({
+      sub: 15,
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .delete('/occurrences/404')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Ocorrencia nao encontrada');
+      });
+
+    expect(prisma.occurrence.delete).not.toHaveBeenCalled();
   });
 });
