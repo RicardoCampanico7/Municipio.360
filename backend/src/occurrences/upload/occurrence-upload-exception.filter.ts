@@ -8,6 +8,30 @@ import {
 import type { Response } from 'express';
 import { MulterError } from 'multer';
 import { occurrenceUploadConfig } from './occurrence-upload';
+import { OCCURRENCE_ERROR_MESSAGES } from '../constants/occurrence.constants';
+
+const BAD_REQUEST_ERROR = 'Bad Request';
+
+function getExceptionMessage(
+  exception: MulterError | BadRequestException | PayloadTooLargeException,
+) {
+  const exceptionResponse =
+    'getResponse' in exception && typeof exception.getResponse === 'function'
+      ? exception.getResponse()
+      : undefined;
+  const rawMessage =
+    exceptionResponse &&
+    typeof exceptionResponse === 'object' &&
+    'message' in exceptionResponse
+      ? exceptionResponse.message
+      : exception.message;
+
+  if (Array.isArray(rawMessage)) {
+    return rawMessage.join(', ');
+  }
+
+  return typeof rawMessage === 'string' ? rawMessage : exception.message;
+}
 
 @Catch(MulterError, BadRequestException, PayloadTooLargeException)
 export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
@@ -18,9 +42,7 @@ export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
     host: ArgumentsHost,
   ) {
     const response = host.switchToHttp().getResponse<Response>();
-    const message = Array.isArray(exception.getResponse?.()['message'])
-      ? exception.getResponse()['message'].join(', ')
-      : (exception.getResponse?.()['message'] ?? exception.message);
+    const message = getExceptionMessage(exception);
 
     if (message === 'File too large') {
       const maxSizeMb = Math.floor(
@@ -30,7 +52,7 @@ export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
       response.status(400).json({
         statusCode: 400,
         message: `Cada fotografia pode ter no maximo ${maxSizeMb} MB`,
-        error: BadRequestException.name,
+        error: BAD_REQUEST_ERROR,
       });
       return;
     }
@@ -43,8 +65,10 @@ export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
     ) {
       response.status(400).json({
         statusCode: 400,
-        message: `Pode enviar no maximo ${occurrenceUploadConfig.maxFiles} fotografias`,
-        error: BadRequestException.name,
+        message: OCCURRENCE_ERROR_MESSAGES.maxImages(
+          occurrenceUploadConfig.maxFiles,
+        ),
+        error: BAD_REQUEST_ERROR,
       });
       return;
     }
@@ -65,7 +89,7 @@ export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
               ? 400
               : exception.getStatus(),
           message,
-          error: BadRequestException.name,
+          error: BAD_REQUEST_ERROR,
         });
       return;
     }
@@ -73,7 +97,7 @@ export class OccurrenceUploadExceptionFilter implements ExceptionFilter<
     response.status(400).json({
       statusCode: 400,
       message: 'Falha no upload das fotografias',
-      error: BadRequestException.name,
+      error: BAD_REQUEST_ERROR,
     });
   }
 }

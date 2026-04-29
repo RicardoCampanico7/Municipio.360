@@ -137,7 +137,7 @@ export class PublicOccurrenceResponseDto {
 
   @ApiProperty({
     type: [String],
-    example: ['http://localhost:3000/uploads/occurrences/exemplo.jpg'],
+    example: ['/uploads/occurrences/exemplo.jpg'],
   })
   imageUrls: string[];
 
@@ -250,7 +250,7 @@ export class OperatorOccurrenceResponseDto {
 
   @ApiProperty({
     type: [String],
-    example: ['http://localhost:3000/uploads/occurrences/exemplo.jpg'],
+    example: ['/uploads/occurrences/exemplo.jpg'],
   })
   imageUrls: string[];
 
@@ -290,7 +290,7 @@ export class OccurrenceImageUploadResponseDto {
   @ApiProperty({
     type: [String],
     example: [
-      'http://localhost:3000/uploads/occurrences/7/1712310000000-foto-1.jpg',
+      '/uploads/occurrences/1712310000000-foto-1.jpg',
     ],
   })
   imageUrls: string[];

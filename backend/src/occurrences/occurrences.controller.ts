@@ -61,6 +61,7 @@ import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
 import { UpdateOccurrenceDto } from './dto/update-occurrence.dto';
 import { OccurrencesService } from './occurrences.service';
+import { OCCURRENCE_ERROR_MESSAGES } from './constants/occurrence.constants';
 
 const occurrenceMultipartImagesSchema: SchemaObject = {
   type: 'array',
@@ -145,7 +146,9 @@ export class OccurrencesController {
     const parsedId = Number(id);
 
     if (!parsedId || Number.isNaN(parsedId)) {
-      throw new BadRequestException('Utilizador autenticado invalido');
+      throw new BadRequestException(
+        OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
+      );
     }
 
     return parsedId;

@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { memoryStorage } from 'multer';
-import { dirname, extname, join } from 'path';
+import { dirname, join } from 'path';
 import { access, mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
 
@@ -15,6 +15,8 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/webp',
   'image/gif',
 ]);
+const PUBLIC_IMAGE_FILENAME_PATTERN =
+  /^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:jpe?g|png|webp|gif)$/i;
 
 /**
  * Centraliza a validacao, persistencia e metadata privada das imagens de ocorrencias.
@@ -61,14 +63,9 @@ const OCCURRENCE_PUBLIC_URL_PREFIX = `${occurrenceUploadConfig.publicBasePath}/`
  * @return string Extensao adequada para guardar o ficheiro.
  */
 function getFileExtension(mimetype: string, originalname: string) {
-  const originalExtension = extname(originalname).toLowerCase();
-  if (originalExtension) {
-    return originalExtension;
-  }
-
   switch (mimetype) {
     case 'image/jpeg':
-      return '.jpg';
+      return originalname.toLowerCase().endsWith('.jpeg') ? '.jpeg' : '.jpg';
     case 'image/png':
       return '.png';
     case 'image/webp':
@@ -77,6 +74,51 @@ function getFileExtension(mimetype: string, originalname: string) {
       return '.gif';
     default:
       return '';
+  }
+}
+
+/**
+ * Confirma que o conteudo recebido parece corresponder ao formato declarado.
+ * @param file Ficheiro recebido em memoria pelo multer.
+ * @return boolean Verdadeiro quando os bytes iniciais batem com o tipo esperado.
+ */
+function isAllowedImageBuffer(file: UploadedOccurrenceImage) {
+  const buffer = file.buffer;
+
+  switch (file.mimetype) {
+    case 'image/jpeg':
+      return (
+        buffer.length >= 3 &&
+        buffer[0] === 0xff &&
+        buffer[1] === 0xd8 &&
+        buffer[2] === 0xff
+      );
+    case 'image/png':
+      return (
+        buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47 &&
+        buffer[4] === 0x0d &&
+        buffer[5] === 0x0a &&
+        buffer[6] === 0x1a &&
+        buffer[7] === 0x0a
+      );
+    case 'image/webp':
+      return (
+        buffer.length >= 12 &&
+        buffer.toString('ascii', 0, 4) === 'RIFF' &&
+        buffer.toString('ascii', 8, 12) === 'WEBP'
+      );
+    case 'image/gif':
+      return (
+        buffer.length >= 6 &&
+        (buffer.toString('ascii', 0, 6) === 'GIF87a' ||
+          buffer.toString('ascii', 0, 6) === 'GIF89a')
+      );
+    default:
+      return false;
   }
 }
 
@@ -123,9 +165,7 @@ export function isOccurrenceUploadPublicUrl(imageUrl: string) {
 
   const filename = imageUrl.slice(OCCURRENCE_PUBLIC_URL_PREFIX.length);
 
-  return (
-    Boolean(filename) && !filename.includes('/') && !filename.includes('\\')
-  );
+  return PUBLIC_IMAGE_FILENAME_PATTERN.test(filename);
 }
 
 /**
@@ -293,6 +333,12 @@ export async function saveOccurrenceImages(
 
   try {
     for (const file of files) {
+      if (!isAllowedImageBuffer(file)) {
+        throw new BadRequestException(
+          'O ficheiro enviado nao e uma imagem valida',
+        );
+      }
+
       const filename = `${randomUUID()}${getFileExtension(
         file.mimetype,
         file.originalname,

@@ -10,6 +10,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { OCCURRENCE_ERROR_MESSAGES } from '../constants/occurrence.constants';
 
 function trimStringValue(value: unknown) {
   return typeof value === 'string' ? value.trim() : value;
@@ -82,7 +83,9 @@ export class CreateOccurrenceDto {
     example: OccurrenceCategory.ILUMINACAO_PUBLICA,
     description: 'Categoria principal da ocorrencia',
   })
-  @IsEnum(OccurrenceCategory)
+  @IsEnum(OccurrenceCategory, {
+    message: OCCURRENCE_ERROR_MESSAGES.invalidCategory,
+  })
   declare category: OccurrenceCategory;
 
   @ApiPropertyOptional({
@@ -94,8 +97,10 @@ export class CreateOccurrenceDto {
     (dto: CreateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS,
   )
   @Transform(({ value }) => trimOptionalStringValue(value))
-  @IsString()
-  @MinLength(3)
+  @IsString({ message: OCCURRENCE_ERROR_MESSAGES.invalidText })
+  @MinLength(3, {
+    message: OCCURRENCE_ERROR_MESSAGES.otherCategoryRequired,
+  })
   declare otherCategoryDetail?: string;
 
   @ApiPropertyOptional({
@@ -105,8 +110,10 @@ export class CreateOccurrenceDto {
   })
   @IsOptional()
   @Transform(({ value }) => trimOptionalStringValue(value))
-  @IsString()
-  @MinLength(3)
+  @IsString({ message: OCCURRENCE_ERROR_MESSAGES.invalidText })
+  @MinLength(3, {
+    message: 'A descricao da ocorrencia deve ter pelo menos 3 caracteres',
+  })
   declare description?: string;
 
   @ApiProperty({
@@ -115,27 +122,30 @@ export class CreateOccurrenceDto {
     minLength: 2,
   })
   @Transform(({ value }) => trimStringValue(value))
-  @IsString()
-  @MinLength(2)
+  @IsString({ message: OCCURRENCE_ERROR_MESSAGES.locationRequired })
+  @MinLength(2, { message: OCCURRENCE_ERROR_MESSAGES.locationRequired })
   declare location: string;
 
   @ApiPropertyOptional({
     type: [String],
-    example: ['http://localhost:3000/uploads/occurrences/exemplo.jpg'],
+    example: ['/uploads/occurrences/exemplo.jpg'],
     description:
       'Lista opcional de URLs publicas previamente carregadas pelo endpoint POST /occurrences/images',
     maxItems: 3,
   })
   @IsOptional()
   @Transform(({ value }) => normalizeOptionalStringArray(value))
-  @IsArray()
-  @ArrayMaxSize(3)
-  @IsString({ each: true })
+  @IsArray({ message: 'As imagens devem ser enviadas numa lista' })
+  @ArrayMaxSize(3, { message: OCCURRENCE_ERROR_MESSAGES.maxImages(3) })
+  @IsString({
+    each: true,
+    message: 'As imagens devem ser URLs publicas validas',
+  })
   declare uploadedImageUrls?: string[];
 
   @ApiPropertyOptional({
     type: [String],
-    example: ['http://localhost:3000/uploads/occurrences/exemplo.jpg'],
+    example: ['/uploads/occurrences/exemplo.jpg'],
     description:
       'Alias legado para URLs publicas previamente carregadas. Em novos clientes use uploadedImageUrls; em multipart/form-data o campo imageUrls e reservado aos ficheiros.',
     maxItems: 3,
@@ -143,8 +153,11 @@ export class CreateOccurrenceDto {
   })
   @IsOptional()
   @Transform(({ value }) => normalizeOptionalStringArray(value))
-  @IsArray()
-  @ArrayMaxSize(3)
-  @IsString({ each: true })
+  @IsArray({ message: 'As imagens devem ser enviadas numa lista' })
+  @ArrayMaxSize(3, { message: OCCURRENCE_ERROR_MESSAGES.maxImages(3) })
+  @IsString({
+    each: true,
+    message: 'As imagens devem ser URLs publicas validas',
+  })
   declare imageUrls?: string[];
 }

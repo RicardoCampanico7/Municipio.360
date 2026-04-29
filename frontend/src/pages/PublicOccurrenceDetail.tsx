@@ -282,9 +282,7 @@ export default function PublicOccurrenceDetail() {
   );
   const currentStatusKey = getStatusKey(occurrence);
   const allowedStatusOptions = useMemo(() => {
-    const allOptions: OccurrenceStatusKey[] = ["SUBMETIDA", "EM_TRATAMENTO", "CONCLUIDA"];
-
-    if (currentStatusKey === "SUBMETIDA") return allOptions;
+    if (currentStatusKey === "SUBMETIDA") return ["SUBMETIDA", "EM_TRATAMENTO"];
     if (currentStatusKey === "EM_TRATAMENTO") {
       return ["EM_TRATAMENTO", "CONCLUIDA"];
     }

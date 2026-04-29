@@ -349,8 +349,8 @@ describe('OccurrencesService', () => {
       userId: 999,
     });
 
-    await expect(service.findMineById(50, 7)).rejects.toBeInstanceOf(
-      ForbiddenException,
+    await expect(service.findMineById(50, 7)).rejects.toThrow(
+      'A ocorrencia nao pertence ao utilizador autenticado',
     );
 
     expect(prisma.occurrence.findUnique).toHaveBeenCalledTimes(1);
@@ -471,8 +471,8 @@ describe('OccurrencesService', () => {
   it('should throw not found on operator detail when occurrence is missing', async () => {
     prisma.occurrence.findUnique.mockResolvedValue(null);
 
-    await expect(service.findOneForOperator(999)).rejects.toBeInstanceOf(
-      NotFoundException,
+    await expect(service.findOneForOperator(999)).rejects.toThrow(
+      'Ocorrencia nao encontrada',
     );
   });
 
@@ -967,6 +967,28 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que URLs com formato publico invalido sao rejeitadas antes de consultar o disco.
+   * @return void
+   */
+  it('should reject malformed uploaded image URLs', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+    (isOccurrenceUploadPublicUrl as jest.Mock).mockReturnValue(false);
+
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+        uploadedImageUrls: ['/uploads/occurrences/folder/image.png'],
+      }),
+    ).rejects.toThrow('A imagem 1 nao tem um formato valido');
+
+    expect(occurrenceImageExistsByUrl).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
    * Garante que a criacao rejeita URLs publicas inexistentes na validacao final.
    * @return void
    */
@@ -1057,6 +1079,37 @@ describe('OccurrencesService', () => {
       }),
     ).rejects.toThrow('Nao pode repetir a mesma fotografia na ocorrencia');
 
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que ficheiros repetidos no mesmo pedido multipart sao rejeitados antes de serem guardados.
+   * @return void
+   */
+  it('should reject duplicate uploaded image files in the same request', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+    });
+
+    const duplicatedFile = {
+      buffer: Buffer.from('same-image'),
+      mimetype: 'image/png',
+      originalname: 'same.png',
+      size: 10,
+    };
+
+    await expect(
+      service.create(
+        7,
+        {
+          category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+          location: 'Rua A',
+        },
+        [duplicatedFile, { ...duplicatedFile, originalname: 'copy.png' }],
+      ),
+    ).rejects.toThrow('Nao pode repetir a mesma fotografia na ocorrencia');
+
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
@@ -1416,6 +1469,27 @@ describe('OccurrencesService', () => {
         status: OccurrenceStatus.SUBMETIDA,
       }),
     );
+  });
+
+  /**
+   * Garante que o fluxo de estados nao permite saltar diretamente de submetida para concluida.
+   * @return void
+   */
+  it('should reject status transitions that skip the in-progress state', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 1,
+      status: OccurrenceStatus.SUBMETIDA,
+      user: { id: 10 },
+    });
+
+    await expect(
+      service.updateStatus(1, OccurrenceStatus.CONCLUIDA),
+    ).rejects.toThrow(
+      'Transicao de estado invalida: SUBMETIDA -> CONCLUIDA',
+    );
+
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
   });
 
   /**

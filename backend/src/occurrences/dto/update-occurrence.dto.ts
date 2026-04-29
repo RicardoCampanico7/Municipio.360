@@ -8,6 +8,7 @@ import {
   IsString,
   ValidateIf,
 } from 'class-validator';
+import { OCCURRENCE_ERROR_MESSAGES } from '../constants/occurrence.constants';
 
 /**
  * Representa os dados editaveis de uma ocorrencia em contexto interno.
@@ -22,7 +23,9 @@ export class UpdateOccurrenceDto {
     example: OccurrenceCategory.OUTROS,
     description: 'Categoria principal da ocorrencia',
   })
-  @IsEnum(OccurrenceCategory)
+  @IsEnum(OccurrenceCategory, {
+    message: OCCURRENCE_ERROR_MESSAGES.invalidCategory,
+  })
   declare category: OccurrenceCategory;
 
   @ApiPropertyOptional({
@@ -33,8 +36,8 @@ export class UpdateOccurrenceDto {
   @ValidateIf(
     (dto: UpdateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS,
   )
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: OCCURRENCE_ERROR_MESSAGES.invalidText })
+  @IsNotEmpty({ message: OCCURRENCE_ERROR_MESSAGES.otherCategoryRequired })
   declare otherCategoryDetail?: string;
 
   @ApiProperty({
@@ -42,8 +45,8 @@ export class UpdateOccurrenceDto {
     description: 'Localizacao textual da ocorrencia',
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: OCCURRENCE_ERROR_MESSAGES.locationRequired })
+  @IsNotEmpty({ message: OCCURRENCE_ERROR_MESSAGES.locationRequired })
   declare location: string;
 
   @ApiPropertyOptional({
@@ -52,6 +55,6 @@ export class UpdateOccurrenceDto {
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsOptional()
-  @IsString()
+  @IsString({ message: OCCURRENCE_ERROR_MESSAGES.invalidText })
   declare description?: string;
 }
