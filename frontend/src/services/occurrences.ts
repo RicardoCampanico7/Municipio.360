@@ -62,6 +62,18 @@ export class OccurrencesRequestError extends Error {
   }
 }
 
+function normalizeOccurrenceImageUrl(value: unknown) {
+  const imageUrl = normalizeString(value);
+
+  if (!imageUrl) return undefined;
+  if (imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) return imageUrl;
+  if (imageUrl.startsWith("/api/")) return imageUrl;
+  if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+  if (imageUrl.startsWith("/uploads/")) return `/api${imageUrl}`;
+
+  return imageUrl;
+}
+
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : undefined;
 }
@@ -110,7 +122,7 @@ function normalizeImageUrls(value: unknown) {
   if (!Array.isArray(value)) return undefined;
 
   const imageUrls = value
-    .map((item) => normalizeString(item))
+    .map((item) => normalizeOccurrenceImageUrl(item))
     .filter((item): item is string => Boolean(item));
 
   return imageUrls.length > 0 ? imageUrls : undefined;

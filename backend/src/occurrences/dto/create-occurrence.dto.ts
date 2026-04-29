@@ -11,6 +11,65 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+function trimStringValue(value: unknown) {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+function trimOptionalStringValue(value: unknown) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue === '' ? undefined : trimmedValue;
+}
+
+function normalizeOptionalStringArray(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      return undefined;
+    }
+
+    if (trimmedValue.startsWith('[') && trimmedValue.endsWith(']')) {
+      try {
+        const parsedValue: unknown = JSON.parse(trimmedValue);
+
+        if (Array.isArray(parsedValue)) {
+          const normalizedValues = parsedValue
+            .map((item) => trimOptionalStringValue(item))
+            .filter(
+              (item): item is string => typeof item === 'string' && item.length > 0,
+            );
+
+          return normalizedValues.length ? normalizedValues : undefined;
+        }
+      } catch {
+        // Mantem compatibilidade com clientes que enviam apenas uma string simples.
+      }
+    }
+
+    return [trimmedValue];
+  }
+
+  if (Array.isArray(value)) {
+    const normalizedValues = value
+      .map((item) => trimOptionalStringValue(item))
+      .filter(
+        (item): item is string => typeof item === 'string' && item.length > 0,
+      );
+
+    return normalizedValues.length ? normalizedValues : undefined;
+  }
+
+  return value;
+}
+
 /**
  * Representa os dados necessarios para criar uma nova ocorrencia.
  * @author Alan Martynyuk e Guilherme Gaspar
@@ -34,6 +93,7 @@ export class CreateOccurrenceDto {
   @ValidateIf(
     (dto: CreateOccurrenceDto) => dto.category === OccurrenceCategory.OUTROS,
   )
+  @Transform(({ value }) => trimOptionalStringValue(value))
   @IsString()
   @MinLength(3)
   declare otherCategoryDetail?: string;
@@ -44,6 +104,7 @@ export class CreateOccurrenceDto {
     minLength: 3,
   })
   @IsOptional()
+  @Transform(({ value }) => trimOptionalStringValue(value))
   @IsString()
   @MinLength(3)
   declare description?: string;
@@ -53,6 +114,7 @@ export class CreateOccurrenceDto {
     description: 'Localizacao textual da ocorrencia',
     minLength: 2,
   })
+  @Transform(({ value }) => trimStringValue(value))
   @IsString()
   @MinLength(2)
   declare location: string;
@@ -61,17 +123,26 @@ export class CreateOccurrenceDto {
     type: [String],
     example: ['http://localhost:3000/uploads/occurrences/exemplo.jpg'],
     description:
-      'Lista opcional de URLs publicas previamente carregadas ou nomes enviados pelo multipart/form-data',
+      'Lista opcional de URLs publicas previamente carregadas pelo endpoint POST /occurrences/images',
     maxItems: 3,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === undefined || value === null || value === '') {
-      return undefined;
-    }
+  @Transform(({ value }) => normalizeOptionalStringArray(value))
+  @IsArray()
+  @ArrayMaxSize(3)
+  @IsString({ each: true })
+  declare uploadedImageUrls?: string[];
 
-    return Array.isArray(value) ? value : [value];
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['http://localhost:3000/uploads/occurrences/exemplo.jpg'],
+    description:
+      'Alias legado para URLs publicas previamente carregadas. Em novos clientes use uploadedImageUrls; em multipart/form-data o campo imageUrls e reservado aos ficheiros.',
+    maxItems: 3,
+    deprecated: true,
   })
+  @IsOptional()
+  @Transform(({ value }) => normalizeOptionalStringArray(value))
   @IsArray()
   @ArrayMaxSize(3)
   @IsString({ each: true })

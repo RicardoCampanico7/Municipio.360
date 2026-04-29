@@ -152,6 +152,15 @@ export class OccurrencesService {
   }
 
   /**
+   * Junta as URLs previamente carregadas enviadas no campo canonico e no alias legado.
+   * @param dto DTO de criacao recebido do pedido.
+   * @return string[] Lista bruta de URLs pedidas pelo cliente.
+   */
+  private getRequestedImageUrls(dto: CreateOccurrenceDto) {
+    return [...(dto.uploadedImageUrls ?? []), ...(dto.imageUrls ?? [])];
+  }
+
+  /**
    * Persiste uma entrada de historico com o estado atualmente assumido pela ocorrencia.
    * @param prisma Cliente transacional usado na operacao atomica.
    * @param occurrenceId Identificador da ocorrencia alterada.
@@ -297,12 +306,24 @@ export class OccurrencesService {
       throw new UnauthorizedException('Utilizador autenticado invalido');
     }
 
+    const location = dto.location?.trim() ?? '';
+    const description = dto.description?.trim() ?? '';
     const otherCategoryDetail =
       dto.category === OccurrenceCategory.OUTROS
-        ? dto.otherCategoryDetail?.trim()
+        ? dto.otherCategoryDetail?.trim() ?? ''
         : null;
+    if (!location) {
+      throw new BadRequestException('A localizacao da ocorrencia e obrigatoria');
+    }
+
+    if (dto.category === OccurrenceCategory.OUTROS && !otherCategoryDetail) {
+      throw new BadRequestException(
+        'O detalhe da categoria e obrigatorio quando a categoria e OUTROS',
+      );
+    }
+
     const requestedImageUrls = await this.normalizeRequestedImageUrls(
-      dto.imageUrls,
+      this.getRequestedImageUrls(dto),
       userId,
     );
 
@@ -315,7 +336,9 @@ export class OccurrencesService {
       );
     }
 
-    const uploadedImageUrls = await saveOccurrenceImages(files, userId);
+    const uploadedImageUrls = files.length
+      ? await saveOccurrenceImages(files, userId)
+      : [];
     const imageUrls = [...requestedImageUrls, ...uploadedImageUrls];
     const initialStatus = OccurrenceStatus.SUBMETIDA;
     let createdOccurrenceId: number | null = null;
@@ -326,8 +349,8 @@ export class OccurrencesService {
           data: {
             category: dto.category,
             otherCategoryDetail,
-            description: dto.description?.trim() ?? '',
-            location: dto.location,
+            description,
+            location,
             imageUrls,
             status: initialStatus,
             userId,
@@ -344,22 +367,28 @@ export class OccurrencesService {
         return createdOccurrence;
       });
       createdOccurrenceId = occurrence.id;
-      await assignOccurrenceImagesToOccurrence(imageUrls, occurrence.id);
+      if (imageUrls.length) {
+        await assignOccurrenceImagesToOccurrence(imageUrls, occurrence.id);
+      }
 
       return presentOccurrence(occurrence);
     } catch (error) {
-      if (createdOccurrenceId !== null) {
+      if (createdOccurrenceId !== null && imageUrls.length) {
         await unassignOccurrenceImagesFromOccurrence(
           imageUrls,
           createdOccurrenceId,
         );
+      }
+      if (createdOccurrenceId !== null) {
         await this.prisma.occurrence
           .delete({
             where: { id: createdOccurrenceId },
           })
           .catch(() => undefined);
       }
-      await removeOccurrenceImagesByUrls(uploadedImageUrls);
+      if (uploadedImageUrls.length) {
+        await removeOccurrenceImagesByUrls(uploadedImageUrls);
+      }
       throw error;
     }
   }

@@ -31,6 +31,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { OccurrenceCategory, Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../shared/decorators/roles.decorator';
@@ -51,6 +52,7 @@ import {
 import { CreateOccurrenceDto } from './dto/create-occurrence.dto';
 import { OccurrenceUploadExceptionFilter } from './upload/occurrence-upload-exception.filter';
 import {
+  OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME,
   getOccurrenceMulterOptions,
   occurrenceUploadConfig,
   type UploadedOccurrenceImage,
@@ -59,6 +61,58 @@ import { UpdateOccurrenceStatusDto } from './dto/update-occurrence-status.dto';
 import { CreateOccurrenceInternalCommentDto } from './dto/create-occurrence-internal-comment.dto';
 import { UpdateOccurrenceDto } from './dto/update-occurrence.dto';
 import { OccurrencesService } from './occurrences.service';
+
+const occurrenceMultipartImagesSchema: SchemaObject = {
+  type: 'array',
+  items: {
+    type: 'string',
+    format: 'binary',
+  },
+  maxItems: occurrenceUploadConfig.maxFiles,
+};
+
+const uploadOccurrenceImagesRequestSchema: SchemaObject = {
+  type: 'object',
+  required: [OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME],
+  properties: {
+    [OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME]: occurrenceMultipartImagesSchema,
+  },
+};
+
+const createOccurrenceRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['category', 'location'],
+  properties: {
+    category: {
+      type: 'string',
+      enum: Object.values(OccurrenceCategory),
+    },
+    otherCategoryDetail: {
+      type: 'string',
+      minLength: 3,
+      nullable: true,
+    },
+    description: {
+      type: 'string',
+      minLength: 3,
+      nullable: true,
+    },
+    location: {
+      type: 'string',
+      minLength: 2,
+    },
+    uploadedImageUrls: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      description:
+        'URLs publicas previamente carregadas em POST /occurrences/images',
+      maxItems: occurrenceUploadConfig.maxFiles,
+    },
+    imageUrls: occurrenceMultipartImagesSchema,
+  },
+};
 
 /**
  * Expos endpoints publicos, privados e de gestao para ocorrencias municipais.
@@ -393,7 +447,7 @@ export class OccurrencesController {
   @UseFilters(OccurrenceUploadExceptionFilter)
   @UseInterceptors(
     FilesInterceptor(
-      'imageUrls',
+      OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME,
       occurrenceUploadConfig.maxFiles,
       getOccurrenceMulterOptions(),
     ),
@@ -404,20 +458,7 @@ export class OccurrencesController {
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['imageUrls'],
-      properties: {
-        imageUrls: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-          maxItems: occurrenceUploadConfig.maxFiles,
-        },
-      },
-    },
+    schema: uploadOccurrenceImagesRequestSchema,
   })
   @ApiCreatedResponse({
     description: 'Imagens carregadas com sucesso',
@@ -455,47 +496,19 @@ export class OccurrencesController {
   @UseFilters(OccurrenceUploadExceptionFilter)
   @UseInterceptors(
     FilesInterceptor(
-      'imageUrls',
+      OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME,
       occurrenceUploadConfig.maxFiles,
       getOccurrenceMulterOptions(),
     ),
   )
   @ApiBearerAuth('bearer')
-  @ApiOperation({ summary: 'Criar ocorrencia (apenas CIVIL autenticado)' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      'Criar ocorrencia com ficheiros multipart ou URLs previamente carregadas',
+  })
+  @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['category', 'location'],
-      properties: {
-        category: {
-          type: 'string',
-          enum: Object.values(OccurrenceCategory),
-        },
-        otherCategoryDetail: {
-          type: 'string',
-          minLength: 3,
-          nullable: true,
-        },
-        description: {
-          type: 'string',
-          minLength: 3,
-          nullable: true,
-        },
-        location: {
-          type: 'string',
-          minLength: 2,
-        },
-        imageUrls: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-          maxItems: occurrenceUploadConfig.maxFiles,
-        },
-      },
-    },
+    schema: createOccurrenceRequestSchema,
   })
   @ApiCreatedResponse({
     description: 'Ocorrencia criada',

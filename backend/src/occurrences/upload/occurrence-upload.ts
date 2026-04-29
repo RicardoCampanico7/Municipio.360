@@ -8,6 +8,7 @@ const DEFAULT_MAX_FILES = 3;
 const DEFAULT_MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024;
 const DEFAULT_UPLOADS_ROOT = join(process.cwd(), 'uploads', 'occurrences');
 const DEFAULT_PUBLIC_BASE_PATH = '/uploads/occurrences';
+export const OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME = 'imageUrls';
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
