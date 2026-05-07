@@ -20,12 +20,36 @@ Disponibilizar um guia curto e pratico para testar os endpoints `login`, `regist
 
 ## Dados de teste recomendados
 
-Os seguintes utilizadores existem na seed do backend:
+Os seguintes utilizadores existem na seed do backend. Todos usam a password
+`Password123!`.
 
 - Civil: `civil@teste.pt`
+- Civil certificada adicional: `ana.costa@teste.pt`
+- Civil pendente: `civil.pendente@teste.pt`
+- Civil rejeitada: `civil.rejeitada@teste.pt`
 - Operador: `operador@teste.pt`
 - Administrador: `admin@teste.pt`
-- Password para todas as contas: `Password123!`
+
+## Dados de demo para ocorrencias
+
+A seed recria sempre 6 ocorrencias associadas aos civis certificados, sem
+duplicar dados entre execucoes:
+
+- 2 ocorrencias `SUBMETIDA`
+- 2 ocorrencias `EM_TRATAMENTO`, com historico e comentarios internos
+- 2 ocorrencias `CONCLUIDA`, com historico completo e comentarios internos
+- 1 ocorrencia da categoria `OUTROS`, com detalhe especifico preenchido
+
+Fluxos bons para demonstracao:
+
+- Login como `civil@teste.pt`: testar `GET /occurrences/mine` e detalhe com
+  historico.
+- Login como `operador@teste.pt`: testar listagem de gestao, comentarios
+  internos e avancar uma ocorrencia `SUBMETIDA` para `EM_TRATAMENTO`.
+- Login como `admin@teste.pt`: validar que a mesma area de gestao tambem esta
+  disponivel para administrador.
+- Login como `civil.pendente@teste.pt`: tentar criar ocorrencia e confirmar a
+  rejeicao por conta ainda nao certificada.
 
 ## Ordem recomendada de teste
 
