@@ -15,10 +15,14 @@ model User {
   email                      String                      @unique
   avatarUrl                  String?
   passwordHash               String
+  refreshTokenHash           String?
   role                       Role                        @default(CIVIL)
   certStatus                 CertificationStatus         @default(NONE)
+  isActive                   Boolean                     @default(true)
+  authVersion                Int                         @default(0)
   occurrences                Occurrence[]
   occurrenceInternalComments OccurrenceInternalComment[]
+  occurrenceStatusChanges    OccurrenceStatusHistory[]   @relation("OccurrenceStatusChangedBy")
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
 }
@@ -52,9 +56,13 @@ model OccurrenceStatusHistory {
   occurrenceId Int
   occurrence   Occurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
 
+  changedByUserId Int?
+  changedByUser   User? @relation("OccurrenceStatusChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
 
   @@index([occurrenceId, createdAt])
+  @@index([changedByUserId])
 }
 
 model OccurrenceInternalComment {
