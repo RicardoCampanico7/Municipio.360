@@ -94,6 +94,7 @@ export class UsersController {
         biNumber: true,
         postalCode: true,
         email: true,
+        avatarUrl: true,
         role: true,
         certStatus: true,
         createdAt: true,
