@@ -19,6 +19,7 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.Mock;
       create: jest.Mock;
+      update: jest.Mock;
     };
   };
   let jwt: {
@@ -30,6 +31,7 @@ describe('AuthService', () => {
       user: {
         findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -186,6 +188,51 @@ describe('AuthService', () => {
       postalCode: '8000-020',
       email: 'admin@teste.pt',
       avatarUrl: 'data:image/webp;base64,QUJDRA==',
+      role: Role.ADMINISTRADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+      createdAt: new Date('2026-03-17T11:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T12:00:00.000Z'),
+    });
+    expect(result.user).not.toHaveProperty('passwordHash');
+  });
+
+  /**
+   * Garante que a fotografia de perfil pode ser atualizada sem expor dados sensiveis.
+   * @return void
+   */
+  it('should update the authenticated user avatar', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 11 });
+    prisma.user.update.mockResolvedValue({
+      id: 11,
+      name: 'Admin',
+      biNumber: '32345678 1 AB3',
+      postalCode: '8000-020',
+      email: 'admin@teste.pt',
+      avatarUrl: 'data:image/png;base64,QUJDRA==',
+      role: Role.ADMINISTRADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+      createdAt: new Date('2026-03-17T11:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T12:00:00.000Z'),
+    });
+
+    const result = await service.updateAvatar(
+      11,
+      ' data:image/png;base64,QUJDRA== ',
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 11 },
+        data: { avatarUrl: 'data:image/png;base64,QUJDRA==' },
+      }),
+    );
+    expect(result.user).toEqual({
+      id: 11,
+      name: 'Admin',
+      biNumber: '32345678 1 AB3',
+      postalCode: '8000-020',
+      email: 'admin@teste.pt',
+      avatarUrl: 'data:image/png;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
       certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T11:00:00.000Z'),

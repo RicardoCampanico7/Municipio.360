@@ -50,8 +50,9 @@ export class AuthService {
    * @param avatarUrl Data URL recebida do cliente.
    * @return URL normalizada ou null quando a foto nao foi enviada.
    */
-  private normalizeAvatarUrl(avatarUrl: string | undefined) {
-    const normalizedAvatarUrl = avatarUrl?.trim();
+  private normalizeAvatarUrl(avatarUrl: string | null | undefined) {
+    const normalizedAvatarUrl =
+      typeof avatarUrl === 'string' ? avatarUrl.trim() : '';
     if (!normalizedAvatarUrl) {
       return null;
     }
@@ -237,6 +238,46 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Utilizador autenticado invalido');
     }
+
+    return {
+      user: this.buildSafeUserResponse(user),
+    };
+  }
+
+  /**
+   * Atualiza ou remove a fotografia de perfil do utilizador autenticado.
+   * @param userId Identificador do utilizador autenticado.
+   * @param avatarUrl Nova fotografia em data URL, ou null/undefined para remover.
+   * @return Perfil seguro atualizado do utilizador.
+   */
+  async updateAvatar(userId: number, avatarUrl: string | null | undefined) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!existingUser) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
+    const normalizedAvatarUrl = this.normalizeAvatarUrl(avatarUrl);
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: normalizedAvatarUrl },
+      select: {
+        id: true,
+        name: true,
+        biNumber: true,
+        postalCode: true,
+        email: true,
+        avatarUrl: true,
+        role: true,
+        certStatus: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     return {
       user: this.buildSafeUserResponse(user),
