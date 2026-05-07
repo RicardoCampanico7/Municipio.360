@@ -137,14 +137,34 @@ export class AuthController {
     description: 'Refresh token recebido no login ou refresh anterior.',
     required: true,
     schema: { $ref: getSchemaPath(RefreshTokenDto) },
+    examples: authSwaggerExamples.refreshRequest,
   })
   @ApiOkResponse({
     description: 'Sessao renovada',
-    type: AuthRefreshResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthRefreshResponseDto) },
+        examples: authSwaggerExamples.refreshSuccess,
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ValidationErrorResponseDto) },
+        examples: authSwaggerExamples.refreshBadRequest,
+      },
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Refresh token invalido ou expirado',
-    type: ApiErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.refreshUnauthorized,
+      },
+    },
   })
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto);
@@ -215,8 +235,7 @@ export class AuthController {
   @ApiBearerAuth('bearer')
   @ApiHeader({
     name: 'Authorization',
-    description:
-      'JWT recebido em /auth/login no formato Bearer <token>.',
+    description: 'JWT recebido em /auth/login no formato Bearer <token>.',
     required: true,
     example: authSwaggerExamples.authorizationHeader,
   })
@@ -257,18 +276,35 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('bearer')
+  @ApiHeader({
+    name: 'Authorization',
+    description:
+      'JWT recebido em /auth/login ou /auth/refresh no formato Bearer <token>.',
+    required: true,
+    example: authSwaggerExamples.authorizationHeader,
+  })
   @ApiOperation({
     summary: 'Terminar sessao autenticada',
     description:
-      'Incrementa a versao de autenticacao do utilizador para invalidar tokens JWT versionados emitidos anteriormente.',
+      'Remove o refresh token guardado e incrementa a versao de autenticacao do utilizador para invalidar tokens JWT versionados emitidos anteriormente.',
   })
   @ApiOkResponse({
     description: 'Sessao terminada',
-    type: AuthLogoutResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthLogoutResponseDto) },
+        examples: authSwaggerExamples.logoutSuccess,
+      },
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao, token invalido ou conta inativa',
-    type: ApiErrorResponseDto,
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.logoutUnauthorized,
+      },
+    },
   })
   logout(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
