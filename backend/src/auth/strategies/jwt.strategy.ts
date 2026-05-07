@@ -43,11 +43,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token invalido');
     }
 
+    let currentUser:
+      | {
+          email: string;
+          name: string;
+          role: Role;
+          certStatus: string;
+        }
+      | undefined;
+
     if (payload.authVersion !== undefined) {
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
         select: {
           id: true,
+          email: true,
+          name: true,
+          role: true,
+          certStatus: true,
           isActive: true,
           authVersion: true,
         },
@@ -60,14 +73,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (user.authVersion !== payload.authVersion) {
         throw new UnauthorizedException('Sessao expirada');
       }
+
+      currentUser = user;
     }
 
     return {
       sub: payload.sub,
-      email: payload.email,
-      name: payload.name,
-      role: payload.role,
-      certStatus: payload.certStatus,
+      email: currentUser?.email ?? payload.email,
+      name: currentUser?.name ?? payload.name,
+      role: currentUser?.role ?? payload.role,
+      certStatus: currentUser?.certStatus ?? payload.certStatus,
       authVersion: payload.authVersion,
     };
   }

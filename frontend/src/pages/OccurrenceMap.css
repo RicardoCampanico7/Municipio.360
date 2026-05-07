@@ -370,10 +370,6 @@
   color: #3a9850;
 }
 
-.occurrence-map-bottom-nav {
-  display: none;
-}
-
 @media (max-width: 1020px) {
   .occurrence-map-shell {
     padding: 24px;

@@ -20,7 +20,11 @@ import {
   OccurrencesRequestError,
   type OccurrenceCategoryKey,
 } from "../services/occurrences";
-import { clearAccessToken, getAccessSession, getRawAccessToken } from "../services/token";
+import {
+  clearAccessToken,
+  getAccessSession,
+  getRawAccessToken,
+} from "../services/token";
 import "./NewOccurrence.css";
 
 type SelectedImage = {
@@ -115,6 +119,10 @@ function getSubmissionErrorMessage(status: number, payload: ApiErrorPayload | nu
   }
 
   if (status === 403) {
+    if (rawMessage.includes("certificada")) {
+      return "A tua conta de cidadao precisa de estar certificada para submeter ocorrencias.";
+    }
+
     return "Nao tens permissao para submeter esta ocorrencia com a sessao atual.";
   }
 
