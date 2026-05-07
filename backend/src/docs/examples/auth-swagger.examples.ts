@@ -26,6 +26,8 @@ export const authSwaggerExamples = {
       value: {
         accessToken:
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiY2VydFN0YXR1cyI6IkNFUlRJRklFRCIsImlhdCI6MTc0Mzg0ODEzMCwiZXhwIjoxNzQzODUxNzMwfQ.signature',
+        refreshToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsImF1dGhWZXJzaW9uIjowLCJ0b2tlblR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzQzODQ4MTMwLCJleHAiOjE3NDQ0NTI5MzB9.signature',
         tokenType: 'Bearer',
         user: {
           id: 7,
@@ -33,11 +35,64 @@ export const authSwaggerExamples = {
           biNumber: '12345678',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
-          avatarUrl:
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+          avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
           role: 'CIVIL',
           certStatus: 'CERTIFIED',
         },
+      },
+    },
+  },
+  refreshRequest: {
+    validRefreshToken: {
+      summary: 'Refresh token ativo',
+      description:
+        'Usa o refreshToken devolvido no login ou no refresh anterior.',
+      value: {
+        refreshToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsImF1dGhWZXJzaW9uIjowLCJ0b2tlblR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzQzODQ4MTMwLCJleHAiOjE3NDQ0NTI5MzB9.signature',
+      },
+    },
+  },
+  refreshSuccess: {
+    rotatedTokens: {
+      summary: 'Tokens renovados',
+      value: {
+        accessToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiY2VydFN0YXR1cyI6IkNFUlRJRklFRCIsImF1dGhWZXJzaW9uIjowLCJpYXQiOjE3NDM4NDkwMDAsImV4cCI6MTc0Mzg1MjYwMH0.signature',
+        refreshToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsImF1dGhWZXJzaW9uIjowLCJ0b2tlblR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzQzODQ5MDAwLCJleHAiOjE3NDQ0NTM4MDB9.signature',
+        tokenType: 'Bearer',
+      },
+    },
+  },
+  refreshBadRequest: {
+    missingRefreshToken: {
+      summary: 'Refresh token em falta',
+      value: {
+        statusCode: 400,
+        message: [
+          'refreshToken must be longer than or equal to 20 characters',
+          'refreshToken must be a string',
+        ],
+        error: 'Bad Request',
+      },
+    },
+  },
+  refreshUnauthorized: {
+    invalidRefreshToken: {
+      summary: 'Refresh token invalido',
+      value: {
+        statusCode: 401,
+        message: 'Refresh token invalido',
+        error: 'Unauthorized',
+      },
+    },
+    expiredSession: {
+      summary: 'Sessao expirada por logout ou rotacao',
+      value: {
+        statusCode: 401,
+        message: 'Sessao expirada',
+        error: 'Unauthorized',
       },
     },
   },
@@ -166,8 +221,7 @@ export const authSwaggerExamples = {
           biNumber: '12345678',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
-          avatarUrl:
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+          avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
           role: 'CIVIL',
           certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
@@ -190,6 +244,32 @@ export const authSwaggerExamples = {
       value: {
         statusCode: 401,
         message: 'Utilizador autenticado invalido',
+        error: 'Unauthorized',
+      },
+    },
+  },
+  logoutSuccess: {
+    terminatedSession: {
+      summary: 'Sessao terminada',
+      value: {
+        message: 'Sessao terminada com sucesso',
+      },
+    },
+  },
+  logoutUnauthorized: {
+    missingOrInvalidToken: {
+      summary: 'Token em falta ou invalido',
+      value: {
+        statusCode: 401,
+        message: 'Unauthorized',
+        error: 'Unauthorized',
+      },
+    },
+    inactiveAccount: {
+      summary: 'Conta inativa',
+      value: {
+        statusCode: 401,
+        message: 'Conta inativa',
         error: 'Unauthorized',
       },
     },
