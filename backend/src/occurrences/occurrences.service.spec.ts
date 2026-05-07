@@ -76,21 +76,28 @@ describe('OccurrencesService', () => {
    * Confirma que a operacao testada registou a ultima entrada esperada no historico de estados.
    * @param occurrenceId Identificador da ocorrencia usada no teste.
    * @param status Estado esperado na ultima insercao.
+   * @param changedByUserId Utilizador esperado na auditoria, quando aplicavel.
    * @return void
    */
   function expectLatestStatusHistoryInsert(
     occurrenceId: number,
     status: OccurrenceStatus,
+    changedByUserId?: number,
   ) {
     expect(prisma.$executeRaw).toHaveBeenCalled();
 
     const latestCall =
       prisma.$executeRaw.mock.calls[prisma.$executeRaw.mock.calls.length - 1];
-    const [queryParts, recordedOccurrenceId, recordedStatus] = latestCall;
+    const [queryParts, recordedOccurrenceId, recordedStatus, recordedActorId] =
+      latestCall;
 
     expect(queryParts.join('')).toContain('"OccurrenceStatusHistory"');
     expect(recordedOccurrenceId).toBe(occurrenceId);
     expect(recordedStatus).toBe(status);
+    if (changedByUserId !== undefined) {
+      expect(queryParts.join('')).toContain('"changedByUserId"');
+      expect(recordedActorId).toBe(changedByUserId);
+    }
   }
 
   beforeEach(async () => {
@@ -842,7 +849,7 @@ describe('OccurrencesService', () => {
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: 999 },
-      select: { id: true },
+      select: { id: true, certStatus: true },
     });
     expect(saveOccurrenceImages).not.toHaveBeenCalled();
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
@@ -855,6 +862,7 @@ describe('OccurrencesService', () => {
   it('should reject creation when location is blank after trimming', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
 
     await expect(
@@ -876,6 +884,7 @@ describe('OccurrencesService', () => {
   it('should reject creation with OUTROS when the detail is blank', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
 
     await expect(
@@ -892,12 +901,35 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que contas civis ainda pendentes nao podem criar ocorrencias.
+   * @return void
+   */
+  it('should reject occurrence creation for pending citizen accounts', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 8,
+      certStatus: CertificationStatus.PENDING,
+    });
+
+    await expect(
+      service.create(8, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        description: 'Candeeiro apagado',
+        location: 'Rua A',
+      }),
+    ).rejects.toThrow('precisa de estar certificada');
+
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
    * Garante que um utilizador autenticado com conta criada pode submeter ocorrencias.
    * @return void
    */
   it('should allow occurrence creation for an authenticated citizen account', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([
       '/uploads/occurrences/a.png',
@@ -959,6 +991,7 @@ describe('OccurrencesService', () => {
   it('should create an occurrence without images', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
     prisma.occurrence.create.mockResolvedValue({
@@ -1001,6 +1034,7 @@ describe('OccurrencesService', () => {
   it('should allow associating previously uploaded public image URLs', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
     prisma.occurrence.create.mockResolvedValue({
@@ -1047,6 +1081,7 @@ describe('OccurrencesService', () => {
   it('should keep accepting the legacy imageUrls alias for previously uploaded URLs', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
     prisma.occurrence.create.mockResolvedValue({
@@ -1083,6 +1118,7 @@ describe('OccurrencesService', () => {
   it('should combine previously uploaded image URLs with newly uploaded files', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([
       '/uploads/occurrences/new.png',
@@ -1142,6 +1178,7 @@ describe('OccurrencesService', () => {
   it('should reject inline image data URLs sent in the request body', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
 
     await expect(
@@ -1162,6 +1199,7 @@ describe('OccurrencesService', () => {
   it('should reject malformed uploaded image URLs', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (isOccurrenceUploadPublicUrl as jest.Mock).mockReturnValue(false);
 
@@ -1184,6 +1222,7 @@ describe('OccurrencesService', () => {
   it('should reject missing previously uploaded image URLs', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (getOccurrenceImageMetadataByUrl as jest.Mock).mockResolvedValue(null);
 
@@ -1205,6 +1244,7 @@ describe('OccurrencesService', () => {
   it('should reject image URLs uploaded by another user', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (getOccurrenceImageMetadataByUrl as jest.Mock).mockResolvedValue({
       ownerUserId: 99,
@@ -1230,6 +1270,7 @@ describe('OccurrencesService', () => {
   it('should reject image URLs that are already associated to an occurrence', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (getOccurrenceImageMetadataByUrl as jest.Mock).mockResolvedValue({
       ownerUserId: 7,
@@ -1255,6 +1296,7 @@ describe('OccurrencesService', () => {
   it('should reject duplicate image URLs in the final request body', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
 
     await expect(
@@ -1278,6 +1320,7 @@ describe('OccurrencesService', () => {
   it('should reject duplicate uploaded image files in the same request', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
 
     const duplicatedFile = {
@@ -1309,6 +1352,7 @@ describe('OccurrencesService', () => {
   it('should upload occurrence images for a valid authenticated user', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([
       '/uploads/occurrences/uploaded.png',
@@ -1343,6 +1387,7 @@ describe('OccurrencesService', () => {
   it('should reject dedicated image upload requests without files', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
 
     await expect(service.uploadImages(7, [])).rejects.toBeInstanceOf(
@@ -1359,6 +1404,7 @@ describe('OccurrencesService', () => {
   it('should remove saved images when database creation fails', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([
       '/uploads/occurrences/fail.png',
@@ -1391,6 +1437,7 @@ describe('OccurrencesService', () => {
   it('should rollback the occurrence when final image association fails', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (saveOccurrenceImages as jest.Mock).mockResolvedValue([
       '/uploads/occurrences/fail.png',
@@ -1451,6 +1498,7 @@ describe('OccurrencesService', () => {
   it('should create an occurrence with authenticated user and initial submitted status', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 12,
+      certStatus: CertificationStatus.CERTIFIED,
     });
     (getOccurrenceImageMetadataByUrl as jest.Mock).mockResolvedValue({
       ownerUserId: 12,
@@ -1565,6 +1613,7 @@ describe('OccurrencesService', () => {
     const result = await service.updateStatus(
       1,
       OccurrenceStatus.EM_TRATAMENTO,
+      99,
     );
 
     expect(prisma.occurrence.update).toHaveBeenCalledWith({
@@ -1619,7 +1668,7 @@ describe('OccurrencesService', () => {
         status: OccurrenceStatus.EM_TRATAMENTO,
       }),
     );
-    expectLatestStatusHistoryInsert(1, OccurrenceStatus.EM_TRATAMENTO);
+    expectLatestStatusHistoryInsert(1, OccurrenceStatus.EM_TRATAMENTO, 99);
   });
 
   /**

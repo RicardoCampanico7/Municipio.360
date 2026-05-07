@@ -30,13 +30,16 @@ import {
 } from '../shared/dto/api-error-response.dto';
 import {
   AuthLoginResponseDto,
+  AuthLogoutResponseDto,
   AuthMeResponseDto,
+  AuthRefreshResponseDto,
   AuthRegisterResponseDto,
   SafeUserResponseDto,
 } from './dto/responses/auth-response.dto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 
 /**
@@ -48,9 +51,12 @@ import { RegisterDto } from './dto/register.dto';
 @ApiTags('auth')
 @ApiExtraModels(
   LoginDto,
+  RefreshTokenDto,
   RegisterDto,
   AuthLoginResponseDto,
+  AuthLogoutResponseDto,
   AuthRegisterResponseDto,
+  AuthRefreshResponseDto,
   AuthMeResponseDto,
   SafeUserResponseDto,
   ApiErrorResponseDto,
@@ -113,6 +119,35 @@ export class AuthController {
   })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  /**
+   * Renova a sessao usando um refresh token valido.
+   * @param dto Refresh token emitido anteriormente.
+   * @return Novo par de tokens.
+   */
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Renovar access token',
+    description:
+      'Valida um refresh token ativo, roda o refresh token guardado e devolve um novo par de tokens.',
+  })
+  @ApiBody({
+    description: 'Refresh token recebido no login ou refresh anterior.',
+    required: true,
+    schema: { $ref: getSchemaPath(RefreshTokenDto) },
+  })
+  @ApiOkResponse({
+    description: 'Sessao renovada',
+    type: AuthRefreshResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Refresh token invalido ou expirado',
+    type: ApiErrorResponseDto,
+  })
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto);
   }
 
   /**
@@ -211,5 +246,32 @@ export class AuthController {
   me(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
     return this.authService.me(Number(authUser?.sub));
+  }
+
+  /**
+   * Invalida sessoes versionadas do utilizador autenticado.
+   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+   * @return Mensagem de logout concluido.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary: 'Terminar sessao autenticada',
+    description:
+      'Incrementa a versao de autenticacao do utilizador para invalidar tokens JWT versionados emitidos anteriormente.',
+  })
+  @ApiOkResponse({
+    description: 'Sessao terminada',
+    type: AuthLogoutResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao, token invalido ou conta inativa',
+    type: ApiErrorResponseDto,
+  })
+  logout(@Req() req: Request) {
+    const authUser = req.user as { sub?: number } | undefined;
+    return this.authService.logout(Number(authUser?.sub));
   }
 }

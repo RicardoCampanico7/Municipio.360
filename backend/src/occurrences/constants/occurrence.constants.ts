@@ -7,6 +7,8 @@ export const OCCURRENCE_ERROR_MESSAGES = {
   occurrenceNotFound: 'Ocorrencia nao encontrada',
   occurrenceNotOwned: 'A ocorrencia nao pertence ao utilizador autenticado',
   invalidAuthenticatedUser: 'Utilizador autenticado invalido',
+  accountNotCertified:
+    'A conta precisa de estar certificada para criar ocorrencias',
   invalidCategory: 'A categoria da ocorrencia e invalida',
   invalidStatus: 'O estado da ocorrencia e invalido',
   invalidText: 'O campo deve ser texto',

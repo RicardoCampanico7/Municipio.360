@@ -58,8 +58,34 @@ export class AuthLoginResponseDto {
   })
   tokenType: string;
 
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Token usado para renovar a sessao sem nova password',
+  })
+  refreshToken: string;
+
   @ApiProperty({ type: SafeUserResponseDto })
   user: SafeUserResponseDto;
+}
+
+export class AuthRefreshResponseDto {
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Novo JWT para autenticar pedidos protegidos',
+  })
+  accessToken: string;
+
+  @ApiProperty({
+    example: 'Bearer',
+    description: 'Tipo do token devolvido',
+  })
+  tokenType: string;
+
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Novo refresh token rotacionado',
+  })
+  refreshToken: string;
 }
 
 export class AuthRegisterResponseDto {
@@ -75,4 +101,11 @@ export class AuthRegisterResponseDto {
 export class AuthMeResponseDto {
   @ApiProperty({ type: SafeUserResponseDto })
   user: SafeUserResponseDto;
+}
+
+export class AuthLogoutResponseDto {
+  @ApiProperty({
+    example: 'Sessao terminada com sucesso',
+  })
+  message: string;
 }

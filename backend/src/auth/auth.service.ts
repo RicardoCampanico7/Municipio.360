@@ -9,6 +9,7 @@ import { CertificationStatus, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 
 type SafeUser = {
@@ -20,12 +21,29 @@ type SafeUser = {
   avatarUrl?: string | null;
   role: Role;
   certStatus: CertificationStatus;
+  isActive?: boolean;
+  authVersion?: number;
+  refreshTokenHash?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
 
+type AuthTokenUser = Pick<
+  SafeUser,
+  'id' | 'name' | 'email' | 'role' | 'certStatus'
+> & {
+  authVersion: number;
+};
+
+type RefreshTokenPayload = {
+  sub: number;
+  authVersion: number;
+  tokenType?: string;
+};
+
 const AVATAR_DATA_URL_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
 const MAX_AVATAR_SIZE_BYTES = 3 * 1024 * 1024;
+const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
 /**
  * Implementa a logica de registo, login e consulta do utilizador autenticado.
@@ -99,6 +117,56 @@ export class AuthService {
       certStatus: user.certStatus,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+    };
+  }
+
+  /**
+   * Constroi o payload minimo usado nos access tokens.
+   * @param user Utilizador autenticado.
+   * @return Payload assinado no JWT de acesso.
+   */
+  private buildAccessTokenPayload(user: AuthTokenUser) {
+    return {
+      sub: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      certStatus: user.certStatus,
+      authVersion: user.authVersion,
+    };
+  }
+
+  /**
+   * Emite um par access/refresh token e guarda apenas a hash do refresh token.
+   * @param user Utilizador autenticado.
+   * @return Tokens prontos para resposta.
+   */
+  private async issueTokenPair(user: AuthTokenUser) {
+    const accessToken = await this.jwt.signAsync(
+      this.buildAccessTokenPayload(user),
+    );
+    const refreshToken = await this.jwt.signAsync(
+      {
+        sub: user.id,
+        authVersion: user.authVersion,
+        tokenType: 'refresh',
+      },
+      {
+        expiresIn: REFRESH_TOKEN_EXPIRES_IN,
+      },
+    );
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokenHash },
+      select: { id: true },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      tokenType: 'Bearer',
     };
   }
 
@@ -178,6 +246,8 @@ export class AuthService {
         avatarUrl: true,
         role: true,
         certStatus: true,
+        isActive: true,
+        authVersion: true,
         biNumber: true,
         postalCode: true,
         passwordHash: true,
@@ -188,26 +258,78 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais invalidas');
     }
 
+    if (!user.isActive) {
+      throw new UnauthorizedException('Conta inativa');
+    }
+
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedException('Credenciais invalidas');
     }
 
-    const payload = {
-      sub: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      certStatus: user.certStatus,
-    };
-
-    const accessToken = await this.jwt.signAsync(payload);
+    const tokens = await this.issueTokenPair(user);
 
     return {
-      accessToken,
-      tokenType: 'Bearer',
+      ...tokens,
       user: this.buildSafeUserResponse(user),
     };
+  }
+
+  /**
+   * Renova a sessao usando refresh token rotacionavel.
+   * @param dto Refresh token recebido do cliente.
+   * @return Novo par access/refresh token.
+   */
+  async refresh(dto: RefreshTokenDto) {
+    let payload: RefreshTokenPayload;
+
+    try {
+      payload = await this.jwt.verifyAsync<RefreshTokenPayload>(
+        dto.refreshToken,
+      );
+    } catch {
+      throw new UnauthorizedException('Refresh token invalido');
+    }
+
+    if (
+      !payload.sub ||
+      payload.authVersion === undefined ||
+      payload.tokenType !== 'refresh'
+    ) {
+      throw new UnauthorizedException('Refresh token invalido');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        certStatus: true,
+        isActive: true,
+        authVersion: true,
+        refreshTokenHash: true,
+      },
+    });
+
+    if (!user || !user.isActive || !user.refreshTokenHash) {
+      throw new UnauthorizedException('Refresh token invalido');
+    }
+
+    if (user.authVersion !== payload.authVersion) {
+      throw new UnauthorizedException('Sessao expirada');
+    }
+
+    const validRefreshToken = await bcrypt.compare(
+      dto.refreshToken,
+      user.refreshTokenHash,
+    );
+    if (!validRefreshToken) {
+      throw new UnauthorizedException('Refresh token invalido');
+    }
+
+    return this.issueTokenPair(user);
   }
 
   /**
@@ -229,6 +351,7 @@ export class AuthService {
         avatarUrl: true,
         role: true,
         certStatus: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -238,8 +361,52 @@ export class AuthService {
       throw new UnauthorizedException('Utilizador autenticado invalido');
     }
 
+    if (!user.isActive) {
+      throw new UnauthorizedException('Conta inativa');
+    }
+
     return {
       user: this.buildSafeUserResponse(user),
+    };
+  }
+
+  /**
+   * Invalida sessoes versionadas do utilizador autenticado.
+   * @param userId Identificador do utilizador autenticado.
+   * @return Mensagem de sucesso.
+   */
+  async logout(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Conta inativa');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshTokenHash: null,
+        authVersion: {
+          increment: 1,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return {
+      message: 'Sessao terminada com sucesso',
     };
   }
 }

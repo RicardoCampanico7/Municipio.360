@@ -617,10 +617,12 @@ export class OccurrencesController {
     type: ApiErrorResponseDto,
   })
   updateStatus(
+    @Req() req: Request,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOccurrenceStatusDto,
   ) {
-    return this.occurrencesService.updateStatus(id, dto.status);
+    const userId = this.getUserId(req);
+    return this.occurrencesService.updateStatus(id, dto.status, userId);
   }
 
   /**
