@@ -24,6 +24,7 @@ describe('AuthService', () => {
   };
   let jwt: {
     signAsync: jest.Mock;
+    verifyAsync: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -37,6 +38,7 @@ describe('AuthService', () => {
 
     jwt = {
       signAsync: jest.fn(),
+      verifyAsync: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -130,12 +132,19 @@ describe('AuthService', () => {
       avatarUrl: 'data:image/jpeg;base64,QUJDRA==',
       role: Role.OPERADOR,
       certStatus: CertificationStatus.CERTIFIED,
+      isActive: true,
+      authVersion: 0,
       biNumber: '22345678 1 AB2',
       postalCode: '8000-010',
       passwordHash: 'stored-hash',
     });
     jest.mocked(bcrypt.compare).mockResolvedValue(true as never);
-    jwt.signAsync.mockResolvedValue('signed-jwt');
+    jwt.signAsync
+      .mockResolvedValueOnce('signed-access-jwt')
+      .mockResolvedValueOnce('signed-refresh-jwt');
+    jest
+      .mocked(bcrypt.hash)
+      .mockResolvedValue('hashed-refresh-token' as never);
 
     const result = await service.login({
       email: 'OPERADOR@TESTE.PT',
@@ -143,7 +152,8 @@ describe('AuthService', () => {
     });
 
     expect(result).toEqual({
-      accessToken: 'signed-jwt',
+      accessToken: 'signed-access-jwt',
+      refreshToken: 'signed-refresh-jwt',
       tokenType: 'Bearer',
       user: {
         id: 9,
@@ -159,9 +169,143 @@ describe('AuthService', () => {
       },
     });
     expect(result.user).not.toHaveProperty('passwordHash');
+    expect(jwt.signAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        sub: 9,
+        role: Role.OPERADOR,
+        certStatus: CertificationStatus.CERTIFIED,
+        authVersion: 0,
+      }),
+    );
+    expect(jwt.signAsync).toHaveBeenNthCalledWith(
+      2,
+      {
+        sub: 9,
+        authVersion: 0,
+        tokenType: 'refresh',
+      },
+      {
+        expiresIn: '7d',
+      },
+    );
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 9 },
+      data: { refreshTokenHash: 'hashed-refresh-token' },
+      select: { id: true },
+    });
   });
 
   /**
+   * Garante que contas inativas nao conseguem iniciar sessao.
+   * @return Promise<void>
+   */
+  it('should reject login for inactive accounts', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 12,
+      name: 'Inativo',
+      email: 'inativo@teste.pt',
+      avatarUrl: null,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+      isActive: false,
+      authVersion: 0,
+      biNumber: '42345678 1 AB3',
+      postalCode: '8000-030',
+      passwordHash: 'stored-hash',
+    });
+
+    await expect(
+      service.login({
+        email: 'inativo@teste.pt',
+        password: 'Password123!',
+      }),
+    ).rejects.toThrow('Conta inativa');
+
+    expect(bcrypt.compare).not.toHaveBeenCalled();
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que o refresh valida a hash guardada e roda os tokens.
+   * @return Promise<void>
+   */
+  it('should rotate refresh tokens', async () => {
+    jwt.verifyAsync.mockResolvedValue({
+      sub: 9,
+      authVersion: 0,
+      tokenType: 'refresh',
+    });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 9,
+      name: 'Operador',
+      email: 'operador@teste.pt',
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+      isActive: true,
+      authVersion: 0,
+      refreshTokenHash: 'stored-refresh-hash',
+    });
+    jest
+      .mocked(bcrypt.compare)
+      .mockResolvedValue(true as never);
+    jwt.signAsync
+      .mockResolvedValueOnce('new-access-jwt')
+      .mockResolvedValueOnce('new-refresh-jwt');
+    jest
+      .mocked(bcrypt.hash)
+      .mockResolvedValue('new-refresh-hash' as never);
+
+    await expect(
+      service.refresh({ refreshToken: 'old-refresh-token' }),
+    ).resolves.toEqual({
+      accessToken: 'new-access-jwt',
+      refreshToken: 'new-refresh-jwt',
+      tokenType: 'Bearer',
+    });
+    expect(bcrypt.compare).toHaveBeenCalledWith(
+      'old-refresh-token',
+      'stored-refresh-hash',
+    );
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 9 },
+      data: { refreshTokenHash: 'new-refresh-hash' },
+      select: { id: true },
+    });
+  });
+
+  /**
+   * Garante que refresh tokens reutilizados ou desconhecidos sao rejeitados.
+   * @return Promise<void>
+   */
+  it('should reject refresh when the stored hash does not match', async () => {
+    jwt.verifyAsync.mockResolvedValue({
+      sub: 9,
+      authVersion: 0,
+      tokenType: 'refresh',
+    });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 9,
+      name: 'Operador',
+      email: 'operador@teste.pt',
+      role: Role.OPERADOR,
+      certStatus: CertificationStatus.CERTIFIED,
+      isActive: true,
+      authVersion: 0,
+      refreshTokenHash: 'stored-refresh-hash',
+    });
+    jest
+      .mocked(bcrypt.compare)
+      .mockResolvedValue(false as never);
+
+    await expect(
+      service.refresh({ refreshToken: 'reused-refresh-token' }),
+    ).rejects.toThrow('Refresh token invalido');
+
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+    /**
    * Garante que o endpoint de perfil devolve apenas campos seguros.
    * @return void
    */
@@ -175,6 +319,7 @@ describe('AuthService', () => {
       avatarUrl: 'data:image/webp;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
       certStatus: CertificationStatus.CERTIFIED,
+      isActive: true,
       createdAt: new Date('2026-03-17T11:00:00.000Z'),
       updatedAt: new Date('2026-03-17T12:00:00.000Z'),
     });
@@ -217,7 +362,7 @@ describe('AuthService', () => {
 
     const result = await service.updateAvatar(
       11,
-      ' data:image/png;base64,QUJDRA== ',
+      'data:image/png;base64,QUJDRA==',
     );
 
     expect(prisma.user.update).toHaveBeenCalledWith(
@@ -239,5 +384,70 @@ describe('AuthService', () => {
       updatedAt: new Date('2026-03-17T12:00:00.000Z'),
     });
     expect(result.user).not.toHaveProperty('passwordHash');
+  });
+
+  /**
+   * Garante que o perfil de contas inativas nao e devolvido.
+   * @return Promise<void>
+   */
+  it('should reject profile reads for inactive accounts', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 13,
+      name: 'Inativo',
+      biNumber: '52345678 1 AB3',
+      postalCode: '8000-040',
+      email: 'inativo@teste.pt',
+      avatarUrl: null,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+      isActive: false,
+      createdAt: new Date('2026-03-17T11:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T12:00:00.000Z'),
+    });
+
+    await expect(service.me(13)).rejects.toThrow('Conta inativa');
+  });
+
+  /**
+   * Garante que o logout incrementa a versao de autenticacao do utilizador.
+   * @return Promise<void>
+   */
+  it('should increment authVersion on logout', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 14,
+      isActive: true,
+    });
+    prisma.user.update.mockResolvedValue({
+      id: 14,
+    });
+
+    await expect(service.logout(14)).resolves.toEqual({
+      message: 'Sessao terminada com sucesso',
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 14 },
+      data: {
+        refreshTokenHash: null,
+        authVersion: {
+          increment: 1,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+  });
+
+  /**
+   * Garante que o logout rejeita contas inexistentes.
+   * @return Promise<void>
+   */
+  it('should reject logout when the authenticated user no longer exists', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.logout(999)).rejects.toThrow(
+      'Utilizador autenticado invalido',
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

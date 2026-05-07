@@ -8,26 +8,30 @@ import {
   Role,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { mkdtemp, rm } from 'fs/promises';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { occurrenceUploadConfig } from './../src/occurrences/upload/occurrence-upload';
 import { PrismaService } from './../src/prisma/prisma.service';
+import {
+  applyOccurrenceUploadFixtureSandboxToRuntimeConfig,
+  createOccurrenceUploadFixtureSandbox,
+  seedOccurrenceUploadFixtures,
+  type OccurrenceUploadFixtureSandbox,
+} from './fixtures/occurrences/upload-fixture-helpers';
+import {
+  FIXED_OCCURRENCE_IMAGE_BUFFER,
+  FIXED_OCCURRENCE_IMAGE_FILE,
+  FIXED_OCCURRENCE_IMAGE_METADATA,
+  FIXED_OCCURRENCE_IMAGE_URLS,
+} from './fixtures/occurrences/upload-fixtures';
 
 const JWT_SECRET = 'municipio360-e2e-secret';
-const SMALL_IMAGE_BUFFER = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
-  'base64',
-);
 const SMALL_GIF_BUFFER = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
   'base64',
 );
 const SMALL_IMAGE_DATA_URL =
-  'data:image/png;base64,' + SMALL_IMAGE_BUFFER.toString('base64');
+  'data:image/png;base64,' + FIXED_OCCURRENCE_IMAGE_BUFFER.toString('base64');
 const LARGE_IMAGE_BUFFER = Buffer.alloc(3 * 1024 * 1024 + 1, 1);
 
 /**
@@ -37,8 +41,7 @@ describe('Occurrences permissions (e2e)', () => {
   let app: INestApplication<App>;
   let httpApp: Parameters<typeof request>[0];
   let jwtService: JwtService;
-  let testUploadsRoot: string;
-  let testUploadsMetadataRoot: string;
+  let uploadSandbox: OccurrenceUploadFixtureSandbox;
   let prisma: {
     $executeRaw: jest.Mock;
     $transaction: jest.Mock;
@@ -46,6 +49,7 @@ describe('Occurrences permissions (e2e)', () => {
       create: jest.Mock;
       findUnique: jest.Mock;
       findMany: jest.Mock;
+      update: jest.Mock;
     };
     occurrence: {
       create: jest.Mock;
@@ -61,17 +65,8 @@ describe('Occurrences permissions (e2e)', () => {
   });
 
   beforeEach(async () => {
-    testUploadsRoot = await mkdtemp(join(tmpdir(), 'municipio360-occ-'));
-    testUploadsMetadataRoot = await mkdtemp(
-      join(tmpdir(), 'municipio360-occ-meta-'),
-    );
-
-    const uploadConfig = occurrenceUploadConfig as {
-      uploadsRoot: string;
-      uploadsMetadataRoot: string;
-    };
-    uploadConfig.uploadsRoot = testUploadsRoot;
-    uploadConfig.uploadsMetadataRoot = testUploadsMetadataRoot;
+    uploadSandbox = await createOccurrenceUploadFixtureSandbox();
+    applyOccurrenceUploadFixtureSandboxToRuntimeConfig(uploadSandbox);
 
     prisma = {
       $executeRaw: jest.fn().mockResolvedValue(1),
@@ -80,6 +75,7 @@ describe('Occurrences permissions (e2e)', () => {
         create: jest.fn(),
         findUnique: jest.fn(),
         findMany: jest.fn(),
+        update: jest.fn(),
       },
       occurrence: {
         create: jest.fn(),
@@ -116,14 +112,7 @@ describe('Occurrences permissions (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
-    await rm(testUploadsRoot, {
-      recursive: true,
-      force: true,
-    });
-    await rm(testUploadsMetadataRoot, {
-      recursive: true,
-      force: true,
-    });
+    await uploadSandbox.cleanup();
   });
 
   /**
@@ -240,6 +229,8 @@ describe('Occurrences permissions (e2e)', () => {
           avatarUrl: null,
           role: Role.OPERADOR,
           certStatus: CertificationStatus.CERTIFIED,
+          isActive: true,
+          authVersion: 0,
           passwordHash,
         };
       }
@@ -254,6 +245,8 @@ describe('Occurrences permissions (e2e)', () => {
           avatarUrl: null,
           role: Role.OPERADOR,
           certStatus: CertificationStatus.CERTIFIED,
+          isActive: true,
+          authVersion: 0,
           createdAt: new Date('2026-04-10T09:30:00.000Z'),
           updatedAt: new Date('2026-04-10T09:30:00.000Z'),
         };
@@ -374,23 +367,11 @@ describe('Occurrences permissions (e2e)', () => {
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
-  it('returns 201 when a CIVIL user with pending certification creates an occurrence', async () => {
+  it('returns 403 when a CIVIL user with pending certification creates an occurrence', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 11,
       certStatus: CertificationStatus.PENDING,
     });
-    prisma.occurrence.create.mockImplementation(async ({ data }) => ({
-      id: 11,
-      category: data.category,
-      otherCategoryDetail: data.otherCategoryDetail,
-      description: data.description,
-      location: data.location,
-      imageUrls: data.imageUrls,
-      status: data.status,
-      createdAt: new Date('2026-03-19T20:00:00.000Z'),
-      updatedAt: new Date('2026-03-19T20:00:00.000Z'),
-      userId: data.userId,
-    }));
 
     const token = signToken({
       sub: 11,
@@ -403,7 +384,12 @@ describe('Occurrences permissions (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
-      .expect(201);
+      .expect(403)
+      .expect(({ body }) => {
+        expect(body.message).toContain('precisa de estar certificada');
+      });
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
   it('returns 201 when a certified CIVIL user creates an occurrence without images', async () => {
@@ -467,9 +453,9 @@ describe('Occurrences permissions (e2e)', () => {
       .field('category', 'ILUMINACAO_PUBLICA')
       .field('location', 'Rua A')
       .field('description', 'Candeeiro apagado')
-      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: 'photo-1.png',
-        contentType: 'image/png',
+      .attach('imageUrls', FIXED_OCCURRENCE_IMAGE_BUFFER, {
+        filename: FIXED_OCCURRENCE_IMAGE_FILE.filename,
+        contentType: FIXED_OCCURRENCE_IMAGE_FILE.mimetype,
       })
       .attach('imageUrls', SMALL_GIF_BUFFER, {
         filename: 'photo-2.gif',
@@ -534,9 +520,9 @@ describe('Occurrences permissions (e2e)', () => {
     await request(httpApp)
       .post('/occurrences/images')
       .set('Authorization', `Bearer ${token}`)
-      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: 'standalone.png',
-        contentType: 'image/png',
+      .attach('imageUrls', FIXED_OCCURRENCE_IMAGE_BUFFER, {
+        filename: FIXED_OCCURRENCE_IMAGE_FILE.filename,
+        contentType: FIXED_OCCURRENCE_IMAGE_FILE.mimetype,
       })
       .expect(201)
       .expect(({ body }) => {
@@ -593,14 +579,20 @@ describe('Occurrences permissions (e2e)', () => {
       userId: data.userId,
     }));
 
-    const uploadResponse = await request(httpApp)
-      .post('/occurrences/images')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: 'existing.png',
-        contentType: 'image/png',
-      })
-      .expect(201);
+    await seedOccurrenceUploadFixtures({
+      uploadsRoot: uploadSandbox.uploadsRoot,
+      uploadsMetadataRoot: uploadSandbox.uploadsMetadataRoot,
+      entries: [
+        {
+          imageUrl: FIXED_OCCURRENCE_IMAGE_URLS.ownedPending,
+          metadata: {
+            ...FIXED_OCCURRENCE_IMAGE_METADATA.ownedPending,
+            ownerUserId: 27,
+          },
+          fileBuffer: FIXED_OCCURRENCE_IMAGE_BUFFER,
+        },
+      ],
+    });
 
     await request(httpApp)
       .post('/occurrences')
@@ -609,20 +601,17 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua D',
         description: 'Candeeiro partido',
-        uploadedImageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: [FIXED_OCCURRENCE_IMAGE_URLS.ownedPending],
       })
       .expect(201)
       .expect(({ body }) => {
-        expect(body.imageUrls).toEqual(uploadResponse.body.imageUrls);
+        expect(body.imageUrls).toEqual([
+          FIXED_OCCURRENCE_IMAGE_URLS.ownedPending,
+        ]);
       });
   });
 
   it('returns 403 when a CIVIL user tries to associate an image uploaded by another user', async () => {
-    const ownerToken = signToken({
-      sub: 29,
-      role: Role.CIVIL,
-      certStatus: CertificationStatus.CERTIFIED,
-    });
     const attackerToken = signToken({
       sub: 30,
       role: Role.CIVIL,
@@ -634,14 +623,20 @@ describe('Occurrences permissions (e2e)', () => {
       certStatus: CertificationStatus.CERTIFIED,
     }));
 
-    const uploadResponse = await request(httpApp)
-      .post('/occurrences/images')
-      .set('Authorization', `Bearer ${ownerToken}`)
-      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: 'private.png',
-        contentType: 'image/png',
-      })
-      .expect(201);
+    await seedOccurrenceUploadFixtures({
+      uploadsRoot: uploadSandbox.uploadsRoot,
+      uploadsMetadataRoot: uploadSandbox.uploadsMetadataRoot,
+      entries: [
+        {
+          imageUrl: FIXED_OCCURRENCE_IMAGE_URLS.foreignPending,
+          metadata: {
+            ...FIXED_OCCURRENCE_IMAGE_METADATA.foreignPending,
+            ownerUserId: 29,
+          },
+          fileBuffer: FIXED_OCCURRENCE_IMAGE_BUFFER,
+        },
+      ],
+    });
 
     await request(httpApp)
       .post('/occurrences')
@@ -650,7 +645,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua F',
         description: 'Tentativa invalida',
-        uploadedImageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: [FIXED_OCCURRENCE_IMAGE_URLS.foreignPending],
       })
       .expect(403)
       .expect(({ body }) => {
@@ -689,25 +684,20 @@ describe('Occurrences permissions (e2e)', () => {
       userId: data.userId,
     }));
 
-    const uploadResponse = await request(httpApp)
-      .post('/occurrences/images')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: 'single-use.png',
-        contentType: 'image/png',
-      })
-      .expect(201);
-
-    await request(httpApp)
-      .post('/occurrences')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        category: 'ILUMINACAO_PUBLICA',
-        location: 'Rua G',
-        description: 'Primeira associacao',
-        uploadedImageUrls: uploadResponse.body.imageUrls,
-      })
-      .expect(201);
+    await seedOccurrenceUploadFixtures({
+      uploadsRoot: uploadSandbox.uploadsRoot,
+      uploadsMetadataRoot: uploadSandbox.uploadsMetadataRoot,
+      entries: [
+        {
+          imageUrl: FIXED_OCCURRENCE_IMAGE_URLS.ownedAssigned,
+          metadata: {
+            ...FIXED_OCCURRENCE_IMAGE_METADATA.ownedAssigned,
+            ownerUserId: 31,
+          },
+          fileBuffer: FIXED_OCCURRENCE_IMAGE_BUFFER,
+        },
+      ],
+    });
 
     await request(httpApp)
       .post('/occurrences')
@@ -716,7 +706,7 @@ describe('Occurrences permissions (e2e)', () => {
         category: 'ILUMINACAO_PUBLICA',
         location: 'Rua H',
         description: 'Segunda associacao',
-        uploadedImageUrls: uploadResponse.body.imageUrls,
+        uploadedImageUrls: [FIXED_OCCURRENCE_IMAGE_URLS.ownedAssigned],
       })
       .expect(400)
       .expect(({ body }) => {
@@ -875,10 +865,14 @@ describe('Occurrences permissions (e2e)', () => {
       .field('location', 'Rua A');
 
     for (let index = 0; index < 4; index += 1) {
-      requestBuilder = requestBuilder.attach('imageUrls', SMALL_IMAGE_BUFFER, {
-        filename: `photo-${index}.png`,
-        contentType: 'image/png',
-      });
+      requestBuilder = requestBuilder.attach(
+        'imageUrls',
+        FIXED_OCCURRENCE_IMAGE_BUFFER,
+        {
+          filename: `photo-${index}.png`,
+          contentType: 'image/png',
+        },
+      );
     }
 
     await requestBuilder.expect(400).expect(({ body }) => {

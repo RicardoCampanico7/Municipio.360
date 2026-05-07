@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock3, Compass, FileText, MapPin, Navigation } from "lucide-react";
+import { ArrowLeft, Clock3, FileText, MapPin, Navigation } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -359,13 +359,6 @@ export default function OccurrenceMap() {
             </aside>
           </div>
         )}
-
-        <div className="occurrence-map-bottom-nav" aria-hidden="true">
-          <span className="is-active">
-            <Compass size={16} strokeWidth={2.2} />
-            {t("dashboard.nav.map")}
-          </span>
-        </div>
       </section>
     </main>
   );

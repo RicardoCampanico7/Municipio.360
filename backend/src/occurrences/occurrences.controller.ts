@@ -22,17 +22,18 @@ import {
   ApiBody,
   ApiCreatedResponse,
   ApiConsumes,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { OccurrenceCategory, Role } from '@prisma/client';
+import { occurrencesSwaggerExamples } from '../docs/examples/occurrences-swagger.examples';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { RolesGuard } from '../shared/guards/roles.guard';
@@ -80,7 +81,7 @@ const uploadOccurrenceImagesRequestSchema: SchemaObject = {
   },
 };
 
-const createOccurrenceRequestSchema: SchemaObject = {
+const createOccurrenceJsonRequestSchema: SchemaObject = {
   type: 'object',
   required: ['category', 'location'],
   properties: {
@@ -111,8 +112,37 @@ const createOccurrenceRequestSchema: SchemaObject = {
         'URLs publicas previamente carregadas em POST /occurrences/images',
       maxItems: occurrenceUploadConfig.maxFiles,
     },
-    imageUrls: occurrenceMultipartImagesSchema,
+    imageUrls: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      description:
+        'Alias legado para URLs publicas previamente carregadas. Em novos clientes use uploadedImageUrls.',
+      maxItems: occurrenceUploadConfig.maxFiles,
+      deprecated: true,
+    },
   },
+};
+
+const createOccurrenceMultipartRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['category', 'location'],
+  properties: {
+    ...createOccurrenceJsonRequestSchema.properties,
+    imageUrls: {
+      ...occurrenceMultipartImagesSchema,
+      description:
+        'Ficheiros de imagem enviados diretamente no pedido multipart/form-data.',
+    },
+  },
+};
+
+const createOccurrenceRequestSchema: SchemaObject = {
+  oneOf: [
+    createOccurrenceJsonRequestSchema,
+    createOccurrenceMultipartRequestSchema,
+  ],
 };
 
 /**
@@ -123,6 +153,20 @@ const createOccurrenceRequestSchema: SchemaObject = {
  * @inv O detalhe privado do cidadao deve permanecer acessivel apenas ao respetivo proprietario.
  */
 @ApiTags('occurrences')
+@ApiExtraModels(
+  CreateOccurrenceDto,
+  CreateOccurrenceInternalCommentDto,
+  UpdateOccurrenceDto,
+  UpdateOccurrenceStatusDto,
+  PublicOccurrenceResponseDto,
+  OwnerOccurrenceResponseDto,
+  OwnerOccurrenceDetailResponseDto,
+  OperatorOccurrenceResponseDto,
+  OccurrenceInternalCommentResponseDto,
+  OccurrenceImageUploadResponseDto,
+  ApiErrorResponseDto,
+  ValidationErrorResponseDto,
+)
 @Controller('occurrences')
 export class OccurrencesController {
   /**
@@ -164,6 +208,7 @@ export class OccurrencesController {
     description: 'Lista publica de ocorrencias',
     type: PublicOccurrenceResponseDto,
     isArray: true,
+    examples: occurrencesSwaggerExamples.publicListSuccess,
   })
   findAll() {
     return this.occurrencesService.findAll();
@@ -199,14 +244,17 @@ export class OccurrencesController {
     description: 'Lista devolvida',
     type: OwnerOccurrenceResponseDto,
     isArray: true,
+    examples: occurrencesSwaggerExamples.ownerListSuccess,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   findMine(@Req() req: Request) {
     const userId = this.getUserId(req);
@@ -229,14 +277,17 @@ export class OccurrencesController {
     description: 'Lista devolvida',
     type: OwnerOccurrenceResponseDto,
     isArray: true,
+    examples: occurrencesSwaggerExamples.ownerListSuccess,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   findMineLegacy(@Req() req: Request) {
     const userId = this.getUserId(req);
@@ -262,18 +313,22 @@ export class OccurrencesController {
   @ApiOkResponse({
     description: 'Ocorrencia encontrada',
     type: OwnerOccurrenceDetailResponseDto,
+    examples: occurrencesSwaggerExamples.ownerDetailSuccess,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'A ocorrencia nao pertence ao utilizador autenticado',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   findMineById(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
     const userId = this.getUserId(req);
@@ -295,14 +350,17 @@ export class OccurrencesController {
     description: 'Lista de ocorrencias para gestao interna',
     type: OperatorOccurrenceResponseDto,
     isArray: true,
+    examples: occurrencesSwaggerExamples.operatorListSuccess,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para consultar a area de gestao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   findAllForOperator() {
     return this.occurrencesService.findAllForOperator();
@@ -322,18 +380,22 @@ export class OccurrencesController {
   @ApiOkResponse({
     description: 'Ocorrencia encontrada',
     type: OperatorOccurrenceResponseDto,
+    examples: occurrencesSwaggerExamples.operatorDetailSuccess,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para consultar a area de gestao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   findOneForOperator(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOneForOperator(id);
@@ -356,18 +418,29 @@ export class OccurrencesController {
     description: 'Comentarios internos devolvidos',
     type: OccurrenceInternalCommentResponseDto,
     isArray: true,
+    examples: {
+      comments: {
+        summary: 'Comentarios internos',
+        value:
+          occurrencesSwaggerExamples.operatorDetailSuccess.managementOccurrence
+            .value.internalComments,
+      },
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para consultar comentarios internos',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   listInternalComments(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.listInternalComments(id);
@@ -388,26 +461,34 @@ export class OccurrencesController {
     summary: 'Criar comentario interno numa ocorrencia para operadores',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
-  @ApiBody({ type: CreateOccurrenceInternalCommentDto })
+  @ApiBody({
+    type: CreateOccurrenceInternalCommentDto,
+    examples: occurrencesSwaggerExamples.internalCommentRequest,
+  })
   @ApiCreatedResponse({
     description: 'Comentario interno criado',
     type: OccurrenceInternalCommentResponseDto,
+    examples: occurrencesSwaggerExamples.internalCommentSuccess,
   })
   @ApiBadRequestResponse({
     description: 'Pedido invalido',
     type: ValidationErrorResponseDto,
+    examples: occurrencesSwaggerExamples.badRequest,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para comentar internamente',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   createInternalComment(
     @Req() req: Request,
@@ -429,10 +510,12 @@ export class OccurrencesController {
   @ApiOkResponse({
     description: 'Ocorrencia encontrada',
     type: PublicOccurrenceResponseDto,
+    examples: occurrencesSwaggerExamples.publicDetailSuccess,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   findOnePublic(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.findOnePublic(id);
@@ -462,22 +545,27 @@ export class OccurrencesController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: uploadOccurrenceImagesRequestSchema,
+    examples: occurrencesSwaggerExamples.uploadImagesRequest,
   })
   @ApiCreatedResponse({
     description: 'Imagens carregadas com sucesso',
     type: OccurrenceImageUploadResponseDto,
+    examples: occurrencesSwaggerExamples.uploadImagesSuccess,
   })
   @ApiBadRequestResponse({
     description: 'Pedido invalido ou upload rejeitado',
     type: ValidationErrorResponseDto,
+    examples: occurrencesSwaggerExamples.badRequest,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   uploadImages(
     @Req() req: Request,
@@ -511,23 +599,30 @@ export class OccurrencesController {
   })
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({
+    description:
+      'Em application/json, envie uploadedImageUrls com URLs devolvidas por POST /occurrences/images. Em multipart/form-data, envie ficheiros no campo imageUrls.',
     schema: createOccurrenceRequestSchema,
+    examples: occurrencesSwaggerExamples.createRequest,
   })
   @ApiCreatedResponse({
     description: 'Ocorrencia criada',
     type: OwnerOccurrenceResponseDto,
+    examples: occurrencesSwaggerExamples.createSuccess,
   })
   @ApiBadRequestResponse({
     description: 'Pedido invalido ou upload rejeitado',
     type: ValidationErrorResponseDto,
+    examples: occurrencesSwaggerExamples.badRequest,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes (nao e CIVIL)',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   create(
     @Req() req: Request,
@@ -549,30 +644,37 @@ export class OccurrencesController {
   @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary:
-      'Atualizar dados de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
+    summary: 'Atualizar dados de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
-  @ApiBody({ type: UpdateOccurrenceDto })
+  @ApiBody({
+    type: UpdateOccurrenceDto,
+    examples: occurrencesSwaggerExamples.updateRequest,
+  })
   @ApiOkResponse({
     description: 'Ocorrencia atualizada',
     type: OperatorOccurrenceResponseDto,
+    examples: occurrencesSwaggerExamples.operatorDetailSuccess,
   })
   @ApiBadRequestResponse({
     description: 'Pedido invalido',
     type: ValidationErrorResponseDto,
+    examples: occurrencesSwaggerExamples.badRequest,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para atualizar a ocorrencia',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   updateOccurrence(
     @Param('id', ParseIntPipe) id: number,
@@ -595,32 +697,42 @@ export class OccurrencesController {
     summary: 'Atualizar estado de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
-  @ApiBody({ type: UpdateOccurrenceStatusDto })
+  @ApiBody({
+    type: UpdateOccurrenceStatusDto,
+    examples: occurrencesSwaggerExamples.updateStatusRequest,
+  })
   @ApiOkResponse({
     description: 'Ocorrencia atualizada',
     type: OperatorOccurrenceResponseDto,
+    examples: occurrencesSwaggerExamples.operatorDetailSuccess,
   })
   @ApiBadRequestResponse({
     description: 'Transicao de estado invalida ou body invalido',
     type: ValidationErrorResponseDto,
+    examples: occurrencesSwaggerExamples.badRequest,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para atualizar a ocorrencia',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   updateStatus(
+    @Req() req: Request,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOccurrenceStatusDto,
   ) {
-    return this.occurrencesService.updateStatus(id, dto.status);
+    const userId = this.getUserId(req);
+    return this.occurrencesService.updateStatus(id, dto.status, userId);
   }
 
   /**
@@ -637,18 +749,22 @@ export class OccurrencesController {
   @ApiOkResponse({
     description: 'Ocorrencia removida',
     type: OperatorOccurrenceResponseDto,
+    examples: occurrencesSwaggerExamples.operatorDetailSuccess,
   })
   @ApiUnauthorizedResponse({
     description: 'Sem autenticacao',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.unauthorized,
   })
   @ApiForbiddenResponse({
     description: 'Sem permissoes para remover a ocorrencia',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.forbidden,
   })
   @ApiNotFoundResponse({
     description: 'Ocorrencia nao existe',
     type: ApiErrorResponseDto,
+    examples: occurrencesSwaggerExamples.notFound,
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.occurrencesService.remove(id);

@@ -6,7 +6,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { OccurrenceCategory, OccurrenceStatus, Prisma } from '@prisma/client';
+import {
+  CertificationStatus,
+  OccurrenceCategory,
+  OccurrenceStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ALLOWED_STATUS_TRANSITIONS,
@@ -57,8 +62,21 @@ export class OccurrencesService {
   private async ensureExistingUser(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, certStatus: true },
     });
+  }
+
+  /**
+   * Garante que o civil autenticado ja tem conta certificada para submeter ocorrencias.
+   * @param user Utilizador reduzido obtido da base de dados.
+   * @return void
+   */
+  private ensureCertifiedCitizenAccount(
+    user: { certStatus?: CertificationStatus } | null,
+  ) {
+    if (user?.certStatus === CertificationStatus.CERTIFIED) return;
+
+    throw new ForbiddenException(OCCURRENCE_ERROR_MESSAGES.accountNotCertified);
   }
 
   /**
@@ -185,6 +203,7 @@ export class OccurrencesService {
    * @param prisma Cliente transacional usado na operacao atomica.
    * @param occurrenceId Identificador da ocorrencia alterada.
    * @param status Estado que passou a vigorar.
+   * @param changedByUserId Utilizador responsavel pela mudanca, quando conhecido.
    * @return Promise<void> Promessa resolvida apos inserir a linha de historico.
    * Pre-condicao: A ocorrencia ja deve existir e a transacao deve permanecer ativa.
    * Pos-condicao: Fica registada uma linha cronologica para o estado indicado.
@@ -193,7 +212,16 @@ export class OccurrencesService {
     prisma: Prisma.TransactionClient,
     occurrenceId: number,
     status: OccurrenceStatus,
+    changedByUserId?: number,
   ) {
+    if (changedByUserId) {
+      await prisma.$executeRaw`
+        INSERT INTO "OccurrenceStatusHistory" ("occurrenceId", "status", "changedByUserId")
+        VALUES (${occurrenceId}, CAST(${status} AS "OccurrenceStatus"), ${changedByUserId})
+      `;
+      return;
+    }
+
     await prisma.$executeRaw`
       INSERT INTO "OccurrenceStatusHistory" ("occurrenceId", "status")
       VALUES (${occurrenceId}, CAST(${status} AS "OccurrenceStatus"))
@@ -327,6 +355,7 @@ export class OccurrencesService {
         OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
       );
     }
+    this.ensureCertifiedCitizenAccount(user);
 
     const location = dto.location?.trim() ?? '';
     const description = dto.description?.trim() ?? '';
@@ -386,6 +415,7 @@ export class OccurrencesService {
           tx,
           createdOccurrence.id,
           initialStatus,
+          userId,
         );
 
         return createdOccurrence;
@@ -431,6 +461,7 @@ export class OccurrencesService {
         OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
       );
     }
+    this.ensureCertifiedCitizenAccount(user);
 
     if (!files.length) {
       throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.noUploadFiles);
@@ -681,12 +712,17 @@ export class OccurrencesService {
    * Atualiza o estado de uma ocorrencia existente.
    * @param id Identificador da ocorrencia.
    * @param status Novo estado da ocorrencia.
+   * @param changedByUserId Utilizador autenticado que pediu a mudanca.
    * @return Ocorrencia atualizada, ou a ocorrencia atual quando nao ha mudanca real.
    * Pre-condicao: A ocorrencia deve existir e a transicao pedida deve ser permitida.
    * Pos-condicao: Quando o estado muda, a ocorrencia e o historico sao persistidos atomicamente.
    * Pos-condicao: Quando o estado pedido coincide com o atual, nao e criada entrada duplicada de historico.
    */
-  async updateStatus(id: number, status: OccurrenceStatus) {
+  async updateStatus(
+    id: number,
+    status: OccurrenceStatus,
+    changedByUserId?: number,
+  ) {
     const occurrence = await this.findOneForOperator(id);
 
     if (occurrence.status === status) {
@@ -702,7 +738,7 @@ export class OccurrencesService {
         select: this.getOperatorSelect(),
       });
 
-      await this.createStatusHistoryEntry(tx, id, status);
+      await this.createStatusHistoryEntry(tx, id, status, changedByUserId);
 
       return updatedOccurrence;
     });

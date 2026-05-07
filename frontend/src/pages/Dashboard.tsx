@@ -1,4 +1,3 @@
-import { ChevronLeft, ChevronRight, FileText, Home, Map, Plus, User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -10,10 +9,17 @@ import {
   type ApiOccurrence,
 } from "../services/occurrences";
 import {
+  ProfileRequestError,
+  fetchAuthenticatedProfile,
+  type ApiProfileUser,
+} from "../services/profile";
+import {
   clearAccessToken,
   getAccessSession,
   getAuthenticatedUser,
   isAuthenticated,
+  setAuthenticatedUser,
+  type AuthUser,
 } from "../services/token";
 import "./Dashboard.css";
 
@@ -40,6 +46,7 @@ type DashboardReport = {
   title: string;
   time: string;
   tone: ReportTone;
+  imageUrl?: string;
 };
 
 function toTimeLabel(value: string | undefined, locale: string, fallback: string) {
@@ -49,11 +56,22 @@ function toTimeLabel(value: string | undefined, locale: string, fallback: string
   return date.toLocaleDateString(locale || "pt-PT");
 }
 
+function normalizeProfileForSession(profile: ApiProfileUser): AuthUser | null {
+  const id = profile.id !== undefined && profile.id !== null ? String(profile.id).trim() : "";
+  const email = typeof profile.email === "string" ? profile.email.trim().toLowerCase() : "";
+  const name = typeof profile.name === "string" ? profile.name.trim() : "";
+  const avatarUrl = typeof profile.avatarUrl === "string" ? profile.avatarUrl.trim() : "";
+  const role = typeof profile.role === "string" ? profile.role.trim().toUpperCase() : "";
+
+  if (!id || !name || !email) return null;
+  return { id, name, email, ...(avatarUrl ? { avatarUrl } : {}), ...(role ? { role } : {}) };
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { i18n, t } = useTranslation();
   const authenticated = isAuthenticated();
-  const sessionUser = getAuthenticatedUser();
+  const [sessionUser, setSessionUser] = useState<AuthUser | null>(() => getAuthenticatedUser());
   const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : "visitante";
   const userAvatar = authenticated ? sessionUser?.avatarUrl || "/user-avatar.jpg" : "/user-avatar.jpg";
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
@@ -63,13 +81,9 @@ export default function Dashboard() {
   const [reportsError, setReportsError] = useState("");
   const carouselCopy = i18n.language.startsWith("pt")
     ? {
-        previous: "Imagem anterior",
-        next: "Imagem seguinte",
         current: (index: number) => `Ir para imagem ${index}`,
       }
     : {
-        previous: "Previous image",
-        next: "Next image",
         current: (index: number) => `Go to image ${index}`,
       };
 
@@ -96,6 +110,38 @@ export default function Dashboard() {
     const { token, hadStoredSession } = getAccessSession();
 
     let mounted = true;
+    const loadCurrentUser = async () => {
+      if (!token) {
+        setSessionUser(null);
+        return;
+      }
+
+      const cachedUser = getAuthenticatedUser();
+      if (mounted) {
+        setSessionUser(cachedUser);
+      }
+
+      try {
+        const profile = await fetchAuthenticatedProfile(token, "Nao foi possivel carregar o perfil.");
+        if (!mounted) return;
+
+        const nextUser = normalizeProfileForSession(profile);
+        if (nextUser) {
+          setAuthenticatedUser(nextUser);
+          setSessionUser(nextUser);
+        }
+      } catch (error) {
+        if (!mounted) return;
+        if (error instanceof ProfileRequestError && error.status === 401) {
+          clearAccessToken();
+          navigate("/login", {
+            replace: true,
+            state: { from: "/dashboard", ...(hadStoredSession ? { sessionExpired: true } : {}) },
+          });
+        }
+      }
+    };
+
     const loadOccurrences = async () => {
       setReportsLoading(true);
       setReportsError("");
@@ -123,6 +169,7 @@ export default function Dashboard() {
       }
     };
 
+    void loadCurrentUser();
     void loadOccurrences();
     return () => {
       mounted = false;
@@ -167,44 +214,10 @@ export default function Dashboard() {
         title: item.title || item.category || t("dashboard.reports.untitled"),
         time: toTimeLabel(item.createdAt || item.updatedAt, i18n.language, t("dashboard.reports.noDate")),
         tone,
+        imageUrl: item.imageUrls?.[0],
       };
     });
   }, [occurrences, i18n.language, t]);
-
-  const reportStats = useMemo(
-    () => [
-      {
-        value: occurrences.filter((item) => {
-          const status = (item.status || "").toLowerCase();
-          return !status.includes("resolv") && !status.includes("progress") && !status.includes("andamento");
-        }).length,
-        label: t("dashboard.stats.open"),
-        tone: "open" as const,
-      },
-      {
-        value: occurrences.filter((item) => {
-          const status = (item.status || "").toLowerCase();
-          return status.includes("progress") || status.includes("andamento");
-        }).length,
-        label: t("dashboard.stats.progress"),
-        tone: "progress" as const,
-      },
-      {
-        value: occurrences.filter((item) => (item.status || "").toLowerCase().includes("resolv")).length,
-        label: t("dashboard.stats.resolved"),
-        tone: "done" as const,
-      },
-    ],
-    [occurrences, t],
-  );
-
-  const navItems = [
-    { icon: Home, label: t("dashboard.nav.home"), active: true, target: "home" as const },
-    { icon: Map, label: t("dashboard.nav.map"), target: "map" as const },
-    { icon: Plus, label: t("dashboard.nav.create"), accent: true, target: "create" as const },
-    { icon: FileText, label: t("dashboard.nav.reports"), target: "reports" as const },
-    { icon: User, label: t("dashboard.nav.profile"), target: "profile" as const },
-  ];
 
   const activeLanguage =
     languageOptions.find((option) => option.code === i18n.language) ||
@@ -233,51 +246,6 @@ export default function Dashboard() {
     navigate("/occurrences/new");
   };
 
-  const handleNavClick = (target: "home" | "create" | "map" | "reports" | "profile") => {
-    if (target === "home") {
-      navigate("/dashboard");
-      return;
-    }
-
-    if (target === "map") {
-      navigate("/occurrences/map");
-      return;
-    }
-
-    if (target === "reports") {
-      navigate("/occurrences/public");
-      return;
-    }
-
-    if (target === "create") {
-      if (!authenticated) {
-        redirectToLogin("/occurrences/new");
-        return;
-      }
-      navigate("/occurrences/new");
-      return;
-    }
-
-    if (target === "profile") {
-      if (!authenticated) {
-        redirectToLogin("/profile");
-        return;
-      }
-      navigate("/profile");
-      return;
-    }
-  };
-
-  const handlePreviousBanner = () => {
-    setActiveBannerIndex((current) =>
-      current === 0 ? dashboardBannerSlides.length - 1 : current - 1,
-    );
-  };
-
-  const handleNextBanner = () => {
-    setActiveBannerIndex((current) => (current + 1) % dashboardBannerSlides.length);
-  };
-
   return (
     <main className="dashboard-screen">
       <section className="dashboard-phone" aria-label="Dashboard">
@@ -287,6 +255,10 @@ export default function Dashboard() {
               className="dashboard-avatar"
               src={userAvatar}
               alt={authenticated ? `Fotografia de ${userName}` : "Fotografia do utilizador"}
+              onError={(event) => {
+                if (event.currentTarget.src.endsWith("/user-avatar.jpg")) return;
+                event.currentTarget.src = "/user-avatar.jpg";
+              }}
             />
             <div>
               <h1 className="dashboard-greeting">{t("dashboard.greeting", { name: userName })}</h1>
@@ -365,15 +337,6 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="dashboard-banner-controls" aria-label="Controles do carrossel">
-            <button
-              className="dashboard-banner-control"
-              type="button"
-              aria-label={carouselCopy.previous}
-              onClick={handlePreviousBanner}
-            >
-              <ChevronLeft size={18} strokeWidth={2.4} />
-            </button>
-
             <div className="dashboard-banner-dots" aria-label="Selecao de imagem">
               {dashboardBannerSlides.map((slide, index) => (
                 <button
@@ -391,15 +354,6 @@ export default function Dashboard() {
                 />
               ))}
             </div>
-
-            <button
-              className="dashboard-banner-control"
-              type="button"
-              aria-label={carouselCopy.next}
-              onClick={handleNextBanner}
-            >
-              <ChevronRight size={18} strokeWidth={2.4} />
-            </button>
           </div>
         </section>
 
@@ -434,73 +388,15 @@ export default function Dashboard() {
                       title={report.title}
                       time={report.time}
                       tone={report.tone}
+                      imageUrl={report.imageUrl}
                     />
                   ))}
               </div>
             </section>
           </div>
 
-          <aside className="dashboard-secondary">
-            <section className="dashboard-side-panel">
-              <div className="dashboard-side-head">
-                <div>
-                  <h3 className="dashboard-section-title">{t("dashboard.summaryTitle")}</h3>
-                </div>
-                <p className="dashboard-side-copy">
-                  Visão rápida do estado atual e das zonas com atividade.
-                </p>
-              </div>
-
-              <div className="dashboard-map-section">
-                <div className="dashboard-mini-map">
-                  <div className="dashboard-mini-map-grid" aria-hidden="true" />
-                  <div className="dashboard-mini-map-road dashboard-mini-map-road-main" />
-                  <div className="dashboard-mini-map-road dashboard-mini-map-road-cross" />
-                  <span className="dashboard-mini-pin dashboard-mini-pin-progress" />
-                  <span className="dashboard-mini-pin dashboard-mini-pin-open" />
-                  <span className="dashboard-mini-pin dashboard-mini-pin-done" />
-                  <div className="dashboard-mini-map-card">
-                    <strong>3 zonas ativas</strong>
-                    <span>1 em progresso</span>
-                  </div>
-                </div>
-
-                <div className="dashboard-map-legend" aria-label="Legenda do mapa">
-                  {reportStats.map((stat) => (
-                    <span
-                      key={`legend-${stat.label}`}
-                      className={`dashboard-pill dashboard-pill-${stat.tone}`}
-                    >
-                      {stat.value} {stat.label.toLowerCase()}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </section>
-          </aside>
         </div>
 
-        <nav className="dashboard-bottom-nav" aria-label="Primary">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              className={[
-                "dashboard-nav-item",
-                item.active ? "is-active" : "",
-                item.accent ? "is-accent" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              type="button"
-              onClick={() => handleNavClick(item.target)}
-            >
-              <span className="dashboard-nav-icon">
-                <item.icon size={20} strokeWidth={2.2} />
-              </span>
-              {!item.accent && <span className="dashboard-nav-label">{item.label}</span>}
-            </button>
-          ))}
-        </nav>
       </section>
     </main>
   );

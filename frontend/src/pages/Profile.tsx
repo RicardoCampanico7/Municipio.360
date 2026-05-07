@@ -4,7 +4,6 @@ import {
   FileText,
   Home,
   Mail,
-  Map,
   MapPinned,
   Plus,
   ShieldCheck,
@@ -71,8 +70,6 @@ function normalizeCacheUser(profile: ApiProfileUser) {
 
   return { id, name, email, ...(avatarUrl ? { avatarUrl } : {}), ...(role ? { role } : {}) };
 }
-
-type NavTarget = "home" | "map" | "create" | "reports" | "profile";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -184,30 +181,6 @@ export default function Profile() {
   const handleLogout = () => {
     clearAccessToken();
     navigate("/login", { replace: true });
-  };
-
-  const handleNavClick = (target: NavTarget) => {
-    if (target === "home") {
-      navigate("/dashboard");
-      return;
-    }
-
-    if (target === "create") {
-      navigate("/occurrences/new");
-      return;
-    }
-
-    if (target === "map") {
-      navigate("/occurrences/map");
-      return;
-    }
-
-    if (target === "reports") {
-      navigate("/occurrences/public");
-      return;
-    }
-
-    navigate("/profile");
   };
 
   return (
@@ -384,33 +357,6 @@ export default function Profile() {
           </div>
         )}
 
-        <nav className="profile-bottom-nav" aria-label={t("profile.navigationLabel")}>
-          {[
-            { icon: Home, label: t("dashboard.nav.home"), target: "home" as const },
-            { icon: Map, label: t("dashboard.nav.map"), target: "map" as const },
-            { icon: Plus, label: t("dashboard.nav.create"), target: "create" as const, accent: true },
-            { icon: FileText, label: t("dashboard.nav.reports"), target: "reports" as const },
-            { icon: User, label: t("dashboard.nav.profile"), target: "profile" as const, active: true },
-          ].map((item) => (
-            <button
-              key={item.label}
-              className={[
-                "profile-nav-item",
-                item.active ? "is-active" : "",
-                item.accent ? "is-accent" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              type="button"
-              onClick={() => handleNavClick(item.target)}
-            >
-              <span className="profile-nav-icon">
-                <item.icon size={20} strokeWidth={2.2} />
-              </span>
-              {!item.accent && <span className="profile-nav-label">{item.label}</span>}
-            </button>
-          ))}
-        </nav>
       </section>
     </main>
   );

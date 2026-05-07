@@ -31,13 +31,16 @@ import {
 } from '../shared/dto/api-error-response.dto';
 import {
   AuthLoginResponseDto,
+  AuthLogoutResponseDto,
   AuthMeResponseDto,
+  AuthRefreshResponseDto,
   AuthRegisterResponseDto,
   SafeUserResponseDto,
 } from './dto/responses/auth-response.dto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
 
@@ -50,10 +53,13 @@ import { UpdateAvatarDto } from './dto/update-avatar.dto';
 @ApiTags('auth')
 @ApiExtraModels(
   LoginDto,
+  RefreshTokenDto,
   RegisterDto,
   UpdateAvatarDto,
   AuthLoginResponseDto,
+  AuthLogoutResponseDto,
   AuthRegisterResponseDto,
+  AuthRefreshResponseDto,
   AuthMeResponseDto,
   SafeUserResponseDto,
   ApiErrorResponseDto,
@@ -116,6 +122,55 @@ export class AuthController {
   })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  /**
+   * Renova a sessao usando um refresh token valido.
+   * @param dto Refresh token emitido anteriormente.
+   * @return Novo par de tokens.
+   */
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Renovar access token',
+    description:
+      'Valida um refresh token ativo, roda o refresh token guardado e devolve um novo par de tokens.',
+  })
+  @ApiBody({
+    description: 'Refresh token recebido no login ou refresh anterior.',
+    required: true,
+    schema: { $ref: getSchemaPath(RefreshTokenDto) },
+    examples: authSwaggerExamples.refreshRequest,
+  })
+  @ApiOkResponse({
+    description: 'Sessao renovada',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthRefreshResponseDto) },
+        examples: authSwaggerExamples.refreshSuccess,
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Pedido invalido',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ValidationErrorResponseDto) },
+        examples: authSwaggerExamples.refreshBadRequest,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Refresh token invalido ou expirado',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.refreshUnauthorized,
+      },
+    },
+  })
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto);
   }
 
   /**
@@ -183,8 +238,7 @@ export class AuthController {
   @ApiBearerAuth('bearer')
   @ApiHeader({
     name: 'Authorization',
-    description:
-      'JWT recebido em /auth/login no formato Bearer <token>.',
+    description: 'JWT recebido em /auth/login no formato Bearer <token>.',
     required: true,
     example: authSwaggerExamples.authorizationHeader,
   })
@@ -212,67 +266,51 @@ export class AuthController {
     },
   })
   me(@Req() req: Request) {
-    const authUser = req.user as { sub?: number } | undefined;
-    return this.authService.me(Number(authUser?.sub));
-  }
-
-  /**
-   * Atualiza ou remove a fotografia de perfil do utilizador autenticado.
-   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
-   * @param dto Nova fotografia em data URL, ou null para remover.
-   * @return Perfil seguro atualizado do utilizador autenticado.
-   */
-  @UseGuards(JwtAuthGuard)
-  @Patch('me/avatar')
-  @ApiBearerAuth('bearer')
-  @ApiHeader({
-    name: 'Authorization',
-    description:
-      'JWT recebido em /auth/login no formato Bearer <token>.',
-    required: true,
-    example: authSwaggerExamples.authorizationHeader,
-  })
-  @ApiOperation({
-    summary: 'Atualizar fotografia de perfil',
-    description:
-      'Atualiza a fotografia de perfil do utilizador autenticado. Envia avatarUrl null para remover a fotografia atual.',
-  })
-  @ApiBody({
-    description: 'Nova fotografia de perfil do utilizador autenticado.',
-    required: true,
-    schema: { $ref: getSchemaPath(UpdateAvatarDto) },
-  })
-  @ApiOkResponse({
-    description: 'Fotografia de perfil atualizada com sucesso',
-    content: {
-      'application/json': {
-        schema: { $ref: getSchemaPath(AuthMeResponseDto) },
-      },
-    },
-  })
-  @ApiBadRequestResponse({
-    description: 'Fotografia de perfil invalida',
-    content: {
-      'application/json': {
-        schema: {
-          oneOf: [
-            { $ref: getSchemaPath(ValidationErrorResponseDto) },
-            { $ref: getSchemaPath(ApiErrorResponseDto) },
-          ],
-        },
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Sem autenticacao, token invalido ou utilizador inexistente',
-    content: {
-      'application/json': {
-        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
-      },
-    },
-  })
-  updateAvatar(@Req() req: Request, @Body() dto: UpdateAvatarDto) {
-    const authUser = req.user as { sub?: number } | undefined;
-    return this.authService.updateAvatar(Number(authUser?.sub), dto.avatarUrl);
-  }
+  const authUser = req.user as { sub?: number } | undefined;
+  return this.authService.me(Number(authUser?.sub));
 }
+
+/**
+ * Invalida sessoes versionadas do utilizador autenticado.
+ * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+ * @return Mensagem de logout concluido.
+ */
+@UseGuards(JwtAuthGuard)
+@Post('logout')
+@HttpCode(HttpStatus.OK)
+@ApiBearerAuth('bearer')
+@ApiHeader({
+  name: 'Authorization',
+  description:
+    'JWT recebido em /auth/login ou /auth/refresh no formato Bearer <token>.',
+  required: true,
+  example: authSwaggerExamples.authorizationHeader,
+})
+@ApiOperation({
+  summary: 'Terminar sessao autenticada',
+  description:
+    'Remove o refresh token guardado e incrementa a versao de autenticacao do utilizador para invalidar tokens JWT versionados emitidos anteriormente.',
+})
+@ApiOkResponse({
+  description: 'Sessao terminada',
+  content: {
+    'application/json': {
+      schema: { $ref: getSchemaPath(AuthLogoutResponseDto) },
+      examples: authSwaggerExamples.logoutSuccess,
+    },
+  },
+})
+@ApiUnauthorizedResponse({
+  description: 'Sem autenticacao, token invalido ou conta inativa',
+  content: {
+    'application/json': {
+      schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+      examples: authSwaggerExamples.logoutUnauthorized,
+    },
+  },
+})
+logout(@Req() req: Request) {
+  const authUser = req.user as { sub?: number } | undefined;
+  return this.authService.logout(Number(authUser?.sub));
+}
+

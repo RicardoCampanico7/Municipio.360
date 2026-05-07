@@ -8,12 +8,14 @@ import Profile from "./pages/Profile";
 import PublicReports from "./pages/PublicReports";
 import PublicOccurrenceDetail from "./pages/PublicOccurrenceDetail";
 import OccurrenceMap from "./pages/OccurrenceMap";
+import GlobalBottomNav from "./components/GlobalBottomNav";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Rotas públicas */}
       <Route path="/" element={<Home />} />
       <Route
@@ -54,7 +56,9 @@ function App() {
       <Route path="/occurrences/public" element={<PublicReports />} />
       <Route path="/occurrences/map" element={<OccurrenceMap />} />
       <Route path="/occurrences/public/:occurrenceId" element={<PublicOccurrenceDetail />} />
-    </Routes>
+      </Routes>
+      <GlobalBottomNav />
+    </>
   );
 }
 
