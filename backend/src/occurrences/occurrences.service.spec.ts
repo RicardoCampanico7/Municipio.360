@@ -985,46 +985,25 @@ describe('OccurrencesService', () => {
   });
 
   /**
-   * Garante que imagens opcionais podem ser omitidas sem bloquear a criacao.
+   * Garante que a criacao exige pelo menos uma fotografia.
    * @return void
    */
-  it('should create an occurrence without images', async () => {
+  it('should reject occurrence creation without images', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 7,
       certStatus: CertificationStatus.CERTIFIED,
     });
-    (saveOccurrenceImages as jest.Mock).mockResolvedValue([]);
-    prisma.occurrence.create.mockResolvedValue({
-      id: 3,
-      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-      otherCategoryDetail: null,
-      description: '',
-      location: 'Rua A',
-      imageUrls: [],
-      status: OccurrenceStatus.SUBMETIDA,
-      createdAt: new Date('2026-03-19T09:00:00.000Z'),
-      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
-      userId: 7,
-    });
 
-    const result = await service.create(7, {
-      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-      location: 'Rua A',
-    });
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+      }),
+    ).rejects.toThrow('A fotografia da ocorrencia e obrigatoria');
 
     expect(saveOccurrenceImages).not.toHaveBeenCalled();
     expect(assignOccurrenceImagesToOccurrence).not.toHaveBeenCalled();
-    expect(prisma.occurrence.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        imageUrls: [],
-      }),
-      select: expect.any(Object),
-    });
-    expect(result).toEqual(
-      expect.objectContaining({
-        status: 'open',
-      }),
-    );
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
   /**

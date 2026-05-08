@@ -315,18 +315,17 @@ export class AuthController {
   }
 
   /**
-     * Atualiza ou remove a fotografia de perfil do utilizador autenticado.
-     * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
-     * @param dto Nova fotografia em data URL, ou null para remover.
-     * @return Perfil seguro atualizado do utilizador autenticado.
-     */
+   * Atualiza ou remove a fotografia de perfil do utilizador autenticado.
+   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+   * @param dto Nova fotografia em data URL, ou null para remover.
+   * @return Perfil seguro atualizado do utilizador autenticado.
+   */
   @UseGuards(JwtAuthGuard)
   @Patch('me/avatar')
   @ApiBearerAuth('bearer')
   @ApiHeader({
     name: 'Authorization',
-    description:
-      'JWT recebido em /auth/login no formato Bearer <token>.',
+    description: 'JWT recebido em /auth/login no formato Bearer <token>.',
     required: true,
     example: authSwaggerExamples.authorizationHeader,
   })

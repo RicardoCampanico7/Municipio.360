@@ -30,6 +30,7 @@ export const OCCURRENCE_ERROR_MESSAGES = {
     `A imagem ${index} ja esta associada a uma ocorrencia`,
   maxImages: (maxFiles: number) =>
     `Pode enviar no maximo ${maxFiles} fotografias`,
+  imageRequired: 'A fotografia da ocorrencia e obrigatoria',
   locationRequired: 'A localizacao da ocorrencia e obrigatoria',
   otherCategoryRequired:
     'O detalhe da categoria e obrigatorio quando a categoria e OUTROS',

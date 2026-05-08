@@ -205,6 +205,7 @@ export const occurrencesSwaggerExamples = {
         otherCategoryDetail: 'Mobiliario urbano danificado',
         description: 'Banco de jardim partido.',
         location: 'Jardim Municipal',
+        uploadedImageUrls: ['/uploads/occurrences/1712310000000-foto-1.jpg'],
       },
     },
     multipartWithFiles: {
@@ -299,6 +300,14 @@ export const occurrencesSwaggerExamples = {
       value: {
         statusCode: 400,
         message: 'Transicao de estado invalida: SUBMETIDA -> CONCLUIDA',
+        error: 'Bad Request',
+      },
+    },
+    missingImage: {
+      summary: 'Fotografia obrigatoria',
+      value: {
+        statusCode: 400,
+        message: 'A fotografia da ocorrencia e obrigatoria',
         error: 'Bad Request',
       },
     },
