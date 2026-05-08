@@ -311,6 +311,54 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('updates the authenticated profile photo', async () => {
+    const token = signToken({
+      sub: 44,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 44,
+    });
+    prisma.user.update.mockResolvedValue({
+      id: 44,
+      name: 'Cidadao Municipal',
+      biNumber: '12345678 1 AB2',
+      postalCode: '1000-123',
+      email: 'cidadao@municipio360.pt',
+      avatarUrl: SMALL_IMAGE_DATA_URL,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+      createdAt: new Date('2026-04-10T09:30:00.000Z'),
+      updatedAt: new Date('2026-04-10T09:35:00.000Z'),
+    });
+
+    await request(httpApp)
+      .patch('/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatarUrl: SMALL_IMAGE_DATA_URL })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            user: expect.objectContaining({
+              id: 44,
+              avatarUrl: SMALL_IMAGE_DATA_URL,
+            }),
+          }),
+        );
+      });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 44 },
+      data: { avatarUrl: SMALL_IMAGE_DATA_URL },
+      select: expect.objectContaining({
+        id: true,
+        avatarUrl: true,
+      }),
+    });
+  });
+
   it('deactivates the authenticated account', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 43,
