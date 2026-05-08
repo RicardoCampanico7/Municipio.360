@@ -378,6 +378,7 @@ export const authSwaggerExamples = {
       summary: 'Conta apagada',
       value: {
         message: 'Conta apagada com sucesso',
+        accountDeleted: true,
       },
     },
   },

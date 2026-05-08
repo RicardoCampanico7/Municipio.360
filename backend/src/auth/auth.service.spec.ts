@@ -484,27 +484,41 @@ describe('AuthService', () => {
   });
 
   /**
-   * Garante que a conta autenticada pode ser apagada.
+   * Garante que a conta autenticada e desativada sem apagar registos relacionados.
    * @return Promise<void>
    */
-  it('should delete the authenticated account', async () => {
+  it('should deactivate and anonymize the authenticated account', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 15,
       isActive: true,
     });
-    prisma.user.delete.mockResolvedValue({
+    prisma.user.update.mockResolvedValue({
       id: 15,
     });
 
     await expect(service.deleteAccount(15)).resolves.toEqual({
       message: 'Conta apagada com sucesso',
+      accountDeleted: true,
     });
-    expect(prisma.user.delete).toHaveBeenCalledWith({
+    expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 15 },
+      data: {
+        name: 'Conta removida',
+        biNumber: 'DELETED-15',
+        postalCode: '0000-000',
+        email: 'deleted-user-15@municipio360.local',
+        avatarUrl: null,
+        refreshTokenHash: null,
+        isActive: false,
+        authVersion: {
+          increment: 1,
+        },
+      },
       select: {
         id: true,
       },
     });
+    expect(prisma.user.delete).not.toHaveBeenCalled();
   });
 
   /**
@@ -517,6 +531,7 @@ describe('AuthService', () => {
     await expect(service.deleteAccount(999)).rejects.toThrow(
       'Utilizador autenticado invalido',
     );
+    expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.user.delete).not.toHaveBeenCalled();
   });
 });

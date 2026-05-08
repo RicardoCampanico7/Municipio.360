@@ -117,4 +117,11 @@ export class AuthDeleteAccountResponseDto {
     example: 'Conta apagada com sucesso',
   })
   message: string;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Indica ao frontend que a conta foi desativada e a sessao local deve ser limpa.',
+  })
+  accountDeleted: boolean;
 }

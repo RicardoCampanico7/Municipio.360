@@ -455,7 +455,7 @@ export class AuthService {
   }
 
   /**
-   * Apaga a conta do utilizador autenticado.
+   * Desativa a conta autenticada preservando os registos municipais relacionados.
    * @param userId Identificador do utilizador autenticado.
    * @return Mensagem de sucesso.
    */
@@ -476,8 +476,20 @@ export class AuthService {
       throw new UnauthorizedException('Conta inativa');
     }
 
-    await this.prisma.user.delete({
+    await this.prisma.user.update({
       where: { id: userId },
+      data: {
+        name: 'Conta removida',
+        biNumber: `DELETED-${userId}`,
+        postalCode: '0000-000',
+        email: `deleted-user-${userId}@municipio360.local`,
+        avatarUrl: null,
+        refreshTokenHash: null,
+        isActive: false,
+        authVersion: {
+          increment: 1,
+        },
+      },
       select: {
         id: true,
       },
@@ -485,6 +497,7 @@ export class AuthService {
 
     return {
       message: 'Conta apagada com sucesso',
+      accountDeleted: true,
     };
   }
 }
