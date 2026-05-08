@@ -199,6 +199,15 @@ export class OccurrencesService {
   }
 
   /**
+   * Indica se a categoria exige evidencia fotografica no momento da submissao.
+   * @param category Categoria selecionada pelo cidadao.
+   * @return boolean Verdadeiro quando a ocorrencia deve trazer pelo menos uma fotografia.
+   */
+  private isImageRequiredForCategory(category: OccurrenceCategory) {
+    return category !== OccurrenceCategory.RUIDO;
+  }
+
+  /**
    * Persiste uma entrada de historico com o estado atualmente assumido pela ocorrencia.
    * @param prisma Cliente transacional usado na operacao atomica.
    * @param occurrenceId Identificador da ocorrencia alterada.
@@ -389,7 +398,10 @@ export class OccurrencesService {
       );
     }
 
-    if (requestedImageUrls.length + files.length === 0) {
+    if (
+      this.isImageRequiredForCategory(dto.category) &&
+      requestedImageUrls.length + files.length === 0
+    ) {
       throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.imageRequired);
     }
 

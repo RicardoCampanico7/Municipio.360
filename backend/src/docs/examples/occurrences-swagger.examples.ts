@@ -219,6 +219,16 @@ export const occurrencesSwaggerExamples = {
         imageUrls: ['foto-1.jpg'],
       },
     },
+    noiseWithoutImages: {
+      summary: 'Ruido sem fotografia',
+      description:
+        'Ocorrencias de ruido podem ser submetidas sem fotografias anexadas.',
+      value: {
+        category: 'RUIDO',
+        description: 'Musica alta durante a noite.',
+        location: 'Rua da Escola, junto ao numero 12',
+      },
+    },
   },
   createSuccess: {
     submittedOccurrence: {
@@ -304,7 +314,7 @@ export const occurrencesSwaggerExamples = {
       },
     },
     missingImage: {
-      summary: 'Fotografia obrigatoria',
+      summary: 'Fotografia obrigatoria para categorias com evidencia visual',
       value: {
         statusCode: 400,
         message: 'A fotografia da ocorrencia e obrigatoria',
