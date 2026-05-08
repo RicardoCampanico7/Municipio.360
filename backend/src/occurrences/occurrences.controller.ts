@@ -84,6 +84,7 @@ const uploadOccurrenceImagesRequestSchema: SchemaObject = {
 const createOccurrenceJsonRequestSchema: SchemaObject = {
   type: 'object',
   required: ['category', 'location'],
+  anyOf: [{ required: ['uploadedImageUrls'] }, { required: ['imageUrls'] }],
   properties: {
     category: {
       type: 'string',
@@ -109,7 +110,7 @@ const createOccurrenceJsonRequestSchema: SchemaObject = {
         type: 'string',
       },
       description:
-        'URLs publicas previamente carregadas em POST /occurrences/images',
+        'URLs publicas previamente carregadas em POST /occurrences/images. Envie pelo menos uma fotografia.',
       maxItems: occurrenceUploadConfig.maxFiles,
     },
     imageUrls: {
@@ -128,6 +129,10 @@ const createOccurrenceJsonRequestSchema: SchemaObject = {
 const createOccurrenceMultipartRequestSchema: SchemaObject = {
   type: 'object',
   required: ['category', 'location'],
+  anyOf: [
+    { required: [OCCURRENCE_IMAGE_UPLOAD_FIELD_NAME] },
+    { required: ['uploadedImageUrls'] },
+  ],
   properties: {
     ...createOccurrenceJsonRequestSchema.properties,
     imageUrls: {

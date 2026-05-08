@@ -45,7 +45,8 @@ function normalizeOptionalStringArray(value: unknown) {
           const normalizedValues = parsedValue
             .map((item) => trimOptionalStringValue(item))
             .filter(
-              (item): item is string => typeof item === 'string' && item.length > 0,
+              (item): item is string =>
+                typeof item === 'string' && item.length > 0,
             );
 
           return normalizedValues.length ? normalizedValues : undefined;
@@ -130,7 +131,7 @@ export class CreateOccurrenceDto {
     type: [String],
     example: ['/uploads/occurrences/exemplo.jpg'],
     description:
-      'Lista opcional de URLs publicas previamente carregadas pelo endpoint POST /occurrences/images',
+      'Lista de URLs publicas previamente carregadas pelo endpoint POST /occurrences/images. Obrigatoria quando a ocorrencia e criada em JSON.',
     maxItems: 3,
   })
   @IsOptional()

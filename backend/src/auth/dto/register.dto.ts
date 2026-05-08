@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { Role } from '@prisma/client';
 import {
   IsEmail,
@@ -53,6 +54,9 @@ export class RegisterDto {
     description:
       'Fotografia de perfil opcional em formato data URL (PNG, JPEG, WEBP ou GIF)',
   })
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value,
+  )
   @IsOptional()
   @IsString()
   @Matches(/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i)
@@ -70,7 +74,8 @@ export class RegisterDto {
   @ApiPropertyOptional({
     enum: Role,
     example: Role.CIVIL,
-    description: 'Role opcional; por omissao o registo deve criar um utilizador CIVIL',
+    description:
+      'Role opcional; por omissao o registo deve criar um utilizador CIVIL',
   })
   @IsOptional()
   @IsEnum(Role)

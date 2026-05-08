@@ -389,6 +389,10 @@ export class OccurrencesService {
       );
     }
 
+    if (requestedImageUrls.length + files.length === 0) {
+      throw new BadRequestException(OCCURRENCE_ERROR_MESSAGES.imageRequired);
+    }
+
     const uploadedImageUrls = files.length
       ? await saveOccurrenceImages(files, userId)
       : [];

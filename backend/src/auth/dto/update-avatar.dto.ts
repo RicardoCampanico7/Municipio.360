@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsString, Matches, ValidateIf } from 'class-validator';
 
 /**
@@ -12,6 +13,9 @@ export class UpdateAvatarDto {
     description:
       'Nova fotografia de perfil em data URL, ou null para remover a fotografia atual.',
   })
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() === '' ? null : value,
+  )
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @Matches(/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i)

@@ -121,6 +121,44 @@ describe('AuthService', () => {
   });
 
   /**
+   * Garante que a fotografia de perfil pode ser omitida no registo.
+   * @return void
+   */
+  it('should register a user without an avatar', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: 8,
+      name: 'Ana Costa',
+      biNumber: '22345678',
+      postalCode: '1000-123',
+      email: 'ana@teste.pt',
+      avatarUrl: null,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+      createdAt: new Date('2026-03-17T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T10:00:00.000Z'),
+    });
+    jest.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never);
+
+    const result = await service.register({
+      name: 'Ana Costa',
+      biNumber: '22345678',
+      postalCode: '1000-123',
+      email: 'ANA@TESTE.PT',
+      password: 'Password123!',
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          avatarUrl: null,
+        }),
+      }),
+    );
+    expect(result.user.avatarUrl).toBeUndefined();
+  });
+
+  /**
    * Garante que o login nao expoe o hash da password na resposta.
    * @return void
    */

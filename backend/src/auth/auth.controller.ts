@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Patch,
   Post,
   Req,
   UseGuards,
@@ -266,51 +265,51 @@ export class AuthController {
     },
   })
   me(@Req() req: Request) {
-  const authUser = req.user as { sub?: number } | undefined;
-  return this.authService.me(Number(authUser?.sub));
-}
+    const authUser = req.user as { sub?: number } | undefined;
+    return this.authService.me(Number(authUser?.sub));
+  }
 
-/**
- * Invalida sessoes versionadas do utilizador autenticado.
- * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
- * @return Mensagem de logout concluido.
- */
-@UseGuards(JwtAuthGuard)
-@Post('logout')
-@HttpCode(HttpStatus.OK)
-@ApiBearerAuth('bearer')
-@ApiHeader({
-  name: 'Authorization',
-  description:
-    'JWT recebido em /auth/login ou /auth/refresh no formato Bearer <token>.',
-  required: true,
-  example: authSwaggerExamples.authorizationHeader,
-})
-@ApiOperation({
-  summary: 'Terminar sessao autenticada',
-  description:
-    'Remove o refresh token guardado e incrementa a versao de autenticacao do utilizador para invalidar tokens JWT versionados emitidos anteriormente.',
-})
-@ApiOkResponse({
-  description: 'Sessao terminada',
-  content: {
-    'application/json': {
-      schema: { $ref: getSchemaPath(AuthLogoutResponseDto) },
-      examples: authSwaggerExamples.logoutSuccess,
+  /**
+   * Invalida sessoes versionadas do utilizador autenticado.
+   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+   * @return Mensagem de logout concluido.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('bearer')
+  @ApiHeader({
+    name: 'Authorization',
+    description:
+      'JWT recebido em /auth/login ou /auth/refresh no formato Bearer <token>.',
+    required: true,
+    example: authSwaggerExamples.authorizationHeader,
+  })
+  @ApiOperation({
+    summary: 'Terminar sessao autenticada',
+    description:
+      'Remove o refresh token guardado e incrementa a versao de autenticacao do utilizador para invalidar tokens JWT versionados emitidos anteriormente.',
+  })
+  @ApiOkResponse({
+    description: 'Sessao terminada',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthLogoutResponseDto) },
+        examples: authSwaggerExamples.logoutSuccess,
+      },
     },
-  },
-})
-@ApiUnauthorizedResponse({
-  description: 'Sem autenticacao, token invalido ou conta inativa',
-  content: {
-    'application/json': {
-      schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
-      examples: authSwaggerExamples.logoutUnauthorized,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao, token invalido ou conta inativa',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.logoutUnauthorized,
+      },
     },
-  },
-})
-logout(@Req() req: Request) {
-  const authUser = req.user as { sub?: number } | undefined;
-  return this.authService.logout(Number(authUser?.sub));
+  })
+  logout(@Req() req: Request) {
+    const authUser = req.user as { sub?: number } | undefined;
+    return this.authService.logout(Number(authUser?.sub));
+  }
 }
-

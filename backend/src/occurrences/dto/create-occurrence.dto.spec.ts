@@ -44,10 +44,10 @@ describe('CreateOccurrenceDto', () => {
   });
 
   /**
-   * Garante que fotografias podem ser omitidas em pedidos multipart ou JSON sem imagens.
+   * Garante que o DTO permite pedidos multipart em que os ficheiros chegam fora do body.
    * @return void
    */
-  it('should allow requests without imageUrls in the body', async () => {
+  it('should allow multipart bodies without image URL fields', async () => {
     const dto = plainToInstance(CreateOccurrenceDto, {
       category: OccurrenceCategory.ILUMINACAO_PUBLICA,
       location: 'Rua A',
