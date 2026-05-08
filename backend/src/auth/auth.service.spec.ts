@@ -20,6 +20,7 @@ describe('AuthService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
     };
   };
   let jwt: {
@@ -33,6 +34,7 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
       },
     };
 
@@ -129,7 +131,7 @@ describe('AuthService', () => {
     prisma.user.create.mockResolvedValue({
       id: 8,
       name: 'Ana Costa',
-      biNumber: '22345678',
+      biNumber: '22345678 1 AB2',
       postalCode: '1000-123',
       email: 'ana@teste.pt',
       avatarUrl: null,
@@ -142,7 +144,7 @@ describe('AuthService', () => {
 
     const result = await service.register({
       name: 'Ana Costa',
-      biNumber: '22345678',
+      biNumber: '22345678 1 AB2',
       postalCode: '1000-123',
       email: 'ANA@TESTE.PT',
       password: 'Password123!',
@@ -180,9 +182,7 @@ describe('AuthService', () => {
     jwt.signAsync
       .mockResolvedValueOnce('signed-access-jwt')
       .mockResolvedValueOnce('signed-refresh-jwt');
-    jest
-      .mocked(bcrypt.hash)
-      .mockResolvedValue('hashed-refresh-token' as never);
+    jest.mocked(bcrypt.hash).mockResolvedValue('hashed-refresh-token' as never);
 
     const result = await service.login({
       email: 'OPERADOR@TESTE.PT',
@@ -284,15 +284,11 @@ describe('AuthService', () => {
       authVersion: 0,
       refreshTokenHash: 'stored-refresh-hash',
     });
-    jest
-      .mocked(bcrypt.compare)
-      .mockResolvedValue(true as never);
+    jest.mocked(bcrypt.compare).mockResolvedValue(true as never);
     jwt.signAsync
       .mockResolvedValueOnce('new-access-jwt')
       .mockResolvedValueOnce('new-refresh-jwt');
-    jest
-      .mocked(bcrypt.hash)
-      .mockResolvedValue('new-refresh-hash' as never);
+    jest.mocked(bcrypt.hash).mockResolvedValue('new-refresh-hash' as never);
 
     await expect(
       service.refresh({ refreshToken: 'old-refresh-token' }),
@@ -332,9 +328,7 @@ describe('AuthService', () => {
       authVersion: 0,
       refreshTokenHash: 'stored-refresh-hash',
     });
-    jest
-      .mocked(bcrypt.compare)
-      .mockResolvedValue(false as never);
+    jest.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
     await expect(
       service.refresh({ refreshToken: 'reused-refresh-token' }),
@@ -343,7 +337,7 @@ describe('AuthService', () => {
     expect(jwt.signAsync).not.toHaveBeenCalled();
   });
 
-    /**
+  /**
    * Garante que o endpoint de perfil devolve apenas campos seguros.
    * @return void
    */
@@ -487,5 +481,42 @@ describe('AuthService', () => {
       'Utilizador autenticado invalido',
     );
     expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que a conta autenticada pode ser apagada.
+   * @return Promise<void>
+   */
+  it('should delete the authenticated account', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 15,
+      isActive: true,
+    });
+    prisma.user.delete.mockResolvedValue({
+      id: 15,
+    });
+
+    await expect(service.deleteAccount(15)).resolves.toEqual({
+      message: 'Conta apagada com sucesso',
+    });
+    expect(prisma.user.delete).toHaveBeenCalledWith({
+      where: { id: 15 },
+      select: {
+        id: true,
+      },
+    });
+  });
+
+  /**
+   * Garante que contas inexistentes nao sao apagadas.
+   * @return Promise<void>
+   */
+  it('should reject account deletion when the authenticated user no longer exists', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.deleteAccount(999)).rejects.toThrow(
+      'Utilizador autenticado invalido',
+    );
+    expect(prisma.user.delete).not.toHaveBeenCalled();
   });
 });

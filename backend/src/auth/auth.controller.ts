@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -30,6 +31,7 @@ import {
   ValidationErrorResponseDto,
 } from '../shared/dto/api-error-response.dto';
 import {
+  AuthDeleteAccountResponseDto,
   AuthLoginResponseDto,
   AuthLogoutResponseDto,
   AuthMeResponseDto,
@@ -57,6 +59,7 @@ import { UpdateAvatarDto } from './dto/update-avatar.dto';
   RegisterDto,
   UpdateAvatarDto,
   AuthLoginResponseDto,
+  AuthDeleteAccountResponseDto,
   AuthLogoutResponseDto,
   AuthRegisterResponseDto,
   AuthRefreshResponseDto,
@@ -312,6 +315,50 @@ export class AuthController {
   logout(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
     return this.authService.logout(Number(authUser?.sub));
+  }
+
+  /**
+   * Apaga a conta do utilizador autenticado.
+   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+   * @return Mensagem de conta apagada.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('bearer')
+  @ApiHeader({
+    name: 'Authorization',
+    description:
+      'JWT recebido em /auth/login ou /auth/refresh no formato Bearer <token>.',
+    required: true,
+    example: authSwaggerExamples.authorizationHeader,
+  })
+  @ApiOperation({
+    summary: 'Apagar conta autenticada',
+    description:
+      'Apaga definitivamente a conta associada ao token Bearer enviado no header Authorization.',
+  })
+  @ApiOkResponse({
+    description: 'Conta apagada',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthDeleteAccountResponseDto) },
+        examples: authSwaggerExamples.deleteAccountSuccess,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao, token invalido ou conta inativa',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.deleteAccountUnauthorized,
+      },
+    },
+  })
+  deleteAccount(@Req() req: Request) {
+    const authUser = req.user as { sub?: number } | undefined;
+    return this.authService.deleteAccount(Number(authUser?.sub));
   }
 
   /**

@@ -50,6 +50,7 @@ describe('Occurrences permissions (e2e)', () => {
       findUnique: jest.Mock;
       findMany: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
     };
     occurrence: {
       create: jest.Mock;
@@ -76,6 +77,7 @@ describe('Occurrences permissions (e2e)', () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
       },
       occurrence: {
         create: jest.fn(),
@@ -179,7 +181,7 @@ describe('Occurrences permissions (e2e)', () => {
     prisma.user.create.mockResolvedValue({
       id: 41,
       name: 'Maria Fernandes',
-      biNumber: '12345678',
+      biNumber: '12345678 1 AB2',
       postalCode: '1000-123',
       email: 'maria@municipio360.pt',
       avatarUrl: null,
@@ -193,7 +195,7 @@ describe('Occurrences permissions (e2e)', () => {
       .post('/auth/register')
       .send({
         name: 'Maria Fernandes',
-        biNumber: '12345678',
+        biNumber: '12345678 1 AB2',
         postalCode: '1000-123',
         email: 'maria@municipio360.pt',
         password: 'SenhaSegura123',
@@ -213,6 +215,26 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('rejects register requests with an invalid citizen card number', async () => {
+    await request(httpApp)
+      .post('/auth/register')
+      .send({
+        name: 'Maria Fernandes',
+        biNumber: '12345678',
+        postalCode: '1000-123',
+        email: 'maria@municipio360.pt',
+        password: 'SenhaSegura123',
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain(
+          'O Cartao de Cidadao deve usar o formato 12345678 1 AB2',
+        );
+      });
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
   it('logs in and returns the authenticated profile', async () => {
     const email = 'operador@municipio360.pt';
     const password = 'SenhaSegura123';
@@ -223,7 +245,7 @@ describe('Occurrences permissions (e2e)', () => {
         return {
           id: 42,
           name: 'Operador Municipal',
-          biNumber: '87654321',
+          biNumber: '87654321 1 AB2',
           postalCode: '1000-124',
           email,
           avatarUrl: null,
@@ -239,7 +261,7 @@ describe('Occurrences permissions (e2e)', () => {
         return {
           id: 42,
           name: 'Operador Municipal',
-          biNumber: '87654321',
+          biNumber: '87654321 1 AB2',
           postalCode: '1000-124',
           email,
           avatarUrl: null,
@@ -289,12 +311,43 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('deletes the authenticated account', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 43,
+      isActive: true,
+    });
+    prisma.user.delete.mockResolvedValue({
+      id: 43,
+    });
+
+    const token = signToken({
+      sub: 43,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .delete('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect({
+        message: 'Conta apagada com sucesso',
+      });
+
+    expect(prisma.user.delete).toHaveBeenCalledWith({
+      where: { id: 43 },
+      select: {
+        id: true,
+      },
+    });
+  });
+
   it('returns the users list for an authenticated operator', async () => {
     prisma.user.findMany.mockResolvedValue([
       {
         id: 51,
         name: 'Cidadao Teste',
-        biNumber: '11223344',
+        biNumber: '11223344 1 CD3',
         postalCode: '1000-125',
         email: 'cidadao@municipio360.pt',
         role: Role.CIVIL,

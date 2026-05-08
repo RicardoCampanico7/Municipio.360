@@ -10,6 +10,8 @@ import {
   MinLength,
 } from 'class-validator';
 
+const CITIZEN_CARD_NUMBER_PATTERN = /^\d{8} \d [A-Z]{2}\d$/;
+
 /**
  * Representa os dados necessarios para registar um utilizador civil.
  * @author Alan Martynyuk e Guilherme Gaspar
@@ -27,11 +29,16 @@ export class RegisterDto {
   name: string;
 
   @ApiProperty({
-    example: '12345678',
-    description: 'Numero de BI/CC em formato alfanumerico',
+    example: '12345678 1 AB2',
+    description: 'Numero de Cartao de Cidadao no formato 12345678 1 AB2',
   })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @IsString()
-  @Matches(/^[0-9A-Z\s]{8,14}$/)
+  @Matches(CITIZEN_CARD_NUMBER_PATTERN, {
+    message: 'O Cartao de Cidadao deve usar o formato 12345678 1 AB2',
+  })
   biNumber: string;
 
   @ApiProperty({
