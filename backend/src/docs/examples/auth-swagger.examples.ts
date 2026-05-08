@@ -32,7 +32,7 @@ export const authSwaggerExamples = {
         user: {
           id: 7,
           name: 'Maria Fernandes',
-          biNumber: '12345678',
+          biNumber: '12345678 1 AB2',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
           avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
@@ -131,7 +131,7 @@ export const authSwaggerExamples = {
         'Exemplo recomendado para criar um utilizador civil sem avatar.',
       value: {
         name: 'Maria Fernandes',
-        biNumber: '12345678',
+        biNumber: '12345678 1 AB2',
         postalCode: '1000-123',
         email: 'cidadao@municipio360.pt',
         password: 'SenhaSegura123',
@@ -143,7 +143,7 @@ export const authSwaggerExamples = {
         'O avatar pode ser enviado como data URL base64 e a role pode ser omitida.',
       value: {
         name: 'Joao Martins',
-        biNumber: 'AA112233',
+        biNumber: '11223344 1 CD3',
         postalCode: '4700-210',
         email: 'joao.martins@municipio360.pt',
         avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
@@ -160,7 +160,7 @@ export const authSwaggerExamples = {
         user: {
           id: 7,
           name: 'Maria Fernandes',
-          biNumber: '12345678',
+          biNumber: '12345678 1 AB2',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
           role: 'CIVIL',
@@ -192,6 +192,14 @@ export const authSwaggerExamples = {
         error: 'Bad Request',
       },
     },
+    invalidCitizenCard: {
+      summary: 'Cartao de Cidadao invalido',
+      value: {
+        statusCode: 400,
+        message: ['O Cartao de Cidadao deve usar o formato 12345678 1 AB2'],
+        error: 'Bad Request',
+      },
+    },
     oversizedAvatar: {
       summary: 'Avatar acima do limite',
       value: {
@@ -218,7 +226,7 @@ export const authSwaggerExamples = {
         user: {
           id: 7,
           name: 'Maria Fernandes',
-          biNumber: '12345678',
+          biNumber: '12345678 1 AB2',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
           avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
@@ -257,6 +265,32 @@ export const authSwaggerExamples = {
     },
   },
   logoutUnauthorized: {
+    missingOrInvalidToken: {
+      summary: 'Token em falta ou invalido',
+      value: {
+        statusCode: 401,
+        message: 'Unauthorized',
+        error: 'Unauthorized',
+      },
+    },
+    inactiveAccount: {
+      summary: 'Conta inativa',
+      value: {
+        statusCode: 401,
+        message: 'Conta inativa',
+        error: 'Unauthorized',
+      },
+    },
+  },
+  deleteAccountSuccess: {
+    deletedAccount: {
+      summary: 'Conta apagada',
+      value: {
+        message: 'Conta apagada com sucesso',
+      },
+    },
+  },
+  deleteAccountUnauthorized: {
     missingOrInvalidToken: {
       summary: 'Token em falta ou invalido',
       value: {

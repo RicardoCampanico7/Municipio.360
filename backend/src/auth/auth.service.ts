@@ -41,7 +41,8 @@ type RefreshTokenPayload = {
   tokenType?: string;
 };
 
-const AVATAR_DATA_URL_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
+const AVATAR_DATA_URL_PREFIX =
+  /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
 const MAX_AVATAR_SIZE_BYTES = 3 * 1024 * 1024;
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
@@ -79,7 +80,9 @@ export class AuthService {
       throw new BadRequestException('Fotografia de perfil invalida');
     }
 
-    const base64Payload = normalizedAvatarUrl.split(',', 2)[1]?.replace(/\s+/g, '');
+    const base64Payload = normalizedAvatarUrl
+      .split(',', 2)[1]
+      ?.replace(/\s+/g, '');
     if (!base64Payload || !/^[A-Za-z0-9+/=]+$/.test(base64Payload)) {
       throw new BadRequestException('Fotografia de perfil invalida');
     }
@@ -371,7 +374,7 @@ export class AuthService {
     };
   }
 
-   /**
+  /**
    * Atualiza ou remove a fotografia de perfil do utilizador autenticado.
    * @param userId Identificador do utilizador autenticado.
    * @param avatarUrl Nova fotografia em data URL, ou null/undefined para remover.
@@ -448,6 +451,40 @@ export class AuthService {
 
     return {
       message: 'Sessao terminada com sucesso',
+    };
+  }
+
+  /**
+   * Apaga a conta do utilizador autenticado.
+   * @param userId Identificador do utilizador autenticado.
+   * @return Mensagem de sucesso.
+   */
+  async deleteAccount(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Conta inativa');
+    }
+
+    await this.prisma.user.delete({
+      where: { id: userId },
+      select: {
+        id: true,
+      },
+    });
+
+    return {
+      message: 'Conta apagada com sucesso',
     };
   }
 }

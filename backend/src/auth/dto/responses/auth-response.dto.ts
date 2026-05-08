@@ -8,7 +8,7 @@ export class SafeUserResponseDto {
   @ApiProperty({ example: 'Maria Fernandes' })
   name: string;
 
-  @ApiProperty({ example: '12345678' })
+  @ApiProperty({ example: '12345678 1 AB2' })
   biNumber: string;
 
   @ApiProperty({ example: '1000-123' })
@@ -106,6 +106,13 @@ export class AuthMeResponseDto {
 export class AuthLogoutResponseDto {
   @ApiProperty({
     example: 'Sessao terminada com sucesso',
+  })
+  message: string;
+}
+
+export class AuthDeleteAccountResponseDto {
+  @ApiProperty({
+    example: 'Conta apagada com sucesso',
   })
   message: string;
 }

@@ -10,7 +10,7 @@ export const usersSwaggerExamples = {
         {
           id: 12,
           name: 'Ana Martins',
-          biNumber: 'AA987654',
+          biNumber: '98765432 1 AA1',
           postalCode: '4700-210',
           email: 'ana.operador@municipio360.pt',
           role: 'OPERADOR',
@@ -21,7 +21,7 @@ export const usersSwaggerExamples = {
         {
           id: 7,
           name: 'Maria Fernandes',
-          biNumber: '12345678',
+          biNumber: '12345678 1 AB2',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
           role: 'CIVIL',
@@ -37,7 +37,7 @@ export const usersSwaggerExamples = {
         {
           id: 18,
           name: 'Carlos Rocha',
-          biNumber: 'BB445566',
+          biNumber: '44556677 1 BB6',
           postalCode: '4000-110',
           email: 'carlos.admin@municipio360.pt',
           role: 'ADMINISTRADOR',
