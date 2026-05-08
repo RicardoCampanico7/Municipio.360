@@ -18,9 +18,13 @@ import {
  */
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const jsonBodyLimit = process.env.JSON_BODY_LIMIT ?? '5mb';
 
   await ensureOccurrenceUploadsDirectory();
+
+  app.use(express.json({ limit: jsonBodyLimit }));
+  app.use(express.urlencoded({ extended: true, limit: jsonBodyLimit }));
 
   app.use(
     occurrenceUploadConfig.publicBasePath,

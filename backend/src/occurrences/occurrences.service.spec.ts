@@ -978,6 +978,7 @@ describe('OccurrencesService', () => {
     expect(prisma.occurrence.create).toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
+        imageUrls: ['/uploads/occurrences/a.png'],
         title: 'Iluminacao publica',
         status: 'open',
       }),
@@ -998,6 +999,30 @@ describe('OccurrencesService', () => {
       service.create(7, {
         category: OccurrenceCategory.ILUMINACAO_PUBLICA,
         location: 'Rua A',
+      }),
+    ).rejects.toThrow('A fotografia da ocorrencia e obrigatoria');
+
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
+    expect(assignOccurrenceImagesToOccurrence).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Garante que campos de imagem presentes mas vazios tambem sao rejeitados.
+   * @return void
+   */
+  it('should reject occurrence creation with empty image URL arrays', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await expect(
+      service.create(7, {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+        uploadedImageUrls: [],
+        imageUrls: [],
       }),
     ).rejects.toThrow('A fotografia da ocorrencia e obrigatoria');
 
@@ -1048,6 +1073,68 @@ describe('OccurrencesService', () => {
     expect(result).toEqual(
       expect.objectContaining({
         imageUrls: ['/uploads/occurrences/existing.png'],
+        status: 'open',
+      }),
+    );
+  });
+
+  /**
+   * Garante que a imagem enviada fica gravada na ocorrencia certa e regressa na resposta.
+   * @return void
+   */
+  it('should persist uploaded images on the created occurrence and return them in the API response', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    (saveOccurrenceImages as jest.Mock).mockResolvedValue([
+      '/uploads/occurrences/submitted.png',
+    ]);
+    prisma.occurrence.create.mockResolvedValue({
+      id: 88,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Candeeiro apagado',
+      location: 'Rua A',
+      imageUrls: ['/uploads/occurrences/submitted.png'],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
+      userId: 7,
+    });
+
+    const result = await service.create(
+      7,
+      {
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        location: 'Rua A',
+        description: 'Candeeiro apagado',
+      },
+      [
+        {
+          buffer: Buffer.from('img'),
+          mimetype: 'image/png',
+          originalname: 'submitted.png',
+          size: 3,
+        },
+      ],
+    );
+
+    expect(prisma.occurrence.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        imageUrls: ['/uploads/occurrences/submitted.png'],
+        userId: 7,
+      }),
+      select: expect.any(Object),
+    });
+    expect(assignOccurrenceImagesToOccurrence).toHaveBeenCalledWith(
+      ['/uploads/occurrences/submitted.png'],
+      88,
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 88,
+        imageUrls: ['/uploads/occurrences/submitted.png'],
         status: 'open',
       }),
     );
