@@ -336,7 +336,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Apagar conta autenticada',
     description:
-      'Apaga definitivamente a conta associada ao token Bearer enviado no header Authorization.',
+      'Desativa a conta associada ao token Bearer enviado no header Authorization, invalida sessoes ativas e anonimiza dados pessoais basicos sem remover ocorrencias ou comentarios relacionados.',
   })
   @ApiOkResponse({
     description: 'Conta apagada',

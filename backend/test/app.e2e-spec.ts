@@ -311,12 +311,12 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
-  it('deletes the authenticated account', async () => {
+  it('deactivates the authenticated account', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 43,
       isActive: true,
     });
-    prisma.user.delete.mockResolvedValue({
+    prisma.user.update.mockResolvedValue({
       id: 43,
     });
 
@@ -332,14 +332,24 @@ describe('Occurrences permissions (e2e)', () => {
       .expect(200)
       .expect({
         message: 'Conta apagada com sucesso',
+        accountDeleted: true,
       });
 
-    expect(prisma.user.delete).toHaveBeenCalledWith({
+    expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 43 },
+      data: expect.objectContaining({
+        email: 'deleted-user-43@municipio360.local',
+        isActive: false,
+        refreshTokenHash: null,
+        authVersion: {
+          increment: 1,
+        },
+      }),
       select: {
         id: true,
       },
     });
+    expect(prisma.user.delete).not.toHaveBeenCalled();
   });
 
   it('returns the users list for an authenticated operator', async () => {
@@ -445,7 +455,7 @@ describe('Occurrences permissions (e2e)', () => {
     expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
-  it('returns 201 when a certified CIVIL user creates an occurrence without images', async () => {
+  it('returns 400 when a certified CIVIL user creates an occurrence without images', async () => {
     const token = signToken({
       sub: 12,
       role: Role.CIVIL,
@@ -455,25 +465,18 @@ describe('Occurrences permissions (e2e)', () => {
       id: 12,
       certStatus: CertificationStatus.CERTIFIED,
     });
-    prisma.occurrence.create.mockImplementation(async ({ data }) => ({
-      id: 12,
-      category: data.category,
-      otherCategoryDetail: data.otherCategoryDetail,
-      description: data.description,
-      location: data.location,
-      imageUrls: data.imageUrls,
-      status: data.status,
-      createdAt: new Date('2026-03-19T20:00:00.000Z'),
-      updatedAt: new Date('2026-03-19T20:00:00.000Z'),
-      userId: data.userId,
-    }));
 
     await request(httpApp)
       .post('/occurrences')
       .set('Authorization', `Bearer ${token}`)
       .field('category', 'BURACOS_PAVIMENTO')
       .field('location', 'Rua B')
-      .expect(201);
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe('A fotografia da ocorrencia e obrigatoria');
+      });
+
+    expect(prisma.occurrence.create).not.toHaveBeenCalled();
   });
 
   it('returns 201 and persists public image URLs when a certified CIVIL user uploads images', async () => {
