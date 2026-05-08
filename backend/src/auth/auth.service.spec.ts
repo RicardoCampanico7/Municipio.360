@@ -157,7 +157,7 @@ describe('AuthService', () => {
         }),
       }),
     );
-    expect(result.user.avatarUrl).toBeUndefined();
+    expect(result.user.avatarUrl).toBeNull();
   });
 
   /**

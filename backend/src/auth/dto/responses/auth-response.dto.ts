@@ -17,11 +17,13 @@ export class SafeUserResponseDto {
   @ApiProperty({ example: 'cidadao@municipio360.pt' })
   email: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
     nullable: true,
+    description:
+      'Fotografia de perfil em data URL base64. Quando o utilizador nao tem imagem, o valor e null.',
   })
-  avatarUrl?: string | null;
+  avatarUrl: string | null;
 
   @ApiProperty({ enum: Role, example: Role.CIVIL })
   role: Role;

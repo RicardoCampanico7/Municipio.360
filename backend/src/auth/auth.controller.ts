@@ -379,18 +379,20 @@ export class AuthController {
   @ApiOperation({
     summary: 'Atualizar fotografia de perfil',
     description:
-      'Atualiza a fotografia de perfil do utilizador autenticado. Envia avatarUrl null para remover a fotografia atual.',
+      'Faz upload/edicao da fotografia de perfil do utilizador autenticado atraves do campo avatarUrl. O valor aceite e uma data URL base64 PNG, JPEG, WEBP ou GIF ate 3 MB. Envia avatarUrl null para remover a fotografia atual; quando nao existe imagem, as respostas devolvem avatarUrl null.',
   })
   @ApiBody({
     description: 'Nova fotografia de perfil do utilizador autenticado.',
     required: true,
     schema: { $ref: getSchemaPath(UpdateAvatarDto) },
+    examples: authSwaggerExamples.updateAvatarRequest,
   })
   @ApiOkResponse({
     description: 'Fotografia de perfil atualizada com sucesso',
     content: {
       'application/json': {
         schema: { $ref: getSchemaPath(AuthMeResponseDto) },
+        examples: authSwaggerExamples.updateAvatarSuccess,
       },
     },
   })
@@ -404,6 +406,7 @@ export class AuthController {
             { $ref: getSchemaPath(ApiErrorResponseDto) },
           ],
         },
+        examples: authSwaggerExamples.updateAvatarBadRequest,
       },
     },
   })
@@ -412,6 +415,7 @@ export class AuthController {
     content: {
       'application/json': {
         schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.meUnauthorized,
       },
     },
   })

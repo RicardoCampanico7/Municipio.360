@@ -163,6 +163,7 @@ export const authSwaggerExamples = {
           biNumber: '12345678 1 AB2',
           postalCode: '1000-123',
           email: 'cidadao@municipio360.pt',
+          avatarUrl: null,
           role: 'CIVIL',
           certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
@@ -235,6 +236,96 @@ export const authSwaggerExamples = {
           createdAt: '2026-04-05T10:15:30.000Z',
           updatedAt: '2026-04-05T10:15:30.000Z',
         },
+      },
+    },
+    authenticatedProfileWithoutAvatar: {
+      summary: 'Perfil sem fotografia de perfil',
+      value: {
+        user: {
+          id: 8,
+          name: 'Ana Costa',
+          biNumber: '22345678 1 AB2',
+          postalCode: '1000-123',
+          email: 'ana@municipio360.pt',
+          avatarUrl: null,
+          role: 'CIVIL',
+          certStatus: 'CERTIFIED',
+          createdAt: '2026-04-05T10:15:30.000Z',
+          updatedAt: '2026-04-05T10:15:30.000Z',
+        },
+      },
+    },
+  },
+  updateAvatarRequest: {
+    uploadAvatar: {
+      summary: 'Upload/edicao da fotografia',
+      description:
+        'Aceita data URL base64 PNG, JPEG, WEBP ou GIF, com limite de 3 MB.',
+      value: {
+        avatarUrl:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB...',
+      },
+    },
+    removeAvatar: {
+      summary: 'Remover fotografia',
+      description:
+        'Define a fotografia de perfil como inexistente. As respostas passam a devolver avatarUrl null.',
+      value: {
+        avatarUrl: null,
+      },
+    },
+  },
+  updateAvatarSuccess: {
+    updatedAvatar: {
+      summary: 'Fotografia atualizada',
+      value: {
+        user: {
+          id: 7,
+          name: 'Maria Fernandes',
+          biNumber: '12345678 1 AB2',
+          postalCode: '1000-123',
+          email: 'cidadao@municipio360.pt',
+          avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+          role: 'CIVIL',
+          certStatus: 'CERTIFIED',
+          createdAt: '2026-04-05T10:15:30.000Z',
+          updatedAt: '2026-04-05T10:20:00.000Z',
+        },
+      },
+    },
+    removedAvatar: {
+      summary: 'Fotografia removida',
+      value: {
+        user: {
+          id: 7,
+          name: 'Maria Fernandes',
+          biNumber: '12345678 1 AB2',
+          postalCode: '1000-123',
+          email: 'cidadao@municipio360.pt',
+          avatarUrl: null,
+          role: 'CIVIL',
+          certStatus: 'CERTIFIED',
+          createdAt: '2026-04-05T10:15:30.000Z',
+          updatedAt: '2026-04-05T10:20:00.000Z',
+        },
+      },
+    },
+  },
+  updateAvatarBadRequest: {
+    invalidAvatar: {
+      summary: 'Formato invalido',
+      value: {
+        statusCode: 400,
+        message: 'Fotografia de perfil invalida',
+        error: 'Bad Request',
+      },
+    },
+    oversizedAvatar: {
+      summary: 'Imagem acima do limite',
+      value: {
+        statusCode: 400,
+        message: 'A fotografia de perfil nao pode exceder 3 MB',
+        error: 'Bad Request',
       },
     },
   },

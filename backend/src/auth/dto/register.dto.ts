@@ -59,7 +59,7 @@ export class RegisterDto {
   @ApiPropertyOptional({
     example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
     description:
-      'Fotografia de perfil opcional em formato data URL (PNG, JPEG, WEBP ou GIF)',
+      'Fotografia de perfil opcional em formato data URL base64 (PNG, JPEG, WEBP ou GIF, ate 3 MB). Quando omitida, as respostas devolvem avatarUrl null.',
   })
   @Transform(({ value }) =>
     typeof value === 'string' && value.trim() === '' ? undefined : value,
