@@ -46,7 +46,6 @@ type DashboardReport = {
   title: string;
   time: string;
   tone: ReportTone;
-  imageUrl?: string;
 };
 
 function toTimeLabel(value: string | undefined, locale: string, fallback: string) {
@@ -73,7 +72,9 @@ export default function Dashboard() {
   const authenticated = isAuthenticated();
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(() => getAuthenticatedUser());
   const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : "visitante";
-  const userAvatar = authenticated ? sessionUser?.avatarUrl || "/user-avatar.jpg" : "/user-avatar.jpg";
+  const userAvatar = authenticated ? sessionUser?.avatarUrl || "" : "";
+  const userInitial = userName.trim().charAt(0).toUpperCase() || "V";
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [occurrences, setOccurrences] = useState<ApiOccurrence[]>([]);
@@ -177,6 +178,10 @@ export default function Dashboard() {
   }, [navigate, publicContent.reportsLoadError, t]);
 
   useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [userAvatar]);
+
+  useEffect(() => {
     const intervalId = window.setInterval(() => {
       setActiveBannerIndex((current) => (current + 1) % dashboardBannerSlides.length);
     }, 4800);
@@ -214,7 +219,6 @@ export default function Dashboard() {
         title: item.title || item.category || t("dashboard.reports.untitled"),
         time: toTimeLabel(item.createdAt || item.updatedAt, i18n.language, t("dashboard.reports.noDate")),
         tone,
-        imageUrl: item.imageUrls?.[0],
       };
     });
   }, [occurrences, i18n.language, t]);
@@ -251,15 +255,18 @@ export default function Dashboard() {
       <section className="dashboard-phone" aria-label="Dashboard">
         <header className="dashboard-header">
           <div className="dashboard-user">
-            <img
-              className="dashboard-avatar"
-              src={userAvatar}
-              alt={authenticated ? `Fotografia de ${userName}` : "Fotografia do utilizador"}
-              onError={(event) => {
-                if (event.currentTarget.src.endsWith("/user-avatar.jpg")) return;
-                event.currentTarget.src = "/user-avatar.jpg";
-              }}
-            />
+            {userAvatar && !avatarLoadFailed ? (
+              <img
+                className="dashboard-avatar"
+                src={userAvatar}
+                alt={authenticated ? `Fotografia de ${userName}` : "Fotografia do utilizador"}
+                onError={() => setAvatarLoadFailed(true)}
+              />
+            ) : (
+              <span className="dashboard-avatar dashboard-avatar-initial" aria-hidden="true">
+                {userInitial}
+              </span>
+            )}
             <div>
               <h1 className="dashboard-greeting">{t("dashboard.greeting", { name: userName })}</h1>
               <p className="dashboard-location">{t("dashboard.location")}</p>
@@ -388,7 +395,6 @@ export default function Dashboard() {
                       title={report.title}
                       time={report.time}
                       tone={report.tone}
-                      imageUrl={report.imageUrl}
                     />
                   ))}
               </div>
