@@ -18,7 +18,7 @@ type SafeUser = {
   biNumber: string;
   postalCode: string;
   email: string;
-  avatarUrl?: string | null;
+  avatarUrl: string | null;
   role: Role;
   certStatus: CertificationStatus;
   isActive?: boolean;
@@ -116,7 +116,7 @@ export class AuthService {
       biNumber: user.biNumber,
       postalCode: user.postalCode,
       email: user.email,
-      avatarUrl: user.avatarUrl ?? undefined,
+      avatarUrl: user.avatarUrl ?? null,
       role: user.role,
       certStatus: user.certStatus,
       createdAt: user.createdAt,
