@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -311,5 +312,64 @@ export class AuthController {
   logout(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
     return this.authService.logout(Number(authUser?.sub));
+  }
+
+  /**
+   * Atualiza ou remove a fotografia de perfil do utilizador autenticado.
+   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+   * @param dto Nova fotografia em data URL, ou null para remover.
+   * @return Perfil seguro atualizado do utilizador autenticado.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/avatar')
+  @ApiBearerAuth('bearer')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT recebido em /auth/login no formato Bearer <token>.',
+    required: true,
+    example: authSwaggerExamples.authorizationHeader,
+  })
+  @ApiOperation({
+    summary: 'Atualizar fotografia de perfil',
+    description:
+      'Atualiza a fotografia de perfil do utilizador autenticado. Envia avatarUrl null para remover a fotografia atual.',
+  })
+  @ApiBody({
+    description: 'Nova fotografia de perfil do utilizador autenticado.',
+    required: true,
+    schema: { $ref: getSchemaPath(UpdateAvatarDto) },
+  })
+  @ApiOkResponse({
+    description: 'Fotografia de perfil atualizada com sucesso',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthMeResponseDto) },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Fotografia de perfil invalida',
+    content: {
+      'application/json': {
+        schema: {
+          oneOf: [
+            { $ref: getSchemaPath(ValidationErrorResponseDto) },
+            { $ref: getSchemaPath(ApiErrorResponseDto) },
+          ],
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao, token invalido ou utilizador inexistente',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+      },
+    },
+  })
+  updateAvatar(@Req() req: Request, @Body() dto: UpdateAvatarDto) {
+    const authUser = req.user as { sub?: number } | undefined;
+    return this.authService.updateAvatar(Number(authUser?.sub), dto.avatarUrl);
   }
 }
