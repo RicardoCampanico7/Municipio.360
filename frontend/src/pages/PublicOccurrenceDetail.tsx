@@ -289,7 +289,8 @@ export default function PublicOccurrenceDetail() {
 
     return ["CONCLUIDA"];
   }, [currentStatusKey]);
-  const heroImage = occurrence?.imageUrls?.[0] || "/ocurrence-all-photo.jpg";
+  const occurrenceImages = occurrence?.imageUrls ?? [];
+  const heroImage = occurrenceImages[0];
   const occurrenceReference = formatOccurrenceReference(
     occurrence?.id ?? occurrenceId,
     occurrence?.createdAt || occurrence?.updatedAt,
@@ -453,11 +454,13 @@ export default function PublicOccurrenceDetail() {
         {!loading && !error && occurrence && (
           <>
             <section className="public-occurrence-hero">
-              <img
-                className="public-occurrence-hero-background"
-                src={heroImage}
-                alt={occurrence.category || pageText.occurrenceImageAlt}
-              />
+              {heroImage && (
+                <img
+                  className="public-occurrence-hero-background"
+                  src={heroImage}
+                  alt={occurrence.category || pageText.occurrenceImageAlt}
+                />
+              )}
               <div className="public-occurrence-hero-copy">
                 <p className="public-occurrence-eyebrow">{pageText.eyebrow}</p>
                 <h1>{occurrence.category || t("dashboard.reports.untitled")}</h1>
@@ -724,23 +727,25 @@ export default function PublicOccurrenceDetail() {
                 </div>
               </article>
 
-              <article className="public-occurrence-panel">
-                <div className="public-occurrence-panel-head">
-                  <h3>{pageText.sectionGallery}</h3>
-                  <p>{pageText.sectionGalleryCopy}</p>
-                </div>
+              {occurrenceImages.length > 0 && (
+                <article className="public-occurrence-panel">
+                  <div className="public-occurrence-panel-head">
+                    <h3>{pageText.sectionGallery}</h3>
+                    <p>{pageText.sectionGalleryCopy}</p>
+                  </div>
 
-                <div className="public-occurrence-gallery">
-                  {(occurrence.imageUrls?.length ? occurrence.imageUrls : [heroImage]).map((imageUrl, index) => (
-                    <img
-                      key={`${imageUrl}-${index}`}
-                      className="public-occurrence-gallery-image"
-                      src={imageUrl}
-                      alt={`${pageText.occurrenceImageAlt} ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </article>
+                  <div className="public-occurrence-gallery">
+                    {occurrenceImages.map((imageUrl, index) => (
+                      <img
+                        key={`${imageUrl}-${index}`}
+                        className="public-occurrence-gallery-image"
+                        src={imageUrl}
+                        alt={`${pageText.occurrenceImageAlt} ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </article>
+              )}
             </section>
           </>
         )}
