@@ -101,6 +101,10 @@ function getSubmissionErrorMessage(status: number, payload: ApiErrorPayload | nu
       return "Podes anexar no maximo 3 fotografias por ocorrencia.";
     }
 
+    if (rawMessage.includes("fotografia") && rawMessage.includes("obrigatoria")) {
+      return "Adiciona pelo menos uma fotografia para esta categoria.";
+    }
+
     if (
       rawMessage.includes("png") ||
       rawMessage.includes("jpeg") ||
@@ -146,6 +150,7 @@ export default function NewOccurrence() {
   const [mapNote, setMapNote] = useState(DEFAULT_MAP_NOTE);
 
   const trimmedLocation = location.trim();
+  const selectedCategoryRequiresImage = category !== "RUIDO";
   const mapQuery = trimmedLocation || DEFAULT_MAP_QUERY;
   const googleMapsEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`;
   const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
@@ -542,7 +547,9 @@ export default function NewOccurrence() {
                 </div>
               ) : (
                 <div className="occ-upload-empty">
-                  Seleciona fotografias do teu dispositivo para juntar a ocorrencia.
+                  {selectedCategoryRequiresImage
+                    ? "Seleciona fotografias do teu dispositivo para juntar a ocorrencia."
+                    : "Nesta categoria podes submeter a ocorrencia sem fotografias."}
                 </div>
               )}
             </fieldset>

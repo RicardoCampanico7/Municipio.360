@@ -1032,6 +1032,54 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que ocorrencias de ruido podem ser submetidas sem fotografia.
+   * @return void
+   */
+  it('should allow noise occurrence creation without images', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 7,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.occurrence.create.mockResolvedValue({
+      id: 99,
+      category: OccurrenceCategory.RUIDO,
+      otherCategoryDetail: null,
+      description: 'Musica alta durante a noite',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-03-19T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-19T09:00:00.000Z'),
+      userId: 7,
+    });
+
+    const result = await service.create(7, {
+      category: OccurrenceCategory.RUIDO,
+      location: 'Rua A',
+      description: 'Musica alta durante a noite',
+    });
+
+    expect(saveOccurrenceImages).not.toHaveBeenCalled();
+    expect(assignOccurrenceImagesToOccurrence).not.toHaveBeenCalled();
+    expect(prisma.occurrence.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        category: OccurrenceCategory.RUIDO,
+        imageUrls: [],
+        userId: 7,
+      }),
+      select: expect.any(Object),
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 99,
+        imageUrls: [],
+        title: 'Ruido',
+        status: 'open',
+      }),
+    );
+  });
+
+  /**
    * Garante que a criacao aceita URLs publicas previamente carregadas.
    * @return void
    */

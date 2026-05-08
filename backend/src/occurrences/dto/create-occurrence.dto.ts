@@ -131,7 +131,7 @@ export class CreateOccurrenceDto {
     type: [String],
     example: ['/uploads/occurrences/exemplo.jpg'],
     description:
-      'Lista de URLs publicas previamente carregadas pelo endpoint POST /occurrences/images. Obrigatoria quando a ocorrencia e criada em JSON.',
+      'Lista de URLs publicas previamente carregadas pelo endpoint POST /occurrences/images. Obrigatoria quando a ocorrencia e criada em JSON, exceto para ocorrencias de ruido.',
     maxItems: 3,
   })
   @IsOptional()
@@ -148,7 +148,7 @@ export class CreateOccurrenceDto {
     type: [String],
     example: ['/uploads/occurrences/exemplo.jpg'],
     description:
-      'Alias legado para URLs publicas previamente carregadas. Em novos clientes use uploadedImageUrls; em multipart/form-data o campo imageUrls e reservado aos ficheiros.',
+      'Alias legado para URLs publicas previamente carregadas. Em novos clientes use uploadedImageUrls; em multipart/form-data o campo imageUrls e reservado aos ficheiros. Opcional para ocorrencias de ruido.',
     maxItems: 3,
     deprecated: true,
   })
