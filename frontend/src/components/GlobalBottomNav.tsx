@@ -19,9 +19,12 @@ export default function GlobalBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const authenticated = isAuthenticated();
-  const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
+  const isHiddenRoute =
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname === "/register";
 
-  if (isAuthPage) return null;
+  if (isHiddenRoute) return null;
 
   const navItems = [
     { icon: Home, label: t("dashboard.nav.home"), target: "home" as const },
