@@ -333,6 +333,7 @@
 
 .public-occurrence-management-button.is-full {
   width: 100%;
+  grid-column: 1 / -1;
 }
 
 .public-occurrence-management-button:not(:disabled):hover {

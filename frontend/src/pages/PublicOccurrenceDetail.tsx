@@ -104,6 +104,7 @@ export default function PublicOccurrenceDetail() {
   const { i18n, t } = useTranslation();
   const sessionUser = getAuthenticatedUser();
   const canManageOccurrence = isBackofficeRole(sessionUser?.role);
+  const canEditOccurrence = Boolean(sessionUser);
   const [occurrence, setOccurrence] = useState<ApiOccurrence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -136,8 +137,8 @@ export default function PublicOccurrenceDetail() {
         summaryTitle: "Resumo",
         occurrenceImageAlt: "Imagem da ocorrencia",
         management: {
-          title: "Gestao da ocorrencia",
-          copy: "Disponivel apenas para operador e administrador.",
+          title: "Editar ocorrencia",
+          copy: "Edita os dados principais desta ocorrencia.",
           field: "Estado da ocorrencia",
           updateButton: "Atualizar estado",
           updateLoading: "A atualizar...",
@@ -193,8 +194,8 @@ export default function PublicOccurrenceDetail() {
         summaryTitle: "Summary",
         occurrenceImageAlt: t("publicReports.imageAlt"),
         management: {
-          title: "Occurrence management",
-          copy: "Available only to operator and administrator roles.",
+          title: "Edit occurrence",
+          copy: "Edit the main details of this occurrence.",
           field: "Occurrence status",
           updateButton: "Update status",
           updateLoading: "Updating...",
@@ -503,53 +504,65 @@ export default function PublicOccurrenceDetail() {
                   </div>
                 </dl>
 
-                {canManageOccurrence && (
+                {(canManageOccurrence || canEditOccurrence) && (
                   <div className="public-occurrence-management">
                     <div className="public-occurrence-management-head">
                       <h3>{pageText.management.title}</h3>
                       <p>{pageText.management.copy}</p>
                     </div>
 
-                    <label
-                      className="public-occurrence-management-label"
-                      htmlFor="occurrence-status"
-                    >
-                      {pageText.management.field}
-                    </label>
-                    <select
-                      id="occurrence-status"
-                      className="public-occurrence-management-select"
-                      value={selectedStatus}
-                      onChange={(event) => {
-                        setSelectedStatus(event.target.value as OccurrenceStatusKey);
-                        if (manageError) setManageError("");
-                        if (manageSuccess) setManageSuccess("");
-                      }}
-                    >
-                      {allowedStatusOptions.map((statusOption) => (
-                        <option key={statusOption} value={statusOption}>
-                          {
-                            pageText.management.statuses[
-                              statusOption as keyof typeof pageText.management.statuses
-                            ]
-                          }
-                        </option>
-                      ))}
-                    </select>
+                    {canManageOccurrence && (
+                      <>
+                        <label
+                          className="public-occurrence-management-label"
+                          htmlFor="occurrence-status"
+                        >
+                          {pageText.management.field}
+                        </label>
+                        <select
+                          id="occurrence-status"
+                          className="public-occurrence-management-select"
+                          value={selectedStatus}
+                          onChange={(event) => {
+                            setSelectedStatus(event.target.value as OccurrenceStatusKey);
+                            if (manageError) setManageError("");
+                            if (manageSuccess) setManageSuccess("");
+                          }}
+                        >
+                          {allowedStatusOptions.map((statusOption) => (
+                            <option key={statusOption} value={statusOption}>
+                              {
+                                pageText.management.statuses[
+                                  statusOption as keyof typeof pageText.management.statuses
+                                ]
+                              }
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
 
                     <div className="public-occurrence-management-actions">
+                      {canManageOccurrence && (
+                        <button
+                          className="public-occurrence-management-button is-primary"
+                          type="button"
+                          onClick={handleUpdateStatus}
+                          disabled={statusUpdating || selectedStatus === currentStatusKey}
+                        >
+                          {statusUpdating
+                            ? pageText.management.updateLoading
+                            : pageText.management.updateButton}
+                        </button>
+                      )}
                       <button
-                        className="public-occurrence-management-button is-primary"
-                        type="button"
-                        onClick={handleUpdateStatus}
-                        disabled={statusUpdating || selectedStatus === currentStatusKey}
-                      >
-                        {statusUpdating
-                          ? pageText.management.updateLoading
-                          : pageText.management.updateButton}
-                      </button>
-                      <button
-                        className="public-occurrence-management-button is-secondary"
+                        className={[
+                          "public-occurrence-management-button",
+                          "is-secondary",
+                          canManageOccurrence ? "" : "is-full",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                         type="button"
                         onClick={handleToggleEdit}
                         disabled={occurrenceUpdating}

@@ -519,6 +519,15 @@ img.dashboard-avatar {
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.045);
 }
 
+.dashboard-report-card-button {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .dashboard-report-card h4 {
   margin: 14px 0 8px;
   font-size: 1.35rem;
