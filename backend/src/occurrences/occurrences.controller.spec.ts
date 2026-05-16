@@ -132,10 +132,10 @@ describe('OccurrencesController', () => {
   });
 
   /**
-   * Garante que a edicao de ocorrencias esta reservada ao backoffice.
+   * Garante que a edicao de ocorrencias exige autenticacao.
    * @return void
    */
-  it('should protect occurrence edits with JWT and backoffice roles', () => {
+  it('should protect occurrence edits with JWT', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       controller.updateOccurrence,
@@ -145,8 +145,8 @@ describe('OccurrencesController', () => {
       controller.updateOccurrence,
     ) as Role[];
 
-    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
-    expect(roles).toEqual([Role.OPERADOR, Role.ADMINISTRADOR]);
+    expect(guards).toEqual([JwtAuthGuard]);
+    expect(roles).toBeUndefined();
   });
 
   /**
