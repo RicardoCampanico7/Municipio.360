@@ -1,3 +1,11 @@
+/**
+ * @description Normaliza ocorrencias e executa pedidos HTTP relacionados com participacoes municipais.
+ * @author Ricardo Campaniço (a83857)
+ * @version 17/05/2026
+ */
+/**
+ * @description Representa uma ocorrencia recebida da API para areas autenticadas.
+ */
 export type ApiOccurrence = {
   id?: string | number;
   title?: string;
@@ -13,6 +21,9 @@ export type ApiOccurrence = {
   imageUrls?: string[];
 };
 
+/**
+ * @description Enumera as categorias validas de ocorrencias usadas pelo frontend.
+ */
 export type OccurrenceCategoryKey =
   | "BURACOS_PAVIMENTO"
   | "ILUMINACAO_PUBLICA"
@@ -22,8 +33,14 @@ export type OccurrenceCategoryKey =
   | "SINALIZACAO"
   | "OUTROS";
 
+/**
+ * @description Enumera os estados persistidos de uma ocorrencia.
+ */
 export type OccurrenceStatusKey = "SUBMETIDA" | "EM_TRATAMENTO" | "CONCLUIDA";
 
+/**
+ * @description Representa uma ocorrencia publica apresentada a visitantes e utilizadores.
+ */
 export type PublicOccurrence = {
   id?: string | number;
   category?: string;
@@ -38,6 +55,9 @@ export type PublicOccurrence = {
   imageUrls?: string[];
 };
 
+/**
+ * @description Representa os campos editaveis de uma ocorrencia existente.
+ */
 export type UpdateOccurrencePayload = {
   category: OccurrenceCategoryKey;
   otherCategoryDetail?: string;
@@ -45,6 +65,9 @@ export type UpdateOccurrencePayload = {
   location: string;
 };
 
+/**
+ * @description Representa os dados enviados ao criar uma nova ocorrencia.
+ */
 export type CreateOccurrencePayload = {
   category: OccurrenceCategoryKey;
   description: string;
@@ -52,9 +75,17 @@ export type CreateOccurrencePayload = {
   imageFiles?: File[];
 };
 
+/**
+ * @description Erro normalizado para falhas nos pedidos de ocorrencias.
+ */
 export class OccurrencesRequestError extends Error {
   status: number;
 
+  /**
+   * Cria um erro de ocorrencias com estado HTTP associado.
+   * @param message Mensagem de erro apresentada ao cliente.
+   * @param status Codigo HTTP devolvido pela API.
+   */
   constructor(message: string, status: number) {
     super(message);
     this.name = "OccurrencesRequestError";
@@ -62,6 +93,12 @@ export class OccurrencesRequestError extends Error {
   }
 }
 
+/**
+ * Normaliza uma URL de imagem associada a ocorrencia.
+ * @param value Valor desconhecido recebido da API.
+ * @return URL pronta a usar no cliente ou undefined quando nao existe imagem valida.
+ * Pre-condicao: URLs locais em /uploads devem apontar para o proxy da API.
+ */
 function normalizeOccurrenceImageUrl(value: unknown) {
   const imageUrl = normalizeString(value);
 
@@ -74,10 +111,22 @@ function normalizeOccurrenceImageUrl(value: unknown) {
   return imageUrl;
 }
 
+/**
+ * Normaliza valores textuais opcionais.
+ * @param value Valor desconhecido recebido da API.
+ * @return String aparada ou undefined quando o valor nao e textual.
+ */
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : undefined;
 }
 
+/**
+ * Converte estados de apresentacao ou persistencia para a chave persistida.
+ * @param value Estado desconhecido recebido da API.
+ * @return Estado normalizado ou undefined quando nao existe correspondencia.
+ * Pre-condicao: O valor pode vir como chave do backend ou alias de apresentacao.
+ * Pos-condicao: Apenas estados reconhecidos sao devolvidos.
+ */
 function normalizeStatusKey(value: unknown): OccurrenceStatusKey | undefined {
   if (value === "SUBMETIDA" || value === "EM_TRATAMENTO" || value === "CONCLUIDA") {
     return value;
@@ -90,6 +139,12 @@ function normalizeStatusKey(value: unknown): OccurrenceStatusKey | undefined {
   return undefined;
 }
 
+/**
+ * Converte uma categoria desconhecida para uma categoria valida do frontend.
+ * @param value Categoria desconhecida recebida da API.
+ * @return Categoria normalizada ou undefined quando nao existe correspondencia.
+ * Pre-condicao: O valor deve coincidir com uma das categorias suportadas.
+ */
 function normalizeCategoryKey(value: unknown): OccurrenceCategoryKey | undefined {
   if (
     value === "BURACOS_PAVIMENTO" ||
@@ -106,6 +161,11 @@ function normalizeCategoryKey(value: unknown): OccurrenceCategoryKey | undefined
   return undefined;
 }
 
+/**
+ * Normaliza o estado para a apresentacao visual no frontend.
+ * @param value Estado desconhecido recebido da API.
+ * @return Alias visual do estado ou string aparada quando nao existe mapeamento.
+ */
 function normalizePresentationStatus(value: unknown): string | undefined {
   if (value === "SUBMETIDA" || value === "open") return "open";
   if (value === "EM_TRATAMENTO" || value === "progress") return "progress";
@@ -114,10 +174,22 @@ function normalizePresentationStatus(value: unknown): string | undefined {
   return normalizeString(value);
 }
 
+/**
+ * Normaliza identificadores de ocorrencia.
+ * @param value Valor desconhecido recebido da API.
+ * @return Identificador textual ou numerico, ou undefined quando invalido.
+ */
 function normalizeId(value: unknown) {
   return typeof value === "string" || typeof value === "number" ? value : undefined;
 }
 
+/**
+ * Normaliza a lista de URLs de imagens de uma ocorrencia.
+ * @param value Valor desconhecido que pode conter URLs de imagem.
+ * @return Lista de URLs normalizadas ou undefined quando nao existem imagens validas.
+ * Pre-condicao: Apenas arrays podem originar listas de imagens.
+ * Pos-condicao: Entradas vazias ou invalidas sao removidas.
+ */
 function normalizeImageUrls(value: unknown) {
   if (!Array.isArray(value)) return undefined;
 
@@ -128,6 +200,13 @@ function normalizeImageUrls(value: unknown) {
   return imageUrls.length > 0 ? imageUrls : undefined;
 }
 
+/**
+ * Sanitiza um payload desconhecido para o formato de ocorrencia usado pelo frontend.
+ * @param value Payload desconhecido devolvido pela API.
+ * @return Ocorrencia normalizada ou null quando o payload nao representa um objeto valido.
+ * Pre-condicao: O payload pode vir parcial, aninhado ou com tipos inesperados.
+ * Pos-condicao: Campos conhecidos sao normalizados antes de sair da camada de servico.
+ */
 function sanitizeOccurrence(value: unknown): ApiOccurrence | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
 
@@ -149,6 +228,11 @@ function sanitizeOccurrence(value: unknown): ApiOccurrence | null {
   };
 }
 
+/**
+ * Converte uma ocorrencia interna para a forma publica.
+ * @param value Ocorrencia ja sanitizada.
+ * @return Ocorrencia publica com os campos permitidos para apresentacao.
+ */
 function toPublicOccurrence(value: ApiOccurrence): PublicOccurrence {
   return {
     id: value.id,
@@ -165,6 +249,14 @@ function toPublicOccurrence(value: ApiOccurrence): PublicOccurrence {
   };
 }
 
+/**
+ * Normaliza respostas de lista de ocorrencias.
+ * @param payload Payload desconhecido devolvido pela API.
+ * @param sanitize Funcao responsavel por validar cada item da lista.
+ * @return Lista de ocorrencias normalizadas e sem itens invalidos.
+ * Pre-condicao: A lista pode vir diretamente ou dentro de data/occurrences.
+ * Pos-condicao: O resultado e sempre um array.
+ */
 function normalizeOccurrencesPayload<TOccurrence>(
   payload: unknown,
   sanitize: (value: unknown) => TOccurrence | null,
@@ -183,6 +275,13 @@ function normalizeOccurrencesPayload<TOccurrence>(
   return list.map(sanitize).filter((item): item is TOccurrence => item !== null);
 }
 
+/**
+ * Normaliza respostas de detalhe de uma ocorrencia.
+ * @param payload Payload desconhecido devolvido pela API.
+ * @param sanitize Funcao responsavel por validar a ocorrencia.
+ * @return Ocorrencia normalizada ou null quando a resposta nao e valida.
+ * Pre-condicao: A ocorrencia pode vir diretamente ou dentro de data/occurrence.
+ */
 function normalizeOccurrencePayload<TOccurrence>(
   payload: unknown,
   sanitize: (value: unknown) => TOccurrence | null,
@@ -201,6 +300,11 @@ function normalizeOccurrencePayload<TOccurrence>(
   return null;
 }
 
+/**
+ * Extrai uma mensagem de erro normalizada da resposta da API.
+ * @param data Payload desconhecido devolvido pelo backend.
+ * @return Mensagem textual, lista agregada de mensagens ou string vazia.
+ */
 function extractApiMessage(data: unknown) {
   if (!data || typeof data !== "object") return "";
   const message = (data as { message?: unknown }).message;
@@ -212,6 +316,14 @@ function extractApiMessage(data: unknown) {
   return typeof message === "string" ? message : "";
 }
 
+/**
+ * Interpreta uma resposta HTTP com lista de ocorrencias.
+ * @param response Resposta HTTP do pedido.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @param sanitize Funcao de sanitizacao aplicada a cada item.
+ * @return Promise com lista normalizada de ocorrencias.
+ * Pre-condicao: A resposta deve ser JSON ou falhar de forma controlada.
+ */
 async function parseOccurrencesResponse<TOccurrence>(
   response: Response,
   fallbackMessage: string,
@@ -226,6 +338,14 @@ async function parseOccurrencesResponse<TOccurrence>(
   return normalizeOccurrencesPayload(data, sanitize);
 }
 
+/**
+ * Interpreta uma resposta HTTP com detalhe de ocorrencia.
+ * @param response Resposta HTTP do pedido.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @param sanitize Funcao de sanitizacao aplicada ao payload.
+ * @return Promise com ocorrencia normalizada.
+ * Pre-condicao: A resposta deve conter uma ocorrencia valida.
+ */
 async function parseOccurrenceResponse<TOccurrence>(
   response: Response,
   fallbackMessage: string,
@@ -245,6 +365,11 @@ async function parseOccurrenceResponse<TOccurrence>(
   return occurrence;
 }
 
+/**
+ * Carrega a lista publica de ocorrencias.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @return Promise com ocorrencias publicas normalizadas.
+ */
 export async function fetchPublicOccurrences(fallbackMessage: string) {
   const response = await fetch("/api/occurrences");
   return parseOccurrencesResponse(response, fallbackMessage, (value) => {
@@ -253,6 +378,13 @@ export async function fetchPublicOccurrences(fallbackMessage: string) {
   });
 }
 
+/**
+ * Carrega as ocorrencias pertencentes ao utilizador autenticado.
+ * @param token Token JWT usado para autenticar o pedido.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @return Promise com ocorrencias autenticadas normalizadas.
+ * Pre-condicao: O token deve pertencer a uma sessao valida.
+ */
 export async function fetchMyOccurrences(token: string, fallbackMessage: string) {
   const response = await fetch("/api/occurrences/mine/list", {
     method: "GET",
@@ -264,6 +396,12 @@ export async function fetchMyOccurrences(token: string, fallbackMessage: string)
   return parseOccurrencesResponse(response, fallbackMessage, sanitizeOccurrence);
 }
 
+/**
+ * Carrega o detalhe publico de uma ocorrencia.
+ * @param id Identificador da ocorrencia.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @return Promise com ocorrencia publica normalizada.
+ */
 export async function fetchPublicOccurrenceById(id: string, fallbackMessage: string) {
   const response = await fetch(`/api/occurrences/${id}`);
   return parseOccurrenceResponse(response, fallbackMessage, (value) => {
@@ -272,6 +410,14 @@ export async function fetchPublicOccurrenceById(id: string, fallbackMessage: str
   });
 }
 
+/**
+ * Cria uma nova ocorrencia autenticada.
+ * @param payload Dados e imagens da ocorrencia a criar.
+ * @param token Token JWT usado para autenticar o pedido.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @return Promise com a ocorrencia criada e normalizada.
+ * Pre-condicao: O utilizador deve estar autenticado e autorizado a criar ocorrencias.
+ */
 export async function createOccurrence(
   payload: CreateOccurrencePayload,
   token: string,
@@ -296,6 +442,15 @@ export async function createOccurrence(
   return parseOccurrenceResponse(response, fallbackMessage, sanitizeOccurrence);
 }
 
+/**
+ * Atualiza o estado de uma ocorrencia.
+ * @param id Identificador da ocorrencia.
+ * @param status Novo estado persistido.
+ * @param token Token JWT usado para autenticar o pedido.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @return Promise com a resposta devolvida pelo backend.
+ * Pre-condicao: O utilizador deve ter permissao de backoffice para alterar estados.
+ */
 export async function updateOccurrenceStatus(
   id: string,
   status: OccurrenceStatusKey,
@@ -320,6 +475,15 @@ export async function updateOccurrenceStatus(
   return data;
 }
 
+/**
+ * Atualiza os campos editaveis de uma ocorrencia.
+ * @param id Identificador da ocorrencia.
+ * @param payload Dados editaveis da ocorrencia.
+ * @param token Token JWT usado para autenticar o pedido.
+ * @param fallbackMessage Mensagem usada quando a API nao devolve detalhe do erro.
+ * @return Promise com a resposta devolvida pelo backend.
+ * Pre-condicao: O utilizador deve ser autor da ocorrencia ou ter permissao de backoffice.
+ */
 export async function updateOccurrence(
   id: string,
   payload: UpdateOccurrencePayload,
