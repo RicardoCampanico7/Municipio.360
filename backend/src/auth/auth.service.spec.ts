@@ -78,7 +78,6 @@ describe('AuthService', () => {
       email: 'maria@teste.pt',
       avatarUrl: 'data:image/png;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
-      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T10:00:00.000Z'),
       updatedAt: new Date('2026-03-17T10:00:00.000Z'),
     });
@@ -115,7 +114,6 @@ describe('AuthService', () => {
       email: 'maria@teste.pt',
       avatarUrl: 'data:image/png;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
-      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T10:00:00.000Z'),
       updatedAt: new Date('2026-03-17T10:00:00.000Z'),
     });
@@ -201,7 +199,6 @@ describe('AuthService', () => {
         email: 'operador@teste.pt',
         avatarUrl: 'data:image/jpeg;base64,QUJDRA==',
         role: Role.OPERADOR,
-        certStatus: CertificationStatus.CERTIFIED,
         createdAt: undefined,
         updatedAt: undefined,
       },
@@ -212,7 +209,6 @@ describe('AuthService', () => {
       expect.objectContaining({
         sub: 9,
         role: Role.OPERADOR,
-        certStatus: CertificationStatus.CERTIFIED,
         authVersion: 0,
       }),
     );
@@ -366,7 +362,6 @@ describe('AuthService', () => {
       email: 'admin@teste.pt',
       avatarUrl: 'data:image/webp;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
-      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T11:00:00.000Z'),
       updatedAt: new Date('2026-03-17T12:00:00.000Z'),
     });
@@ -387,7 +382,6 @@ describe('AuthService', () => {
       email: 'admin@teste.pt',
       avatarUrl: 'data:image/png;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
-      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T11:00:00.000Z'),
       updatedAt: new Date('2026-03-17T12:00:00.000Z'),
     });
@@ -411,7 +405,6 @@ describe('AuthService', () => {
       email: 'admin@teste.pt',
       avatarUrl: 'data:image/png;base64,QUJDRA==',
       role: Role.ADMINISTRADOR,
-      certStatus: CertificationStatus.CERTIFIED,
       createdAt: new Date('2026-03-17T11:00:00.000Z'),
       updatedAt: new Date('2026-03-17T12:00:00.000Z'),
     });

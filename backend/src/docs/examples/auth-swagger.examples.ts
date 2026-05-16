@@ -1,6 +1,6 @@
 export const authSwaggerExamples = {
   authorizationHeader:
-    'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiY2VydFN0YXR1cyI6IkNFUlRJRklFRCIsImlhdCI6MTc0Mzg0ODEzMCwiZXhwIjoxNzQzODUxNzMwfQ.signature',
+    'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiYXV0aFZlcnNpb24iOjAsImlhdCI6MTc0Mzg0ODEzMCwiZXhwIjoxNzQzODUxNzMwfQ.signature',
   loginRequest: {
     civilCredentials: {
       summary: 'Credenciais validas',
@@ -25,7 +25,7 @@ export const authSwaggerExamples = {
       summary: 'JWT emitido com sucesso',
       value: {
         accessToken:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiY2VydFN0YXR1cyI6IkNFUlRJRklFRCIsImlhdCI6MTc0Mzg0ODEzMCwiZXhwIjoxNzQzODUxNzMwfQ.signature',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiYXV0aFZlcnNpb24iOjAsImlhdCI6MTc0Mzg0ODEzMCwiZXhwIjoxNzQzODUxNzMwfQ.signature',
         refreshToken:
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsImF1dGhWZXJzaW9uIjowLCJ0b2tlblR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzQzODQ4MTMwLCJleHAiOjE3NDQ0NTI5MzB9.signature',
         tokenType: 'Bearer',
@@ -37,7 +37,6 @@ export const authSwaggerExamples = {
           email: 'cidadao@municipio360.pt',
           avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
           role: 'CIVIL',
-          certStatus: 'CERTIFIED',
         },
       },
     },
@@ -58,7 +57,7 @@ export const authSwaggerExamples = {
       summary: 'Tokens renovados',
       value: {
         accessToken:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiY2VydFN0YXR1cyI6IkNFUlRJRklFRCIsImF1dGhWZXJzaW9uIjowLCJpYXQiOjE3NDM4NDkwMDAsImV4cCI6MTc0Mzg1MjYwMH0.signature',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsIm5hbWUiOiJNYXJpYSBGZXJuYW5kZXMiLCJlbWFpbCI6ImNpZGFkYW9AbXVuaWNpcGlvMzYwLnB0Iiwicm9sZSI6IkNJVklMIiwiYXV0aFZlcnNpb24iOjAsImlhdCI6MTc0Mzg0OTAwMCwiZXhwIjoxNzQzODUyNjAwfQ.signature',
         refreshToken:
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsImF1dGhWZXJzaW9uIjowLCJ0b2tlblR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzQzODQ5MDAwLCJleHAiOjE3NDQ0NTM4MDB9.signature',
         tokenType: 'Bearer',
@@ -165,7 +164,6 @@ export const authSwaggerExamples = {
           email: 'cidadao@municipio360.pt',
           avatarUrl: null,
           role: 'CIVIL',
-          certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
           updatedAt: '2026-04-05T10:15:30.000Z',
         },
@@ -232,7 +230,6 @@ export const authSwaggerExamples = {
           email: 'cidadao@municipio360.pt',
           avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
           role: 'CIVIL',
-          certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
           updatedAt: '2026-04-05T10:15:30.000Z',
         },
@@ -249,7 +246,6 @@ export const authSwaggerExamples = {
           email: 'ana@municipio360.pt',
           avatarUrl: null,
           role: 'CIVIL',
-          certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
           updatedAt: '2026-04-05T10:15:30.000Z',
         },
@@ -287,7 +283,6 @@ export const authSwaggerExamples = {
           email: 'cidadao@municipio360.pt',
           avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
           role: 'CIVIL',
-          certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
           updatedAt: '2026-04-05T10:20:00.000Z',
         },
@@ -304,7 +299,6 @@ export const authSwaggerExamples = {
           email: 'cidadao@municipio360.pt',
           avatarUrl: null,
           role: 'CIVIL',
-          certStatus: 'CERTIFIED',
           createdAt: '2026-04-05T10:15:30.000Z',
           updatedAt: '2026-04-05T10:20:00.000Z',
         },

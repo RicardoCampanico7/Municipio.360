@@ -20,7 +20,6 @@ type SafeUser = {
   email: string;
   avatarUrl: string | null;
   role: Role;
-  certStatus: CertificationStatus;
   isActive?: boolean;
   authVersion?: number;
   refreshTokenHash?: string | null;
@@ -28,10 +27,7 @@ type SafeUser = {
   updatedAt?: Date;
 };
 
-type AuthTokenUser = Pick<
-  SafeUser,
-  'id' | 'name' | 'email' | 'role' | 'certStatus'
-> & {
+type AuthTokenUser = Pick<SafeUser, 'id' | 'name' | 'email' | 'role'> & {
   authVersion: number;
 };
 
@@ -118,7 +114,6 @@ export class AuthService {
       email: user.email,
       avatarUrl: user.avatarUrl ?? null,
       role: user.role,
-      certStatus: user.certStatus,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -135,7 +130,6 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
-      certStatus: user.certStatus,
       authVersion: user.authVersion,
     };
   }
@@ -219,7 +213,6 @@ export class AuthService {
         email: true,
         avatarUrl: true,
         role: true,
-        certStatus: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -249,7 +242,6 @@ export class AuthService {
         email: true,
         avatarUrl: true,
         role: true,
-        certStatus: true,
         isActive: true,
         authVersion: true,
         biNumber: true,
@@ -310,7 +302,6 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
-        certStatus: true,
         isActive: true,
         authVersion: true,
         refreshTokenHash: true,
@@ -354,7 +345,6 @@ export class AuthService {
         email: true,
         avatarUrl: true,
         role: true,
-        certStatus: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -403,7 +393,6 @@ export class AuthService {
         email: true,
         avatarUrl: true,
         role: true,
-        certStatus: true,
         createdAt: true,
         updatedAt: true,
       },

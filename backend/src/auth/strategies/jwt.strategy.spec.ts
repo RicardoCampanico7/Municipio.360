@@ -41,7 +41,6 @@ describe('JwtStrategy', () => {
       email: 'user@example.com',
       name: 'User',
       role: Role.CIVIL,
-      certStatus: undefined,
       authVersion: undefined,
     });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
@@ -108,7 +107,6 @@ describe('JwtStrategy', () => {
         email: 'user@example.com',
         name: 'User',
         role: Role.OPERADOR,
-        certStatus: 'CERTIFIED',
         authVersion: 1,
       }),
     ).resolves.toEqual({
@@ -116,7 +114,6 @@ describe('JwtStrategy', () => {
       email: 'user@example.com',
       name: 'User',
       role: Role.OPERADOR,
-      certStatus: 'CERTIFIED',
       authVersion: 1,
     });
   });

@@ -182,8 +182,8 @@ Fluxos bons para demonstracao:
 - `biNumber`
 - `postalCode`
 - `email`
+- `avatarUrl`
 - `role`
-- `certStatus`
 - `createdAt`
 - `updatedAt`
 - Nenhum item deve expor `passwordHash`.

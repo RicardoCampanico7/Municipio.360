@@ -96,7 +96,6 @@ export class UsersController {
         email: true,
         avatarUrl: true,
         role: true,
-        certStatus: true,
         createdAt: true,
         updatedAt: true,
       },
