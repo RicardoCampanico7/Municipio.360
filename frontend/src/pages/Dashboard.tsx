@@ -42,6 +42,7 @@ type ReportTone = "progress" | "open" | "done";
 
 type DashboardReport = {
   id: string;
+  occurrenceId?: string;
   status: string;
   title: string;
   time: string;
@@ -215,6 +216,7 @@ export default function Dashboard() {
 
       return {
         id: String(item.id ?? `occ-${index}`),
+        occurrenceId: item.id !== undefined && item.id !== null ? String(item.id) : undefined,
         status: statusByTone[tone],
         title: item.title || item.category || t("dashboard.reports.untitled"),
         time: toTimeLabel(item.createdAt || item.updatedAt, i18n.language, t("dashboard.reports.noDate")),
@@ -395,6 +397,11 @@ export default function Dashboard() {
                       title={report.title}
                       time={report.time}
                       tone={report.tone}
+                      onClick={
+                        report.occurrenceId
+                          ? () => navigate(`/occurrences/public/${report.occurrenceId}`)
+                          : undefined
+                      }
                     />
                   ))}
               </div>

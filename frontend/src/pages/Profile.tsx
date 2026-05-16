@@ -170,7 +170,7 @@ export default function Profile() {
 
   const displayName = profile?.name || sessionUser?.name || t("dashboard.defaultUserName");
   const displayEmail = profile?.email || sessionUser?.email || t("profile.unknownValue");
-  const avatarUrl = profile?.avatarUrl || sessionUser?.avatarUrl || "";
+  const avatarUrl = sessionUser?.avatarUrl || profile?.avatarUrl || "";
   const roleKey = typeof profile?.role === "string" ? profile.role.toLowerCase() : "";
   const roleLabel = roleKey
     ? t(`profile.roles.${roleKey}`, {
