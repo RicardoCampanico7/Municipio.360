@@ -71,7 +71,7 @@ export default function Dashboard() {
   const { i18n, t } = useTranslation();
   const authenticated = isAuthenticated();
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(() => getAuthenticatedUser());
-  const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : "visitante";
+  const userName = authenticated ? sessionUser?.name || t("dashboard.defaultUserName") : t("dashboard.publicGreetingName");
   const userAvatar = authenticated ? sessionUser?.avatarUrl || "" : "";
   const userInitial = userName.trim().charAt(0).toUpperCase() || "V";
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
@@ -80,27 +80,6 @@ export default function Dashboard() {
   const [occurrences, setOccurrences] = useState<ApiOccurrence[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [reportsError, setReportsError] = useState("");
-  const carouselCopy = i18n.language.startsWith("pt")
-    ? {
-        current: (index: number) => `Ir para imagem ${index}`,
-      }
-    : {
-        current: (index: number) => `Go to image ${index}`,
-      };
-
-  const publicContent = i18n.language.startsWith("pt")
-    ? {
-        greetingName: "visitante",
-        reportsTitle: "Ocorrências públicas",
-        reportsEmpty: "Ainda não existem ocorrências públicas.",
-        reportsLoadError: "Não foi possível carregar as ocorrências públicas.",
-      }
-    : {
-        greetingName: "visitor",
-        reportsTitle: "Public occurrences",
-        reportsEmpty: "There are no public occurrences yet.",
-        reportsLoadError: "Could not load public occurrences.",
-      };
 
   const redirectToLogin = (from: string) => {
     clearAccessToken();
@@ -150,7 +129,7 @@ export default function Dashboard() {
       try {
         const data = token
           ? await fetchMyOccurrences(token, t("dashboard.reportsLoadError"))
-          : await fetchPublicOccurrences(publicContent.reportsLoadError);
+          : await fetchPublicOccurrences(t("dashboard.publicReportsLoadError"));
         if (!mounted) return;
         setOccurrences(data);
       } catch (error) {
@@ -163,7 +142,7 @@ export default function Dashboard() {
           });
           return;
         }
-        setReportsError(token ? t("dashboard.reportsLoadError") : publicContent.reportsLoadError);
+        setReportsError(token ? t("dashboard.reportsLoadError") : t("dashboard.publicReportsLoadError"));
       } finally {
         if (!mounted) return;
         setReportsLoading(false);
@@ -175,7 +154,7 @@ export default function Dashboard() {
     return () => {
       mounted = false;
     };
-  }, [navigate, publicContent.reportsLoadError, t]);
+  }, [navigate, t]);
 
   useEffect(() => {
     setAvatarLoadFailed(false);
@@ -355,7 +334,7 @@ export default function Dashboard() {
                     .filter(Boolean)
                     .join(" ")}
                   type="button"
-                  aria-label={carouselCopy.current(index + 1)}
+                  aria-label={t("dashboard.carouselCurrent", { index: index + 1 })}
                   aria-pressed={index === activeBannerIndex}
                   onClick={() => setActiveBannerIndex(index)}
                 />
@@ -369,7 +348,7 @@ export default function Dashboard() {
             <section className="dashboard-section">
               <div className="dashboard-section-head">
                 <h3 className="dashboard-section-title">
-                  {authenticated ? t("dashboard.reportsTitle") : publicContent.reportsTitle}
+                  {authenticated ? t("dashboard.reportsTitle") : t("dashboard.publicReportsTitle")}
                 </h3>
                 <button
                   className="dashboard-view-all"
@@ -384,7 +363,7 @@ export default function Dashboard() {
                 {reportsLoading && <p>{t("dashboard.reportsLoading")}</p>}
                 {!reportsLoading && reportsError && <p>{reportsError}</p>}
                 {!reportsLoading && !reportsError && reports.length === 0 && (
-                  <p>{authenticated ? t("dashboard.reportsEmpty") : publicContent.reportsEmpty}</p>
+                  <p>{authenticated ? t("dashboard.reportsEmpty") : t("dashboard.publicReportsEmpty")}</p>
                 )}
                 {!reportsLoading &&
                   !reportsError &&
