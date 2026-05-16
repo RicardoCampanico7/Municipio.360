@@ -17,7 +17,7 @@ import { SafeUserResponseDto } from '../auth/dto/responses/auth-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { RolesGuard } from '../shared/guards/roles.guard';
-import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from './users.service';
 
 /**
  * Expos operacoes de consulta de utilizadores para perfis internos autorizados.
@@ -31,10 +31,10 @@ import { PrismaService } from '../prisma/prisma.service';
 @Controller('users')
 export class UsersController {
   /**
-   * Recebe o servico Prisma usado nas consultas de utilizadores.
-   * @param prisma Servico Prisma da aplicacao.
+   * Recebe o servico responsavel pelas operacoes de consulta de utilizadores.
+   * @param usersService Servico de utilizadores da aplicacao.
    */
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly usersService: UsersService) {}
 
   /**
    * Lista os utilizadores para operadores e administradores.
@@ -86,19 +86,6 @@ export class UsersController {
     },
   })
   findAll() {
-    return this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        biNumber: true,
-        postalCode: true,
-        email: true,
-        avatarUrl: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    return this.usersService.findAll();
   }
 }
