@@ -369,6 +369,96 @@ describe('AuthService', () => {
   });
 
   /**
+   * Garante que o perfil autenticado e atualizado com email normalizado.
+   * @return void
+   */
+  it('should update the authenticated user profile', async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: 11, isActive: true })
+      .mockResolvedValueOnce({ id: 11 });
+    prisma.user.update.mockResolvedValue({
+      id: 11,
+      name: 'Admin Atualizado',
+      biNumber: '32345678 1 AB3',
+      postalCode: '8000-020',
+      email: 'admin.novo@teste.pt',
+      avatarUrl: 'data:image/webp;base64,QUJDRA==',
+      role: Role.ADMINISTRADOR,
+      createdAt: new Date('2026-03-17T11:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T12:30:00.000Z'),
+    });
+
+    const result = await service.updateProfile(11, {
+      name: ' Admin Atualizado ',
+      email: ' ADMIN.NOVO@TESTE.PT ',
+      biNumber: '32345678 1 ab3',
+      postalCode: ' 8000-020 ',
+    });
+
+    expect(prisma.user.findUnique).toHaveBeenNthCalledWith(1, {
+      where: { id: 11 },
+      select: { id: true, isActive: true },
+    });
+    expect(prisma.user.findUnique).toHaveBeenNthCalledWith(2, {
+      where: { email: 'admin.novo@teste.pt' },
+      select: { id: true },
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 11 },
+      data: {
+        name: 'Admin Atualizado',
+        email: 'admin.novo@teste.pt',
+        biNumber: '32345678 1 AB3',
+        postalCode: '8000-020',
+      },
+      select: {
+        id: true,
+        name: true,
+        biNumber: true,
+        postalCode: true,
+        email: true,
+        avatarUrl: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    expect(result.user).toEqual({
+      id: 11,
+      name: 'Admin Atualizado',
+      biNumber: '32345678 1 AB3',
+      postalCode: '8000-020',
+      email: 'admin.novo@teste.pt',
+      avatarUrl: 'data:image/webp;base64,QUJDRA==',
+      role: Role.ADMINISTRADOR,
+      createdAt: new Date('2026-03-17T11:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T12:30:00.000Z'),
+    });
+    expect(result.user).not.toHaveProperty('certStatus');
+  });
+
+  /**
+   * Garante que emails de outros utilizadores nao podem ser reutilizados.
+   * @return Promise<void>
+   */
+  it('should reject profile updates with an email owned by another user', async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: 11, isActive: true })
+      .mockResolvedValueOnce({ id: 12 });
+
+    await expect(
+      service.updateProfile(11, {
+        name: 'Admin Atualizado',
+        email: 'duplicado@teste.pt',
+        biNumber: '32345678 1 AB3',
+        postalCode: '8000-020',
+      }),
+    ).rejects.toThrow('Email ja registado');
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  /**
    * Garante que a fotografia de perfil pode ser atualizada sem expor dados sensiveis.
    * @return void
    */

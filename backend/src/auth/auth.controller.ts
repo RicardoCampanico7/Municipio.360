@@ -45,6 +45,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 /**
  * Expos endpoints de registo, login e consulta do utilizador autenticado.
@@ -58,6 +59,7 @@ import { UpdateAvatarDto } from './dto/update-avatar.dto';
   RefreshTokenDto,
   RegisterDto,
   UpdateAvatarDto,
+  UpdateProfileDto,
   AuthLoginResponseDto,
   AuthDeleteAccountResponseDto,
   AuthLogoutResponseDto,
@@ -271,6 +273,73 @@ export class AuthController {
   me(@Req() req: Request) {
     const authUser = req.user as { sub?: number } | undefined;
     return this.authService.me(Number(authUser?.sub));
+  }
+
+  /**
+   * Atualiza os dados editaveis do utilizador autenticado.
+   * @param req Pedido HTTP com o utilizador autenticado pelo guard JWT.
+   * @param dto Dados de perfil a atualizar.
+   * @return Perfil seguro atualizado do utilizador autenticado.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  @ApiBearerAuth('bearer')
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'JWT recebido em /auth/login no formato Bearer <token>.',
+    required: true,
+    example: authSwaggerExamples.authorizationHeader,
+  })
+  @ApiOperation({
+    summary: 'Atualizar perfil do utilizador autenticado',
+    description:
+      'Atualiza os dados editaveis do perfil associado ao token Bearer enviado no header Authorization.',
+  })
+  @ApiBody({
+    description: 'Dados de perfil do utilizador autenticado.',
+    required: true,
+    schema: { $ref: getSchemaPath(UpdateProfileDto) },
+    examples: authSwaggerExamples.updateProfileRequest,
+  })
+  @ApiOkResponse({
+    description: 'Perfil atualizado com sucesso',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(AuthMeResponseDto) },
+        examples: authSwaggerExamples.updateProfileSuccess,
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Dados invalidos',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ValidationErrorResponseDto) },
+        examples: authSwaggerExamples.updateProfileBadRequest,
+      },
+    },
+  })
+  @ApiConflictResponse({
+    description: 'Email ja registado noutro utilizador',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.updateProfileConflict,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Sem autenticacao, token invalido ou utilizador inexistente',
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(ApiErrorResponseDto) },
+        examples: authSwaggerExamples.meUnauthorized,
+      },
+    },
+  })
+  updateProfile(@Req() req: Request, @Body() dto: UpdateProfileDto) {
+    const authUser = req.user as { sub?: number } | undefined;
+    return this.authService.updateProfile(Number(authUser?.sub), dto);
   }
 
   /**
