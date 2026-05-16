@@ -123,11 +123,13 @@ const resources = {
       profile: {
         title: "Perfil",
         kicker: "Área pessoal",
-        subtitle:
-          "Consulta os teus dados, o estado da certificação e os atalhos principais da tua conta.",
+        subtitle: "Consulta os teus dados e os atalhos principais da tua conta.",
         back: "Voltar",
         loading: "A carregar perfil...",
         loadError: "Não foi possível carregar o perfil.",
+        updateError: "Não foi possível atualizar o perfil.",
+        updateSuccess: "Perfil atualizado com sucesso.",
+        editRequired: "Preenche todos os campos do perfil.",
         unknownValue: "Não disponível",
         verifiedBadge: "Conta verificada",
         navigationLabel: "Navegação principal do perfil",
@@ -157,6 +159,10 @@ const resources = {
           dashboard: "Ir para o dashboard",
           newOccurrence: "Criar nova ocorrência",
           publicReports: "Ver ocorrências públicas",
+          edit: "Editar",
+          cancelEdit: "Cancelar",
+          save: "Guardar alterações",
+          saving: "A guardar...",
         },
         roles: {
           civil: "Cidadão",
@@ -297,11 +303,13 @@ const resources = {
       profile: {
         title: "Profile",
         kicker: "Personal area",
-        subtitle:
-          "Review your details, certification status, and the main shortcuts for your account.",
+        subtitle: "Review your details and the main shortcuts for your account.",
         back: "Back",
         loading: "Loading profile...",
         loadError: "Could not load the profile.",
+        updateError: "Could not update the profile.",
+        updateSuccess: "Profile updated successfully.",
+        editRequired: "Fill in every profile field.",
         unknownValue: "Not available",
         navigationLabel: "Primary profile navigation",
         fields: {
@@ -330,6 +338,10 @@ const resources = {
           dashboard: "Open dashboard",
           newOccurrence: "Create new report",
           publicReports: "View public reports",
+          edit: "Edit",
+          cancelEdit: "Cancel",
+          save: "Save changes",
+          saving: "Saving...",
         },
         roles: {
           civil: "Citizen",
@@ -470,11 +482,13 @@ const resources = {
       profile: {
         title: "Perfil",
         kicker: "Area personal",
-        subtitle:
-          "Consulta tus datos, el estado de la certificacion y los accesos principales de tu cuenta.",
+        subtitle: "Consulta tus datos y los accesos principales de tu cuenta.",
         back: "Volver",
         loading: "Cargando perfil...",
         loadError: "No se pudo cargar el perfil.",
+        updateError: "No se pudo actualizar el perfil.",
+        updateSuccess: "Perfil actualizado correctamente.",
+        editRequired: "Rellena todos los campos del perfil.",
         unknownValue: "No disponible",
         navigationLabel: "Navegacion principal del perfil",
         fields: {
@@ -503,6 +517,10 @@ const resources = {
           dashboard: "Ir al dashboard",
           newOccurrence: "Crear nueva incidencia",
           publicReports: "Ver incidencias publicas",
+          edit: "Editar",
+          cancelEdit: "Cancelar",
+          save: "Guardar cambios",
+          saving: "Guardando...",
         },
         roles: {
           civil: "Ciudadano",
@@ -643,11 +661,13 @@ const resources = {
       profile: {
         title: "Profil",
         kicker: "Espace personnel",
-        subtitle:
-          "Consulte tes informations, le statut de certification et les raccourcis principaux de ton compte.",
+        subtitle: "Consulte tes informations et les raccourcis principaux de ton compte.",
         back: "Retour",
         loading: "Chargement du profil...",
         loadError: "Impossible de charger le profil.",
+        updateError: "Impossible de mettre a jour le profil.",
+        updateSuccess: "Profil mis a jour avec succes.",
+        editRequired: "Remplis tous les champs du profil.",
         unknownValue: "Non disponible",
         navigationLabel: "Navigation principale du profil",
         fields: {
@@ -676,6 +696,10 @@ const resources = {
           dashboard: "Ouvrir le dashboard",
           newOccurrence: "Creer un nouveau signalement",
           publicReports: "Voir les signalements publics",
+          edit: "Modifier",
+          cancelEdit: "Annuler",
+          save: "Enregistrer",
+          saving: "Enregistrement...",
         },
         roles: {
           civil: "Citoyen",

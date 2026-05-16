@@ -6,9 +6,15 @@ export type ApiProfileUser = {
   email?: string;
   avatarUrl?: string;
   role?: string;
-  certStatus?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type UpdateProfilePayload = {
+  name: string;
+  email: string;
+  biNumber: string;
+  postalCode: string;
 };
 
 export class ProfileRequestError extends Error {
@@ -39,6 +45,17 @@ function normalizeProfilePayload(payload: unknown): ApiProfileUser | null {
   return payload as ApiProfileUser;
 }
 
+function extractProfileMessage(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+  const message = (data as { message?: unknown }).message;
+
+  if (Array.isArray(message)) {
+    return message.filter((item): item is string => typeof item === "string").join(", ");
+  }
+
+  return typeof message === "string" ? message : "";
+}
+
 export async function fetchAuthenticatedProfile(token: string, fallbackMessage: string) {
   const response = await fetch("/api/auth/me", {
     method: "GET",
@@ -50,8 +67,36 @@ export async function fetchAuthenticatedProfile(token: string, fallbackMessage: 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-    throw new ProfileRequestError(message || fallbackMessage, response.status);
+    throw new ProfileRequestError(extractProfileMessage(data) || fallbackMessage, response.status);
+  }
+
+  const profile = normalizeProfilePayload(data);
+
+  if (!profile) {
+    throw new ProfileRequestError(fallbackMessage, response.status);
+  }
+
+  return profile;
+}
+
+export async function updateAuthenticatedProfile(
+  token: string,
+  payload: UpdateProfilePayload,
+  fallbackMessage: string,
+) {
+  const response = await fetch("/api/auth/me", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new ProfileRequestError(extractProfileMessage(data) || fallbackMessage, response.status);
   }
 
   const profile = normalizeProfilePayload(data);
