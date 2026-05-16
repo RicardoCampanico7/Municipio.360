@@ -1,3 +1,8 @@
+/**
+ * @description Apresenta um resumo compacto de uma ocorrencia no dashboard.
+ * @author Ricardo Campaniço (a83857)
+ * @version 17/05/2026
+ */
 type OccurrenceTone = "progress" | "open" | "done";
 
 type OccurrenceCardProps = {
@@ -8,6 +13,16 @@ type OccurrenceCardProps = {
   onClick?: () => void;
 };
 
+/**
+ * Renderiza um cartao de ocorrencia com estado, titulo e data.
+ * @param status Texto do estado apresentado no cartao.
+ * @param title Titulo ou categoria da ocorrencia.
+ * @param time Texto da data associada a ocorrencia.
+ * @param tone Variante visual do estado.
+ * @param onClick Acao opcional executada quando o cartao e clicavel.
+ * @return Elemento React como botao clicavel ou artigo estatico.
+ * Pos-condicao: Quando existe onClick, o elemento renderizado e interativo.
+ */
 export default function OccurrenceCard({
   status,
   title,
