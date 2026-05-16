@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 type SafeUser = {
   id: number;
@@ -358,6 +359,62 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException('Conta inativa');
     }
+
+    return {
+      user: this.buildSafeUserResponse(user),
+    };
+  }
+
+  /**
+   * Atualiza os dados editaveis do perfil autenticado.
+   * @param userId Identificador do utilizador autenticado.
+   * @param dto Dados de perfil submetidos pelo cliente.
+   * @return Perfil seguro atualizado do utilizador.
+   */
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!existingUser) {
+      throw new UnauthorizedException('Utilizador autenticado invalido');
+    }
+
+    if (!existingUser.isActive) {
+      throw new UnauthorizedException('Conta inativa');
+    }
+
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const emailOwner = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    if (emailOwner && emailOwner.id !== userId) {
+      throw new ConflictException('Email ja registado');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name.trim(),
+        email: normalizedEmail,
+        biNumber: dto.biNumber.trim().toUpperCase(),
+        postalCode: dto.postalCode.trim(),
+      },
+      select: {
+        id: true,
+        name: true,
+        biNumber: true,
+        postalCode: true,
+        email: true,
+        avatarUrl: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     return {
       user: this.buildSafeUserResponse(user),

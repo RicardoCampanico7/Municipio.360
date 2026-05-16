@@ -252,6 +252,71 @@ export const authSwaggerExamples = {
       },
     },
   },
+  updateProfileRequest: {
+    validProfile: {
+      summary: 'Dados de perfil validos',
+      value: {
+        name: 'Maria Fernandes Silva',
+        email: 'maria.silva@municipio360.pt',
+        biNumber: '12345678 1 AB2',
+        postalCode: '1000-123',
+      },
+    },
+    normalizedEmail: {
+      summary: 'Email normalizado',
+      description:
+        'O servico normaliza email com trim e lowercase antes de atualizar.',
+      value: {
+        name: 'Maria Fernandes Silva',
+        email: '  MARIA.SILVA@municipio360.pt  ',
+        biNumber: '12345678 1 AB2',
+        postalCode: '1000-123',
+      },
+    },
+  },
+  updateProfileSuccess: {
+    updatedProfile: {
+      summary: 'Perfil atualizado',
+      value: {
+        user: {
+          id: 7,
+          name: 'Maria Fernandes Silva',
+          biNumber: '12345678 1 AB2',
+          postalCode: '1000-123',
+          email: 'maria.silva@municipio360.pt',
+          avatarUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+          role: 'CIVIL',
+          createdAt: '2026-04-05T10:15:30.000Z',
+          updatedAt: '2026-04-05T10:20:00.000Z',
+        },
+      },
+    },
+  },
+  updateProfileBadRequest: {
+    invalidPayload: {
+      summary: 'Falha de validacao',
+      value: {
+        statusCode: 400,
+        message: [
+          'name must be longer than or equal to 3 characters',
+          'email must be an email',
+          'O Cartao de Cidadao deve usar o formato 12345678 1 AB2',
+          'postalCode must match /^\\d{4}-\\d{3}$/ regular expression',
+        ],
+        error: 'Bad Request',
+      },
+    },
+  },
+  updateProfileConflict: {
+    duplicatedEmail: {
+      summary: 'Email ja associado a outro utilizador',
+      value: {
+        statusCode: 409,
+        message: 'Email ja registado',
+        error: 'Conflict',
+      },
+    },
+  },
   updateAvatarRequest: {
     uploadAvatar: {
       summary: 'Upload/edicao da fotografia',

@@ -310,6 +310,108 @@ describe('Occurrences permissions (e2e)', () => {
       });
   });
 
+  it('updates the authenticated profile fields', async () => {
+    const token = signToken({
+      sub: 43,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.user.findUnique
+      .mockResolvedValueOnce({
+        id: 43,
+        isActive: true,
+      })
+      .mockResolvedValueOnce(null);
+    prisma.user.update.mockResolvedValue({
+      id: 43,
+      name: 'Cidadao Atualizado',
+      biNumber: '12345678 1 AB2',
+      postalCode: '1000-123',
+      email: 'cidadao.atualizado@municipio360.pt',
+      avatarUrl: null,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+      createdAt: new Date('2026-04-10T09:30:00.000Z'),
+      updatedAt: new Date('2026-04-10T09:35:00.000Z'),
+    });
+
+    await request(httpApp)
+      .patch('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: ' Cidadao Atualizado ',
+        email: ' CIDADAO.ATUALIZADO@MUNICIPIO360.PT ',
+        biNumber: '12345678 1 ab2',
+        postalCode: ' 1000-123 ',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          user: expect.objectContaining({
+            id: 43,
+            name: 'Cidadao Atualizado',
+            email: 'cidadao.atualizado@municipio360.pt',
+            biNumber: '12345678 1 AB2',
+            postalCode: '1000-123',
+            avatarUrl: null,
+            role: Role.CIVIL,
+          }),
+        });
+        expect(body.user).not.toHaveProperty('certStatus');
+      });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 43 },
+      data: {
+        name: 'Cidadao Atualizado',
+        email: 'cidadao.atualizado@municipio360.pt',
+        biNumber: '12345678 1 AB2',
+        postalCode: '1000-123',
+      },
+      select: expect.objectContaining({
+        id: true,
+        email: true,
+        role: true,
+      }),
+    });
+  });
+
+  it('rejects profile updates with an email from another user', async () => {
+    const token = signToken({
+      sub: 43,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+    prisma.user.findUnique
+      .mockResolvedValueOnce({
+        id: 43,
+        isActive: true,
+      })
+      .mockResolvedValueOnce({
+        id: 99,
+      });
+
+    await request(httpApp)
+      .patch('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Cidadao Atualizado',
+        email: 'duplicado@municipio360.pt',
+        biNumber: '12345678 1 AB2',
+        postalCode: '1000-123',
+      })
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            message: 'Email ja registado',
+          }),
+        );
+      });
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
   it('updates the authenticated profile photo', async () => {
     const token = signToken({
       sub: 44,
