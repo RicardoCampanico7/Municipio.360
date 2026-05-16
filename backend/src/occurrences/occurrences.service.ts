@@ -11,6 +11,7 @@ import {
   OccurrenceCategory,
   OccurrenceStatus,
   Prisma,
+  Role,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -341,6 +342,15 @@ export class OccurrencesService {
         select: this.getInternalCommentSelect(),
       },
     } as const;
+  }
+
+  /**
+   * Indica se a role autenticada pode gerir qualquer ocorrencia.
+   * @param role Role autenticada no pedido.
+   * @return boolean Verdadeiro para perfis de backoffice.
+   */
+  private isBackofficeRole(role: Role) {
+    return role === Role.OPERADOR || role === Role.ADMINISTRADOR;
   }
 
   /**
@@ -690,10 +700,22 @@ export class OccurrencesService {
    * Atualiza os campos editaveis de uma ocorrencia existente sem alterar o estado.
    * @param id Identificador da ocorrencia.
    * @param dto Dados editaveis recebidos no pedido.
-   * @return Ocorrencia atualizada no formato de operador.
+   * @param userId Identificador do utilizador autenticado.
+   * @param role Role autenticada no pedido.
+   * @return Ocorrencia atualizada.
    */
-  async updateOccurrence(id: number, dto: UpdateOccurrenceDto) {
-    await this.findOneForOperator(id);
+  async updateOccurrence(
+    id: number,
+    dto: UpdateOccurrenceDto,
+    userId: number,
+    role: Role,
+  ) {
+    const occurrence = await this.findOneForOperator(id);
+    const isBackoffice = this.isBackofficeRole(role);
+
+    if (!isBackoffice && occurrence.userId !== userId) {
+      throw new ForbiddenException(OCCURRENCE_ERROR_MESSAGES.occurrenceNotOwned);
+    }
 
     const location = dto.location.trim();
     const description = dto.description?.trim() ?? '';
@@ -720,7 +742,7 @@ export class OccurrencesService {
         location,
         description,
       },
-      select: this.getOperatorSelect(),
+      select: isBackoffice ? this.getOperatorSelect() : this.getOwnerSelect(),
     });
   }
 

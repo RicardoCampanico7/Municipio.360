@@ -30,6 +30,7 @@ import {
   ApiParam,
   ApiTags,
   ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { OccurrenceCategory, Role } from '@prisma/client';
@@ -201,6 +202,23 @@ export class OccurrencesController {
     }
 
     return parsedId;
+  }
+
+  /**
+   * Extrai a role do utilizador autenticado do pedido HTTP.
+   * @param req Pedido HTTP atual.
+   * @return Role Role autenticada no token.
+   */
+  private getUserRole(req: Request): Role {
+    const user = req.user as { role?: Role } | undefined;
+
+    if (!user?.role || !Object.values(Role).includes(user.role)) {
+      throw new BadRequestException(
+        OCCURRENCE_ERROR_MESSAGES.invalidAuthenticatedUser,
+      );
+    }
+
+    return user.role;
   }
 
   /**
@@ -639,17 +657,18 @@ export class OccurrencesController {
   }
 
   /**
-   * Atualiza os campos editaveis de uma ocorrencia em contexto de operacao interna.
+   * Atualiza os campos editaveis de uma ocorrencia.
    * @param id Identificador da ocorrencia.
    * @param dto Dados editaveis da ocorrencia.
    * @return Ocorrencia atualizada.
    */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.OPERADOR, Role.ADMINISTRADOR)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary: 'Atualizar dados de uma ocorrencia (OPERADOR ou ADMINISTRADOR)',
+    summary: 'Atualizar dados de uma ocorrencia',
+    description:
+      'OPERADOR e ADMINISTRADOR podem editar qualquer ocorrencia. CIVIL pode editar apenas ocorrencias proprias e nao pode alterar estado.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da ocorrencia' })
   @ApiBody({
@@ -658,7 +677,12 @@ export class OccurrencesController {
   })
   @ApiOkResponse({
     description: 'Ocorrencia atualizada',
-    type: OperatorOccurrenceResponseDto,
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(OwnerOccurrenceResponseDto) },
+        { $ref: getSchemaPath(OperatorOccurrenceResponseDto) },
+      ],
+    },
     examples: occurrencesSwaggerExamples.operatorDetailSuccess,
   })
   @ApiBadRequestResponse({
@@ -682,10 +706,13 @@ export class OccurrencesController {
     examples: occurrencesSwaggerExamples.notFound,
   })
   updateOccurrence(
+    @Req() req: Request,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOccurrenceDto,
   ) {
-    return this.occurrencesService.updateOccurrence(id, dto);
+    const userId = this.getUserId(req);
+    const role = this.getUserRole(req);
+    return this.occurrencesService.updateOccurrence(id, dto, userId, role);
   }
 
   /**

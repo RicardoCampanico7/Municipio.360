@@ -677,12 +677,17 @@ describe('OccurrencesService', () => {
       internalComments: [],
     });
 
-    const result = await service.updateOccurrence(42, {
-      category: OccurrenceCategory.OUTROS,
-      otherCategoryDetail: '  Passadeira apagada  ',
-      location: '  Avenida Central, Faro  ',
-      description: '  Sinal partido junto a escola  ',
-    });
+    const result = await service.updateOccurrence(
+      42,
+      {
+        category: OccurrenceCategory.OUTROS,
+        otherCategoryDetail: '  Passadeira apagada  ',
+        location: '  Avenida Central, Faro  ',
+        description: '  Sinal partido junto a escola  ',
+      },
+      15,
+      Role.OPERADOR,
+    );
 
     expect(prisma.occurrence.update).toHaveBeenCalledWith({
       where: { id: 42 },
@@ -748,6 +753,129 @@ describe('OccurrencesService', () => {
   });
 
   /**
+   * Garante que o autor civil pode editar a propria ocorrencia.
+   * @return void
+   */
+  it('should allow a civil author to update their own occurrence', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Descricao antiga',
+      location: 'Local antigo',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T09:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+    prisma.occurrence.update.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.SINALIZACAO,
+      otherCategoryDetail: null,
+      description: 'Sinal partido',
+      location: 'Rua A',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-06T09:00:00.000Z'),
+      userId: 7,
+    });
+
+    const result = await service.updateOccurrence(
+      42,
+      {
+        category: OccurrenceCategory.SINALIZACAO,
+        location: 'Rua A',
+        description: 'Sinal partido',
+      },
+      7,
+      Role.CIVIL,
+    );
+
+    expect(prisma.occurrence.update).toHaveBeenCalledWith({
+      where: { id: 42 },
+      data: {
+        category: OccurrenceCategory.SINALIZACAO,
+        otherCategoryDetail: null,
+        location: 'Rua A',
+        description: 'Sinal partido',
+      },
+      select: {
+        id: true,
+        category: true,
+        otherCategoryDetail: true,
+        description: true,
+        location: true,
+        imageUrls: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+      },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 42,
+        userId: 7,
+        category: OccurrenceCategory.SINALIZACAO,
+      }),
+    );
+  });
+
+  /**
+   * Garante que um civil nao pode editar ocorrencias de outro autor.
+   * @return void
+   */
+  it('should reject a civil user updating another author occurrence', async () => {
+    prisma.occurrence.findUnique.mockResolvedValue({
+      id: 42,
+      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+      otherCategoryDetail: null,
+      description: 'Descricao antiga',
+      location: 'Local antigo',
+      imageUrls: [],
+      status: OccurrenceStatus.SUBMETIDA,
+      createdAt: new Date('2026-04-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-05T09:00:00.000Z'),
+      userId: 7,
+      user: {
+        id: 7,
+        name: 'Cidadao',
+        email: 'cidadao@example.com',
+        postalCode: '1000-001',
+        role: Role.CIVIL,
+        certStatus: CertificationStatus.CERTIFIED,
+      },
+      internalComments: [],
+    });
+
+    await expect(
+      service.updateOccurrence(
+        42,
+        {
+          category: OccurrenceCategory.SINALIZACAO,
+          location: 'Rua A',
+          description: 'Sinal partido',
+        },
+        99,
+        Role.CIVIL,
+      ),
+    ).rejects.toThrow('A ocorrencia nao pertence ao utilizador autenticado');
+
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
+  /**
    * Garante que o detalhe alternativo e limpo quando a categoria deixa de ser OUTROS.
    * @return void
    */
@@ -795,11 +923,16 @@ describe('OccurrencesService', () => {
       internalComments: [],
     });
 
-    await service.updateOccurrence(42, {
-      category: OccurrenceCategory.SINALIZACAO,
-      otherCategoryDetail: '  Deve ser limpo  ',
-      location: '  Avenida Central, Faro  ',
-    });
+    await service.updateOccurrence(
+      42,
+      {
+        category: OccurrenceCategory.SINALIZACAO,
+        otherCategoryDetail: '  Deve ser limpo  ',
+        location: '  Avenida Central, Faro  ',
+      },
+      15,
+      Role.ADMINISTRADOR,
+    );
 
     expect(prisma.occurrence.update).toHaveBeenCalledWith({
       where: { id: 42 },
@@ -821,12 +954,17 @@ describe('OccurrencesService', () => {
     prisma.occurrence.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.updateOccurrence(999, {
-        category: OccurrenceCategory.OUTROS,
-        otherCategoryDetail: 'Passadeira apagada',
-        location: 'Avenida Central, Faro',
-        description: 'Sinal partido junto a escola',
-      }),
+      service.updateOccurrence(
+        999,
+        {
+          category: OccurrenceCategory.OUTROS,
+          otherCategoryDetail: 'Passadeira apagada',
+          location: 'Avenida Central, Faro',
+          description: 'Sinal partido junto a escola',
+        },
+        15,
+        Role.OPERADOR,
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prisma.occurrence.update).not.toHaveBeenCalled();
