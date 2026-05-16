@@ -1,22 +1,26 @@
 import {
   ArrowLeft,
-  BadgeCheck,
+  Check,
   FileText,
   Home,
   Mail,
   MapPinned,
+  Pencil,
   Plus,
   ShieldCheck,
   User,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import {
   fetchAuthenticatedProfile,
   ProfileRequestError,
+  updateAuthenticatedProfile,
   type ApiProfileUser,
+  type UpdateProfilePayload,
 } from "../services/profile";
 import {
   clearAccessToken,
@@ -71,6 +75,15 @@ function normalizeCacheUser(profile: ApiProfileUser) {
   return { id, name, email, ...(avatarUrl ? { avatarUrl } : {}), ...(role ? { role } : {}) };
 }
 
+function buildProfileForm(profile: ApiProfileUser | null): UpdateProfilePayload {
+  return {
+    name: profile?.name || "",
+    email: profile?.email || "",
+    biNumber: profile?.biNumber || "",
+    postalCode: profile?.postalCode || "",
+  };
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const { i18n, t } = useTranslation();
@@ -79,6 +92,11 @@ export default function Profile() {
   const [profile, setProfile] = useState<ApiProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<UpdateProfilePayload>(() => buildProfileForm(null));
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   const redirectToLoginForExpiredSession = () => {
     const hadStoredSession = !!getRawAccessToken();
@@ -118,6 +136,7 @@ export default function Profile() {
         if (!mounted) return;
 
         setProfile(data);
+        setEditForm(buildProfileForm(data));
 
         const nextCachedUser = normalizeCacheUser(data);
         if (nextCachedUser) {
@@ -153,19 +172,11 @@ export default function Profile() {
   const displayEmail = profile?.email || sessionUser?.email || t("profile.unknownValue");
   const avatarUrl = profile?.avatarUrl || sessionUser?.avatarUrl || "";
   const roleKey = typeof profile?.role === "string" ? profile.role.toLowerCase() : "";
-  const certKey = typeof profile?.certStatus === "string" ? profile.certStatus.toLowerCase() : "";
-  const effectiveCertKey = sessionUser ? "certified" : certKey;
   const roleLabel = roleKey
     ? t(`profile.roles.${roleKey}`, {
         defaultValue: humanizeEnum(profile?.role, t("profile.unknownValue")),
       })
     : t("profile.unknownValue");
-  const certificationLabel = effectiveCertKey
-    ? t(`profile.certification.${effectiveCertKey}`, {
-        defaultValue: humanizeEnum(profile?.certStatus, t("profile.unknownValue")),
-      })
-    : t("profile.unknownValue");
-  const isVerified = Boolean(sessionUser) || certKey === "certified";
   const joinedAtLabel = formatDate(
     profile?.createdAt,
     i18n.language,
@@ -181,6 +192,72 @@ export default function Profile() {
   const handleLogout = () => {
     clearAccessToken();
     navigate("/login", { replace: true });
+  };
+
+  const handleToggleEdit = () => {
+    setSaveSuccess("");
+    setSaveError("");
+    setEditForm(buildProfileForm(profile));
+    setIsEditing((current) => !current);
+  };
+
+  const handleFormChange = (field: keyof UpdateProfilePayload, value: string) => {
+    setEditForm((current) => ({ ...current, [field]: value }));
+    if (saveSuccess) setSaveSuccess("");
+    if (saveError) setSaveError("");
+  };
+
+  const handleSaveProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const payload = {
+      name: editForm.name.trim(),
+      email: editForm.email.trim().toLowerCase(),
+      biNumber: editForm.biNumber.trim(),
+      postalCode: editForm.postalCode.trim(),
+    };
+
+    if (!payload.name || !payload.email || !payload.biNumber || !payload.postalCode) {
+      setSaveError(t("profile.editRequired"));
+      return;
+    }
+
+    const { token } = getAccessSession();
+    if (!token) {
+      redirectToLoginForExpiredSession();
+      return;
+    }
+
+    setSaving(true);
+    setSaveError("");
+    setSaveSuccess("");
+
+    try {
+      const data = await updateAuthenticatedProfile(token, payload, t("profile.updateError"));
+      const nextProfile = { ...profile, ...data };
+      setProfile(nextProfile);
+      setEditForm(buildProfileForm(nextProfile));
+      setIsEditing(false);
+      setSaveSuccess(t("profile.updateSuccess"));
+
+      const nextCachedUser = normalizeCacheUser(nextProfile);
+      if (nextCachedUser) {
+        setAuthenticatedUser(nextCachedUser);
+      }
+    } catch (profileError) {
+      if (profileError instanceof ProfileRequestError && profileError.status === 401) {
+        redirectToLoginForExpiredSession();
+        return;
+      }
+
+      setSaveError(
+        profileError instanceof Error && profileError.message
+          ? profileError.message
+          : t("profile.updateError"),
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -220,12 +297,6 @@ export default function Profile() {
           <div className="profile-hero-copy">
             <h1 className="profile-name-row">
               <span>{displayName}</span>
-              {isVerified && (
-                <span className="profile-verified-badge" title={t("profile.verifiedBadge")}>
-                  <BadgeCheck size={22} strokeWidth={2.2} />
-                  <span className="sr-only">{t("profile.verifiedBadge")}</span>
-                </span>
-              )}
             </h1>
             <p>{t("profile.subtitle")}</p>
           </div>
@@ -234,10 +305,6 @@ export default function Profile() {
             <span className="profile-chip profile-chip-role">
               <ShieldCheck size={15} strokeWidth={2.2} />
               {roleLabel}
-            </span>
-            <span className="profile-chip profile-chip-certification">
-              <BadgeCheck size={15} strokeWidth={2.2} />
-              {certificationLabel}
             </span>
           </div>
         </section>
@@ -253,41 +320,115 @@ export default function Profile() {
                   <h2>{t("profile.sections.detailsTitle")}</h2>
                 </div>
                 <p>{t("profile.sections.detailsCopy")}</p>
+                <button
+                  className="profile-edit-toggle"
+                  type="button"
+                  onClick={handleToggleEdit}
+                  disabled={saving}
+                >
+                  {isEditing ? (
+                    <X size={16} strokeWidth={2.2} />
+                  ) : (
+                    <Pencil size={16} strokeWidth={2.2} />
+                  )}
+                  {isEditing ? t("profile.actions.cancelEdit") : t("profile.actions.edit")}
+                </button>
               </div>
 
-              <dl className="profile-details-grid">
-                <div className="profile-detail-card">
-                  <dt>
-                    <User size={16} strokeWidth={2.1} />
-                    {t("profile.fields.name")}
-                  </dt>
-                  <dd>{profile.name || t("profile.unknownValue")}</dd>
-                </div>
+              {isEditing ? (
+                <form className="profile-details-grid" onSubmit={handleSaveProfile}>
+                  <label className="profile-detail-card profile-edit-field">
+                    <span>
+                      <User size={16} strokeWidth={2.1} />
+                      {t("profile.fields.name")}
+                    </span>
+                    <input
+                      value={editForm.name}
+                      onChange={(event) => handleFormChange("name", event.target.value)}
+                      disabled={saving}
+                    />
+                  </label>
 
-                <div className="profile-detail-card">
-                  <dt>
-                    <Mail size={16} strokeWidth={2.1} />
-                    {t("profile.fields.email")}
-                  </dt>
-                  <dd>{displayEmail}</dd>
-                </div>
+                  <label className="profile-detail-card profile-edit-field">
+                    <span>
+                      <Mail size={16} strokeWidth={2.1} />
+                      {t("profile.fields.email")}
+                    </span>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(event) => handleFormChange("email", event.target.value)}
+                      disabled={saving}
+                    />
+                  </label>
 
-                <div className="profile-detail-card">
-                  <dt>
-                    <ShieldCheck size={16} strokeWidth={2.1} />
-                    {t("profile.fields.biNumber")}
-                  </dt>
-                  <dd>{profile.biNumber || t("profile.unknownValue")}</dd>
-                </div>
+                  <label className="profile-detail-card profile-edit-field">
+                    <span>
+                      <ShieldCheck size={16} strokeWidth={2.1} />
+                      {t("profile.fields.biNumber")}
+                    </span>
+                    <input
+                      value={editForm.biNumber}
+                      onChange={(event) => handleFormChange("biNumber", event.target.value)}
+                      disabled={saving}
+                    />
+                  </label>
 
-                <div className="profile-detail-card">
-                  <dt>
-                    <MapPinned size={16} strokeWidth={2.1} />
-                    {t("profile.fields.postalCode")}
-                  </dt>
-                  <dd>{profile.postalCode || t("profile.unknownValue")}</dd>
-                </div>
-              </dl>
+                  <label className="profile-detail-card profile-edit-field">
+                    <span>
+                      <MapPinned size={16} strokeWidth={2.1} />
+                      {t("profile.fields.postalCode")}
+                    </span>
+                    <input
+                      value={editForm.postalCode}
+                      onChange={(event) => handleFormChange("postalCode", event.target.value)}
+                      disabled={saving}
+                    />
+                  </label>
+
+                  <button className="profile-save-button" type="submit" disabled={saving}>
+                    <Check size={16} strokeWidth={2.2} />
+                    {saving ? t("profile.actions.saving") : t("profile.actions.save")}
+                  </button>
+                </form>
+              ) : (
+                <dl className="profile-details-grid">
+                  <div className="profile-detail-card">
+                    <dt>
+                      <User size={16} strokeWidth={2.1} />
+                      {t("profile.fields.name")}
+                    </dt>
+                    <dd>{profile.name || t("profile.unknownValue")}</dd>
+                  </div>
+
+                  <div className="profile-detail-card">
+                    <dt>
+                      <Mail size={16} strokeWidth={2.1} />
+                      {t("profile.fields.email")}
+                    </dt>
+                    <dd>{displayEmail}</dd>
+                  </div>
+
+                  <div className="profile-detail-card">
+                    <dt>
+                      <ShieldCheck size={16} strokeWidth={2.1} />
+                      {t("profile.fields.biNumber")}
+                    </dt>
+                    <dd>{profile.biNumber || t("profile.unknownValue")}</dd>
+                  </div>
+
+                  <div className="profile-detail-card">
+                    <dt>
+                      <MapPinned size={16} strokeWidth={2.1} />
+                      {t("profile.fields.postalCode")}
+                    </dt>
+                    <dd>{profile.postalCode || t("profile.unknownValue")}</dd>
+                  </div>
+                </dl>
+              )}
+
+              {saveSuccess && <p className="profile-feedback is-success">{saveSuccess}</p>}
+              {saveError && <p className="profile-feedback is-error">{saveError}</p>}
             </section>
 
             <aside className="profile-sidebar">
@@ -302,10 +443,6 @@ export default function Profile() {
                   <article className="profile-metric-card">
                     <span>{t("profile.metrics.role")}</span>
                     <strong>{roleLabel}</strong>
-                  </article>
-                  <article className="profile-metric-card">
-                    <span>{t("profile.metrics.certification")}</span>
-                    <strong>{certificationLabel}</strong>
                   </article>
                   <article className="profile-metric-card">
                     <span>{t("profile.metrics.memberSince")}</span>
