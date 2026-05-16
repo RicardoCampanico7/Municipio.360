@@ -125,18 +125,16 @@ describe('Occurrences permissions (e2e)', () => {
   function signToken({
     sub,
     role,
-    certStatus,
   }: {
     sub: number;
     role: Role;
-    certStatus: CertificationStatus;
+    certStatus?: CertificationStatus;
   }) {
     return jwtService.sign({
       sub,
       email: `user${sub}@example.com`,
       name: `User ${sub}`,
       role,
-      certStatus,
     });
   }
 
@@ -308,6 +306,7 @@ describe('Occurrences permissions (e2e)', () => {
             }),
           }),
         );
+        expect(body.user).not.toHaveProperty('certStatus');
       });
   });
 

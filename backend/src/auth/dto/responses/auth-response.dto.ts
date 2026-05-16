@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CertificationStatus, Role } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 
 export class SafeUserResponseDto {
   @ApiProperty({ example: 7 })
@@ -27,12 +27,6 @@ export class SafeUserResponseDto {
 
   @ApiProperty({ enum: Role, example: Role.CIVIL })
   role: Role;
-
-  @ApiProperty({
-    enum: CertificationStatus,
-    example: CertificationStatus.CERTIFIED,
-  })
-  certStatus: CertificationStatus;
 
   @ApiProperty({
     example: '2026-04-05T10:15:30.000Z',

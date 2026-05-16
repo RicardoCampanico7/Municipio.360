@@ -9,7 +9,6 @@ type JwtPayload = {
   email: string;
   name: string;
   role: Role;
-  certStatus?: string;
   authVersion?: number;
 };
 
@@ -48,7 +47,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           email: string;
           name: string;
           role: Role;
-          certStatus: string;
         }
       | undefined;
 
@@ -60,7 +58,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           email: true,
           name: true,
           role: true,
-          certStatus: true,
           isActive: true,
           authVersion: true,
         },
@@ -82,7 +79,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: currentUser?.email ?? payload.email,
       name: currentUser?.name ?? payload.name,
       role: currentUser?.role ?? payload.role,
-      certStatus: currentUser?.certStatus ?? payload.certStatus,
       authVersion: payload.authVersion,
     };
   }
