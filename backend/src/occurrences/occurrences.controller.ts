@@ -663,7 +663,8 @@ export class OccurrencesController {
    * @return Ocorrencia atualizada.
    */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR)
   @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Atualizar dados de uma ocorrencia',

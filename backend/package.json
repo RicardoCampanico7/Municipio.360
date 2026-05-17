@@ -11,7 +11,6 @@
   "scripts": {
     "build": "nest build",
     "db:migrate": "prisma migrate deploy",
-    "docs:auth-docx": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-auth-swagger-docx.ps1",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "npm run db:migrate && nest start --watch",

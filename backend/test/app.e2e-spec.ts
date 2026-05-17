@@ -1431,6 +1431,33 @@ describe('Occurrences permissions (e2e)', () => {
     });
   });
 
+  it('returns 400 when a CIVIL author tries to edit status on the general occurrence patch', async () => {
+    const token = signToken({
+      sub: 14,
+      role: Role.CIVIL,
+      certStatus: CertificationStatus.CERTIFIED,
+    });
+
+    await request(httpApp)
+      .patch('/occurrences/22')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: OccurrenceCategory.SINALIZACAO,
+        location: 'Rua Nova',
+        description: 'Sinal partido',
+        status: OccurrenceStatus.EM_TRATAMENTO,
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toEqual(
+          expect.arrayContaining(['property status should not exist']),
+        );
+      });
+
+    expect(prisma.occurrence.findUnique).not.toHaveBeenCalled();
+    expect(prisma.occurrence.update).not.toHaveBeenCalled();
+  });
+
   it('returns 403 when a CIVIL user edits another author occurrence', async () => {
     prisma.occurrence.findUnique.mockResolvedValue({
       id: 22,
@@ -1478,92 +1505,95 @@ describe('Occurrences permissions (e2e)', () => {
     expect(prisma.occurrence.update).not.toHaveBeenCalled();
   });
 
-  it('returns 200 when an OPERADOR edits any occurrence fields', async () => {
-    prisma.occurrence.findUnique.mockResolvedValue({
-      id: 22,
-      category: OccurrenceCategory.ILUMINACAO_PUBLICA,
-      otherCategoryDetail: null,
-      description: 'Candeeiro apagado',
-      location: 'Rua antiga',
-      imageUrls: [],
-      status: OccurrenceStatus.SUBMETIDA,
-      createdAt: new Date('2026-04-05T09:00:00.000Z'),
-      updatedAt: new Date('2026-04-05T09:00:00.000Z'),
-      userId: 99,
-      user: {
-        id: 99,
-        name: 'Cidadao',
-        email: 'cidadao@example.com',
-        postalCode: '1000-001',
-        role: Role.CIVIL,
-        certStatus: CertificationStatus.CERTIFIED,
-      },
-      internalComments: [],
-    });
-    prisma.occurrence.update.mockResolvedValue({
-      id: 22,
-      category: OccurrenceCategory.OUTROS,
-      otherCategoryDetail: 'Passadeira apagada',
-      description: 'Sinal partido',
-      location: 'Rua Nova',
-      imageUrls: [],
-      status: OccurrenceStatus.SUBMETIDA,
-      createdAt: new Date('2026-04-05T09:00:00.000Z'),
-      updatedAt: new Date('2026-04-05T10:00:00.000Z'),
-      userId: 99,
-      user: {
-        id: 99,
-        name: 'Cidadao',
-        email: 'cidadao@example.com',
-        postalCode: '1000-001',
-        role: Role.CIVIL,
-        certStatus: CertificationStatus.CERTIFIED,
-      },
-      internalComments: [],
-    });
-
-    const token = signToken({
-      sub: 15,
-      role: Role.OPERADOR,
-      certStatus: CertificationStatus.CERTIFIED,
-    });
-
-    await request(httpApp)
-      .patch('/occurrences/22')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
+  it.each([Role.OPERADOR, Role.ADMINISTRADOR])(
+    'returns 200 when a %s edits any occurrence fields',
+    async (role) => {
+      prisma.occurrence.findUnique.mockResolvedValue({
+        id: 22,
+        category: OccurrenceCategory.ILUMINACAO_PUBLICA,
+        otherCategoryDetail: null,
+        description: 'Candeeiro apagado',
+        location: 'Rua antiga',
+        imageUrls: [],
+        status: OccurrenceStatus.SUBMETIDA,
+        createdAt: new Date('2026-04-05T09:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T09:00:00.000Z'),
+        userId: 99,
+        user: {
+          id: 99,
+          name: 'Cidadao',
+          email: 'cidadao@example.com',
+          postalCode: '1000-001',
+          role: Role.CIVIL,
+          certStatus: CertificationStatus.CERTIFIED,
+        },
+        internalComments: [],
+      });
+      prisma.occurrence.update.mockResolvedValue({
+        id: 22,
         category: OccurrenceCategory.OUTROS,
         otherCategoryDetail: 'Passadeira apagada',
-        location: 'Rua Nova',
         description: 'Sinal partido',
-      })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body).toEqual(
-          expect.objectContaining({
-            id: 22,
-            userId: 99,
-            category: OccurrenceCategory.OUTROS,
-            otherCategoryDetail: 'Passadeira apagada',
-          }),
-        );
-        expect(body.user).toEqual(expect.objectContaining({ id: 99 }));
+        location: 'Rua Nova',
+        imageUrls: [],
+        status: OccurrenceStatus.SUBMETIDA,
+        createdAt: new Date('2026-04-05T09:00:00.000Z'),
+        updatedAt: new Date('2026-04-05T10:00:00.000Z'),
+        userId: 99,
+        user: {
+          id: 99,
+          name: 'Cidadao',
+          email: 'cidadao@example.com',
+          postalCode: '1000-001',
+          role: Role.CIVIL,
+          certStatus: CertificationStatus.CERTIFIED,
+        },
+        internalComments: [],
       });
 
-    expect(prisma.occurrence.update).toHaveBeenCalledWith({
-      where: { id: 22 },
-      data: {
-        category: OccurrenceCategory.OUTROS,
-        otherCategoryDetail: 'Passadeira apagada',
-        location: 'Rua Nova',
-        description: 'Sinal partido',
-      },
-      select: expect.objectContaining({
-        user: expect.any(Object),
-        internalComments: expect.any(Object),
-      }),
-    });
-  });
+      const token = signToken({
+        sub: 15,
+        role,
+        certStatus: CertificationStatus.CERTIFIED,
+      });
+
+      await request(httpApp)
+        .patch('/occurrences/22')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          category: OccurrenceCategory.OUTROS,
+          otherCategoryDetail: 'Passadeira apagada',
+          location: 'Rua Nova',
+          description: 'Sinal partido',
+        })
+        .expect(200)
+        .expect(({ body }) => {
+          expect(body).toEqual(
+            expect.objectContaining({
+              id: 22,
+              userId: 99,
+              category: OccurrenceCategory.OUTROS,
+              otherCategoryDetail: 'Passadeira apagada',
+            }),
+          );
+          expect(body.user).toEqual(expect.objectContaining({ id: 99 }));
+        });
+
+      expect(prisma.occurrence.update).toHaveBeenCalledWith({
+        where: { id: 22 },
+        data: {
+          category: OccurrenceCategory.OUTROS,
+          otherCategoryDetail: 'Passadeira apagada',
+          location: 'Rua Nova',
+          description: 'Sinal partido',
+        },
+        select: expect.objectContaining({
+          user: expect.any(Object),
+          internalComments: expect.any(Object),
+        }),
+      });
+    },
+  );
 
   it('returns 400 when an operator tries to skip an occurrence status transition', async () => {
     prisma.occurrence.findUnique.mockResolvedValue({
