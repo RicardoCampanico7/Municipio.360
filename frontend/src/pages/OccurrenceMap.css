@@ -12,6 +12,8 @@
   min-height: 100vh;
   box-sizing: border-box;
   padding: 24px;
+  padding-bottom: max(112px, calc(24px + env(safe-area-inset-bottom, 0px)));
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(255, 138, 42, 0.16), transparent 20%),
     linear-gradient(180deg, #f5f5f5 0%, #ececec 100%);
@@ -19,6 +21,7 @@
 
 .occurrence-map-shell {
   width: min(1180px, 100%);
+  box-sizing: border-box;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -39,6 +42,8 @@
 
 .occurrence-map-header {
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .occurrence-map-brand-wrap {
@@ -60,8 +65,13 @@
 
 .occurrence-map-brand {
   gap: 10px;
+  min-width: 0;
   font-weight: 800;
   letter-spacing: -0.03em;
+}
+
+.occurrence-map-brand span {
+  overflow-wrap: anywhere;
 }
 
 .occurrence-map-brand-logo {
@@ -82,6 +92,10 @@
   background:
     linear-gradient(115deg, rgba(18, 16, 13, 0.82) 0%, rgba(18, 16, 13, 0.46) 44%, rgba(18, 16, 13, 0.18) 100%),
     url("/ocurrence-mapa.jpg") center 49% / cover no-repeat;
+}
+
+.occurrence-map-hero-copy {
+  min-width: 0;
 }
 
 .occurrence-map-eyebrow {
@@ -152,6 +166,7 @@
 }
 
 .occurrence-map-panel {
+  min-width: 0;
   display: grid;
   gap: 16px;
   padding: 22px;
@@ -228,6 +243,7 @@
   font-size: 1.9rem;
   line-height: 1.02;
   letter-spacing: -0.05em;
+  overflow-wrap: anywhere;
 }
 
 .occurrence-map-selected-title-row .dashboard-pill {
@@ -269,9 +285,15 @@
   font: inherit;
   font-weight: 700;
   text-decoration: none;
+  text-align: center;
+  min-width: 0;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease;
+}
+
+.occurrence-map-action span {
+  overflow-wrap: anywhere;
 }
 
 .occurrence-map-action:hover {
@@ -324,6 +346,7 @@
 .occurrence-map-list-item strong {
   font-size: 1rem;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 .occurrence-map-list-item span,
@@ -388,11 +411,11 @@
 
 @media (max-width: 680px) {
   .occurrence-map-screen {
-    padding: 10px;
+    padding: 10px 10px max(112px, calc(10px + env(safe-area-inset-bottom, 0px)));
   }
 
   .occurrence-map-shell {
-    min-height: calc(100vh - 20px);
+    min-height: calc(100vh - 122px);
     padding: 18px 14px 24px;
     gap: 18px;
     border-radius: 24px;
@@ -407,6 +430,21 @@
   .occurrence-map-hero {
     padding: 20px;
     border-radius: 24px;
+    gap: 18px;
+  }
+
+  .occurrence-map-hero-copy h1 {
+    max-width: 10ch;
+    font-size: clamp(2rem, 9vw, 2.75rem);
+  }
+
+  .occurrence-map-hero-copy p {
+    max-width: 28ch;
+    font-size: 0.96rem;
+  }
+
+  .occurrence-map-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .occurrence-map-panel {
@@ -415,12 +453,70 @@
   }
 
   .occurrence-map-stage {
-    min-height: 380px;
+    min-height: 320px;
     border-radius: 22px;
+  }
+
+  .occurrence-map-selected-title-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 10px;
   }
 
   .occurrence-map-actions {
     grid-template-columns: 1fr;
   }
 
+  .occurrence-map-list {
+    max-height: none;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .occurrence-map-screen {
+    padding: 8px 8px max(104px, calc(8px + env(safe-area-inset-bottom, 0px)));
+  }
+
+  .occurrence-map-shell {
+    min-height: calc(100vh - 112px);
+    padding: 14px 10px 20px;
+    border-radius: 22px;
+  }
+
+  .occurrence-map-brand-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+  }
+
+  .occurrence-map-hero,
+  .occurrence-map-panel {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .occurrence-map-hero-copy h1 {
+    max-width: none;
+    font-size: 2rem;
+  }
+
+  .occurrence-map-stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .occurrence-map-stat-card {
+    padding: 14px 16px;
+    border-radius: 18px;
+  }
+
+  .occurrence-map-stage {
+    min-height: 260px;
+    border-radius: 18px;
+  }
+
+  .occurrence-map-selected-title-row h3 {
+    font-size: 1.45rem;
+  }
 }

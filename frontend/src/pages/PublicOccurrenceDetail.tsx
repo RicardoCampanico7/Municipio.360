@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import {
   OccurrencesRequestError,
+  fetchMyOccurrences,
   fetchPublicOccurrenceById,
   updateOccurrence,
   updateOccurrenceStatus,
@@ -104,7 +105,8 @@ export default function PublicOccurrenceDetail() {
   const { i18n, t } = useTranslation();
   const sessionUser = getAuthenticatedUser();
   const canManageOccurrence = isBackofficeRole(sessionUser?.role);
-  const canEditOccurrence = Boolean(sessionUser);
+  const [ownsOccurrence, setOwnsOccurrence] = useState(false);
+  const canEditOccurrence = canManageOccurrence || ownsOccurrence;
   const [occurrence, setOccurrence] = useState<ApiOccurrence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -246,11 +248,28 @@ export default function PublicOccurrenceDetail() {
 
       setLoading(true);
       setError("");
+      setOwnsOccurrence(false);
+      setIsEditingOccurrence(false);
 
       try {
         const data = await fetchPublicOccurrenceById(occurrenceId, pageText.loadError);
         if (!mounted) return;
         setOccurrence(data);
+
+        const token = getAccessToken();
+        if (!token || canManageOccurrence || data.id === undefined || data.id === null) return;
+
+        try {
+          const myOccurrences = await fetchMyOccurrences(token, pageText.loadError);
+          if (!mounted) return;
+
+          setOwnsOccurrence(
+            myOccurrences.some((item) => String(item.id ?? "") === String(data.id)),
+          );
+        } catch {
+          if (!mounted) return;
+          setOwnsOccurrence(false);
+        }
       } catch (requestError) {
         if (!mounted) return;
         if (requestError instanceof OccurrencesRequestError && requestError.status === 404) {
@@ -269,7 +288,7 @@ export default function PublicOccurrenceDetail() {
     return () => {
       mounted = false;
     };
-  }, [occurrenceId, pageText.loadError, pageText.notFound]);
+  }, [canManageOccurrence, occurrenceId, pageText.loadError, pageText.notFound]);
 
   useEffect(() => {
     setSelectedStatus(getStatusKey(occurrence));
@@ -504,7 +523,7 @@ export default function PublicOccurrenceDetail() {
                   </div>
                 </dl>
 
-                {(canManageOccurrence || canEditOccurrence) && (
+                {canEditOccurrence && (
                   <div className="public-occurrence-management">
                     <div className="public-occurrence-management-head">
                       <h3>{pageText.management.title}</h3>
