@@ -23,12 +23,12 @@ Disponibilizar um guia curto e pratico para testar os endpoints `login`, `regist
 Os seguintes utilizadores existem na seed do backend. Todos usam a password
 `Password123!`.
 
-- Civil: `civil@teste.pt`
-- Civil certificada adicional: `ana.costa@teste.pt`
-- Civil pendente: `civil.pendente@teste.pt`
-- Civil rejeitada: `civil.rejeitada@teste.pt`
-- Operador: `operador@teste.pt`
-- Administrador: `admin@teste.pt`
+- Civil certificado: `cristiano.ronaldo@demo.municipio360.test`
+- Civil certificado adicional: `lionel.messi@demo.municipio360.test`
+- Civil pendente: `mrbeast@demo.municipio360.test`
+- Civil rejeitado: `ishowspeed@demo.municipio360.test`
+- Administrador: `guilherme.gaspar@demo.municipio360.test`
+- Administrador adicional: `ricardo.campanico@demo.municipio360.test`
 
 ## Dados de demo para ocorrencias
 
@@ -42,13 +42,13 @@ duplicar dados entre execucoes:
 
 Fluxos bons para demonstracao:
 
-- Login como `civil@teste.pt`: testar `GET /occurrences/mine` e detalhe com
+- Login como `cristiano.ronaldo@demo.municipio360.test`: testar `GET /occurrences/mine` e detalhe com
   historico.
-- Login como `operador@teste.pt`: testar listagem de gestao, comentarios
+- Login como `guilherme.gaspar@demo.municipio360.test`: testar listagem de gestao, comentarios
   internos e avancar uma ocorrencia `SUBMETIDA` para `EM_TRATAMENTO`.
-- Login como `admin@teste.pt`: validar que a mesma area de gestao tambem esta
+- Login como `ricardo.campanico@demo.municipio360.test`: validar que a mesma area de gestao tambem esta
   disponivel para administrador.
-- Login como `civil.pendente@teste.pt`: tentar criar ocorrencia e confirmar a
+- Login como `mrbeast@demo.municipio360.test`: tentar criar ocorrencia e confirmar a
   rejeicao por conta ainda nao certificada.
 
 ## Ordem recomendada de teste
@@ -71,7 +71,7 @@ Fluxos bons para demonstracao:
 
 ```json
 {
-  "email": "civil@teste.pt",
+  "email": "cristiano.ronaldo@demo.municipio360.test",
   "password": "Password123!"
 }
 ```
@@ -85,7 +85,7 @@ Fluxos bons para demonstracao:
 - `accessToken`
 - `tokenType` com valor `Bearer`
 - `user` com dados seguros do utilizador autenticado
-- O campo `user.email` deve ser `civil@teste.pt`.
+- O campo `user.email` deve ser `cristiano.ronaldo@demo.municipio360.test`.
 - O campo `user.role` deve ser `CIVIL`.
 
 ### Observacao
@@ -160,7 +160,7 @@ Fluxos bons para demonstracao:
 
 ```json
 {
-  "email": "operador@teste.pt",
+  "email": "guilherme.gaspar@demo.municipio360.test",
   "password": "Password123!"
 }
 ```
