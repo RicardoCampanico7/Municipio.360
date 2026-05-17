@@ -132,10 +132,10 @@ describe('OccurrencesController', () => {
   });
 
   /**
-   * Garante que a edicao de ocorrencias exige autenticacao.
+   * Garante que a edicao de ocorrencias exige autenticacao e roles conhecidas.
    * @return void
    */
-  it('should protect occurrence edits with JWT', () => {
+  it('should protect occurrence edits with JWT and allowed occurrence roles', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       controller.updateOccurrence,
@@ -145,8 +145,8 @@ describe('OccurrencesController', () => {
       controller.updateOccurrence,
     ) as Role[];
 
-    expect(guards).toEqual([JwtAuthGuard]);
-    expect(roles).toBeUndefined();
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(roles).toEqual([Role.CIVIL, Role.OPERADOR, Role.ADMINISTRADOR]);
   });
 
   /**
