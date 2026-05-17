@@ -224,8 +224,6 @@ JWT_REFRESH_SECRET="substitui-por-outra-chave-segura-e-diferente"
 JWT_REFRESH_EXPIRES_IN="7d"
 ```
 
-> ⚠️ **Nunca commites o ficheiro `.env` com chaves reais.** O ficheiro está incluído no `.gitignore`.
-
 ---
 
 ## Documentação da API
